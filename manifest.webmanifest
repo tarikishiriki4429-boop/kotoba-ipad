@@ -3,7 +3,7 @@
   "short_name": "Kotoba Writer",
   "start_url": "./",
   "display": "standalone",
-  "background_color": "#d9d8d5",
+  "background_color": "#d8d7d4",
   "theme_color": "#eceae6",
   "icons": []
 }

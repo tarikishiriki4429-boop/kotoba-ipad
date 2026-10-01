@@ -8,18 +8,12 @@
 <title>Kotoba Writer</title>
 <style>
 :root{
-  --font-size:18px;
-  --line-height:1.9;
-  --chars:40;
-  --lines:30;
-  --paper-width:794px;
-  --paper-min-height:1123px;
+  --font-size:18px; --line-height:1.9; --chars:40; --lines:30;
   font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",sans-serif;
-  color:#202020;background:#d9d8d5;
+  color:#202020;background:#d8d7d4;
 }
 *{box-sizing:border-box}
-html,body{margin:0;min-height:100%}
-body{background:#d9d8d5}
+html,body{margin:0;min-height:100%;background:#d8d7d4}
 button,select,input{font:inherit}
 button{border:1px solid #c9c7c2;border-radius:9px;background:#fff;color:#222;padding:8px 11px;font-weight:600}
 button.primary{background:#222;color:#fff;border-color:#222}
@@ -29,103 +23,88 @@ button:disabled{opacity:.45}
   padding:max(9px,env(safe-area-inset-top)) 10px 9px;background:rgba(246,245,242,.96);
   border-bottom:1px solid #c9c7c2;backdrop-filter:blur(10px)
 }
-.title{font-weight:800;margin-right:4px}
-.spacer{flex:1}
+.title{font-weight:800}.spacer{flex:1}
 .toolbar{
-  position:sticky;top:57px;z-index:19;display:flex;gap:8px;align-items:center;flex-wrap:wrap;
+  position:sticky;top:58px;z-index:19;display:flex;gap:8px;align-items:center;flex-wrap:wrap;
   padding:8px 10px;background:#efede9;border-bottom:1px solid #ccc9c3
 }
 .toolbar label{display:flex;align-items:center;gap:5px;font-size:13px;color:#555}
 .toolbar select,.toolbar input[type=number]{background:white;border:1px solid #cbc8c0;border-radius:8px;padding:7px}
 .toolbar input[type=number]{width:68px}
-.presetbar{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.presetbar{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 .presetbar button{padding:6px 9px;font-size:12px}
-.workspace{padding:24px 10px 90px;overflow:auto}
-.paper{
-  position:relative;margin:0 auto;background:#fff;box-shadow:0 2px 13px rgba(0,0,0,.14);
-  border-radius:2px;padding:72px 68px;width:max-content;min-width:min(var(--paper-width),calc(100vw - 24px));
-  min-height:var(--paper-min-height)
+.workspace{padding:28px 10px 100px;overflow:auto}
+.pages{display:flex;flex-direction:column;gap:26px;align-items:center}
+.page{
+  position:relative;background:#fff;box-shadow:0 2px 13px rgba(0,0,0,.16);
+  padding:56px 58px;border-radius:2px;width:max-content;
 }
-#editor{
+.page::after{
+  content:attr(data-page);position:absolute;right:16px;bottom:12px;font-size:11px;color:#999;
+}
+.page-editor{
   display:block;border:0;outline:0;resize:none;background:transparent;color:#171717;
-  font-size:var(--font-size);line-height:var(--line-height);font-family:"Hiragino Mincho ProN","Yu Mincho","YuMincho",serif;
-  caret-color:#111;white-space:pre-wrap;overflow:auto;line-break:strict;word-break:normal;
-  box-sizing:content-box;
+  font-size:var(--font-size);line-height:var(--line-height);
+  font-family:"Hiragino Mincho ProN","Yu Mincho","YuMincho",serif;
+  font-kerning:none;font-variant-east-asian:full-width;
+  letter-spacing:0;caret-color:#111;white-space:pre-wrap;overflow:hidden;
+  line-break:strict;word-break:normal;box-sizing:content-box;
   width:calc(var(--chars) * 1em);
-  min-width:calc(var(--chars) * 1em);
   height:calc(var(--lines) * var(--font-size) * var(--line-height));
-  min-height:calc(var(--lines) * var(--font-size) * var(--line-height));
 }
-.paper.vertical{padding:56px;min-height:auto}
-.paper.vertical #editor{
+.page.vertical .page-editor{
   writing-mode:vertical-rl;text-orientation:mixed;
   width:calc(var(--lines) * var(--font-size) * var(--line-height));
-  min-width:calc(var(--lines) * var(--font-size) * var(--line-height));
   height:calc(var(--chars) * 1em);
-  min-height:calc(var(--chars) * 1em);
 }
-.paper.manuscript:not(.vertical) #editor{
+.page.manuscript:not(.vertical) .page-editor{
   background-image:
-    linear-gradient(to right, rgba(0,0,0,.075) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(0,0,0,.075) 1px, transparent 1px);
+    linear-gradient(to right,rgba(0,0,0,.065) 1px,transparent 1px),
+    linear-gradient(to bottom,rgba(0,0,0,.065) 1px,transparent 1px);
   background-size:1em calc(var(--font-size) * var(--line-height));
-  background-position:0 0;
 }
-.paper.manuscript.vertical #editor{
+.page.manuscript.vertical .page-editor{
   background-image:
-    linear-gradient(to right, rgba(0,0,0,.075) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(0,0,0,.075) 1px, transparent 1px);
+    linear-gradient(to right,rgba(0,0,0,.065) 1px,transparent 1px),
+    linear-gradient(to bottom,rgba(0,0,0,.065) 1px,transparent 1px);
   background-size:calc(var(--font-size) * var(--line-height)) 1em;
-  background-position:100% 0;
 }
-.paper.manuscript #editor{letter-spacing:0;}
 .statusbar{
   position:fixed;left:0;right:0;bottom:0;z-index:30;display:flex;gap:14px;align-items:center;flex-wrap:wrap;
   padding:8px 12px max(8px,env(safe-area-inset-bottom));background:rgba(246,245,242,.96);
   border-top:1px solid #c9c7c2;font-size:12px;color:#555;backdrop-filter:blur(10px)
 }
-.statusbar .build{margin-left:auto;font-weight:700}
-.privacy-btn.on{background:#153d24;color:#fff;border-color:#153d24}
-.privacy-banner{
-  display:none;padding:9px 12px;background:#e8f3eb;border:1px solid #b9d7c1;border-radius:10px;
-  font-size:12px;line-height:1.5;color:#21482c
-}
-.privacy-banner.show{display:block}
-.privacy-banner.warn{background:#fff3df;border-color:#e6c68c;color:#6a4710}
+.build{margin-left:auto;font-weight:700}
 .panel{
   position:fixed;inset:auto 12px calc(52px + env(safe-area-inset-bottom)) 12px;z-index:40;
   background:#fff;border:1px solid #ccc;border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.2);
-  padding:14px;display:none;max-width:720px;margin:auto
+  padding:14px;display:none;max-width:760px;margin:auto
 }
-.panel.show{display:block}
-.panel h3{margin:0 0 10px}
-.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-.row input[type=text]{flex:1;min-width:150px;border:1px solid #bbb;border-radius:9px;padding:9px 10px}
-.ai-result{
-  margin-top:10px;padding:12px;border-radius:10px;background:#f3f1ed;white-space:pre-wrap;
-  max-height:32vh;overflow:auto;font-family:"Hiragino Mincho ProN","Yu Mincho",serif;line-height:1.7
+.panel.show{display:block}.panel h3{margin:0 0 10px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.row input[type=text]{flex:1;min-width:150px;border:1px solid #bbb;border-radius:9px;padding:9px}
+.note{font-size:12px;color:#666;line-height:1.5;margin-top:8px}
+.result{margin-top:10px;padding:12px;border-radius:10px;background:#f3f1ed;white-space:pre-wrap;max-height:30vh;overflow:auto}
+.privacy-btn.on{background:#153d24;color:#fff;border-color:#153d24}
+.privacy-banner{
+  display:none;max-width:980px;margin:10px auto 0;padding:9px 12px;background:#e8f3eb;border:1px solid #b9d7c1;
+  border-radius:10px;font-size:12px;color:#21482c
 }
-.note{font-size:12px;color:#666;line-height:1.55;margin-top:8px}
-#fileInput{display:none}
-#printArea{display:none}
+.privacy-banner.show{display:block}
+#fileInput,#printArea{display:none}
 @media(max-width:700px){
-  .toolbar{top:100px}
-  .workspace{padding-top:14px}
-  .paper{padding:42px 26px}
+  .toolbar{top:100px}.workspace{padding-top:16px}.page{padding:38px 24px}.pages{align-items:flex-start}
 }
 @media print{
-  .topbar,.toolbar,.statusbar,.panel{display:none!important}
-  body,.workspace{background:white!important;padding:0!important}
-  .paper{display:none!important}
-  #printArea{
-    display:block!important;white-space:pre-wrap;font-family:"Hiragino Mincho ProN","Yu Mincho",serif;
-    font-size:12pt;line-height:1.8;color:#000;padding:0
-  }
-  @page{size:A4;margin:18mm 18mm}
+  .topbar,.toolbar,.statusbar,.panel,.privacy-banner{display:none!important}
+  body,.workspace{background:white!important;padding:0!important}.pages{display:none!important}
+  #printArea{display:block!important;white-space:pre-wrap;font-family:"Yu Mincho",serif;font-size:12pt;line-height:1.8}
+  @page{size:A4;margin:18mm}
 }
 </style>
 </head>
 <body>
+
 <div class="topbar">
   <div class="title">Kotoba Writer</div>
   <button id="newBtn">新規</button>
@@ -148,152 +127,98 @@ button:disabled{opacity:.45}
   </label>
   <label>行間
     <select id="lineHeight">
-      <option value="1.5">狭い</option>
-      <option value="1.7">やや狭い</option>
-      <option value="1.9" selected>標準</option>
-      <option value="2.1">広い</option>
-      <option value="2.3">かなり広い</option>
+      <option value="1.5">狭い</option><option value="1.7">やや狭い</option><option value="1.9" selected>標準</option><option value="2.1">広い</option><option value="2.3">かなり広い</option>
     </select>
   </label>
   <label>表示
-    <select id="writingMode">
-      <option value="horizontal">横書き</option>
-      <option value="vertical">縦書き</option>
-    </select>
+    <select id="writingMode"><option value="horizontal">横書き</option><option value="vertical">縦書き</option></select>
   </label>
-  <label><span id="charsLabel">1行の文字数</span>
-    <input id="charCount" type="number" min="10" max="60" step="1" value="40">
-  </label>
-  <label><span id="linesLabel">行数</span>
-    <input id="lineCount" type="number" min="10" max="50" step="1" value="30">
-  </label>
+  <label><span id="charsLabel">1行の文字数</span><input id="charCount" type="number" min="10" max="60" value="40"></label>
+  <label><span id="linesLabel">行数</span><input id="lineCount" type="number" min="10" max="50" value="30"></label>
   <label><input id="manuscript" type="checkbox"> マス目</label>
   <label><input id="indent" type="checkbox" checked> 段落頭を一字下げ</label>
   <div class="presetbar">
     <span style="font-size:12px;color:#666">プリセット</span>
-    <button type="button" data-preset="40,30">40×30</button>
-    <button type="button" data-preset="42,34">42×34</button>
-    <button type="button" data-preset="20,20">20×20</button>
+    <button data-preset="40,30">40×30</button>
+    <button data-preset="42,34">42×34</button>
+    <button data-preset="20,20">20×20</button>
   </div>
 </div>
 
-<div style="max-width:980px;margin:10px auto 0;padding:0 10px">
-  <div id="privacyBanner" class="privacy-banner">
-    秘匿モードON：アプリからのネット取得をキャッシュ限定にしています。AI推敲の本文・候補を外部へ送る処理はありません。
-  </div>
-</div>
-
-<div class="workspace">
-  <div class="paper" id="paper">
-    <textarea id="editor" spellcheck="false" placeholder="ここに本文を書きます…"></textarea>
-  </div>
-</div>
+<div id="privacyBanner" class="privacy-banner">秘匿モードON：ネット取得をキャッシュ限定にしています。</div>
+<div class="workspace"><div id="pages" class="pages"></div></div>
 
 <div class="statusbar">
   <span id="saveStatus">自動保存</span>
   <span id="count">0文字</span>
-  <span id="cursor">1行 1列</span>
+  <span id="cursor">1ページ 1行 1列</span>
   <span id="pageInfo">40字 × 30行</span>
-  <span>本文は端末内保存</span>
-  <span class="build">Kotoba Writer build 4</span>
+  <span id="pageCount">1ページ</span>
+  <span class="build">Kotoba Writer build 5</span>
 </div>
 
-<div class="panel" id="findPanel">
+<div id="findPanel" class="panel">
   <h3>検索・置換</h3>
   <div class="row">
     <input id="findText" type="text" placeholder="検索する文字">
-    <button id="nextBtn">次へ</button>
-    <span id="findInfo" class="note"></span>
+    <button id="nextBtn">次へ</button><span id="findInfo" class="note"></span>
   </div>
   <div class="row" style="margin-top:8px">
-    <input id="replaceText" type="text" placeholder="置き換える文字">
+    <input id="replaceText" type="text" placeholder="置換後の文字">
     <button id="replaceOneBtn">1件置換</button>
     <button id="replaceAllBtn">すべて置換</button>
     <button id="goMatchBtn" disabled>本文で確認</button>
     <button id="closeFind">閉じる</button>
   </div>
-  <div id="searchPreview" class="ai-result" style="min-height:54px;max-height:18vh">検索結果の前後をここに表示します。</div>
+  <div id="searchPreview" class="result">検索結果をここに表示します。</div>
 </div>
 
-<div class="panel" id="aiPanel">
+<div id="aiPanel" class="panel">
   <h3>AI軽推敲</h3>
   <div class="row">
     <button id="prepareAI" class="primary">AIを準備</button>
-    <button id="runAI" disabled>選択範囲を軽推敲</button>
+    <button id="runAI" disabled>現在位置を軽推敲</button>
     <button id="applyAI" disabled>候補を反映</button>
     <button id="closeAI">閉じる</button>
   </div>
-  <div id="aiStatus" class="note">選択範囲がなければ、カーソルのある段落だけを対象にします。内容の追加はしません。</div>
-  <div id="aiResult" class="ai-result">候補はここに表示されます。</div>
+  <div id="aiStatus" class="note">設定や描写を増やさず、最小限だけ整えます。</div>
+  <div id="aiResult" class="result">候補はここに表示されます。</div>
 </div>
 
 <input id="fileInput" type="file" accept=".txt,text/plain">
 <div id="printArea"></div>
 
 <script type="module">
-const BUILD=4;
+const BUILD=5;
 const $=id=>document.getElementById(id);
-const editor=$('editor'),paper=$('paper');
 const STORAGE='kotoba-writer-draft-v1';
 const SETTINGS='kotoba-writer-settings-v1';
-let aiEngine=null, webllm=null, aiRange=null, aiSourceSnapshot=null;
-let privacyMode=localStorage.getItem('kotoba-writer-privacy')==='1';
-let historyStack=[];
+const MODEL='Qwen2.5-0.5B-Instruct-q4f16_1-MLC';
+const CDN='https://esm.run/@mlc-ai/web-llm@0.2.82';
+
+let docText=localStorage.getItem(STORAGE)||'';
+let chunks=[];
+let globalCaret=0, globalSelEnd=0;
+let history=[];
+let isComposing=false;
 let searchPos=0,currentMatch=null,lastSearchQuery='';
+let aiEngine=null,webllm=null,aiRange=null,aiSnapshot=null;
+let privacyMode=localStorage.getItem('kotoba-writer-privacy')==='1';
 
-
-function syncPrivacyUI(){
-  const btn=$('privacyBtn'), banner=$('privacyBanner');
-  btn.textContent=privacyMode?'秘匿モード ON':'秘匿モード OFF';
-  btn.classList.toggle('on',privacyMode);
-  banner.classList.toggle('show',privacyMode);
-  banner.classList.toggle('warn',false);
+function clamp(n,a,b,f){n=parseInt(n,10);return Number.isNaN(n)?f:Math.max(a,Math.min(b,n))}
+function getSettings(){
+  return {
+    fontSize:$('fontSize').value,
+    lineHeight:$('lineHeight').value,
+    writingMode:$('writingMode').value,
+    charCount:clamp($('charCount').value,10,60,40),
+    lineCount:clamp($('lineCount').value,10,50,30),
+    manuscript:$('manuscript').checked,
+    indent:$('indent').checked
+  };
 }
-async function tellServiceWorkerPrivacy(enabled){
-  if(!('serviceWorker' in navigator))return;
-  const reg=await navigator.serviceWorker.ready;
-  const target=navigator.serviceWorker.controller || reg.active;
-  if(target){
-    target.postMessage({type:'SET_OFFLINE_ONLY',enabled});
-  }
-}
-async function setPrivacyMode(enabled){
-  privacyMode=enabled;
-  localStorage.setItem('kotoba-writer-privacy',enabled?'1':'0');
-  syncPrivacyUI();
-  try{
-    await tellServiceWorkerPrivacy(enabled);
-  }catch(e){}
-  if(enabled){
-    $('privacyBanner').textContent='秘匿モードON：アプリからのネット取得をキャッシュ限定にしています。AI推敲の本文・候補を外部へ送る処理はありません。';
-  }else{
-    $('privacyBanner').textContent='秘匿モードOFF：初回のAI準備やアプリ更新のため、必要なファイルをネットから取得できます。';
-  }
-}
-$('privacyBtn').onclick=async()=>{
-  if(!privacyMode){
-    const ready=localStorage.getItem('kotoba-writer-ai-ready')==='1';
-    if(!ready){
-      const ok=confirm('AIモデルの準備完了記録がありません。秘匿モードをONにすると新しいAIファイルを取得できません。それでもONにしますか？');
-      if(!ok)return;
-    }
-    await setPrivacyMode(true);
-  }else{
-    const ok=confirm('秘匿モードをOFFにすると、このアプリは必要に応じてネットからファイルを取得できる状態になります。OFFにしますか？');
-    if(ok)await setPrivacyMode(false);
-  }
-};
-
-function save(){
-  try{
-    localStorage.setItem(STORAGE,editor.value);
-    $('saveStatus').textContent='保存済み';
-  }catch(e){
-    $('saveStatus').textContent='保存エラー';
-  }
-}
-function load(){
-  editor.value=localStorage.getItem(STORAGE)||'';
+function saveSettings(){localStorage.setItem(SETTINGS,JSON.stringify(getSettings()))}
+function loadSettings(){
   try{
     const s=JSON.parse(localStorage.getItem(SETTINGS)||'{}');
     if(s.fontSize)$('fontSize').value=s.fontSize;
@@ -304,149 +229,241 @@ function load(){
     $('manuscript').checked=!!s.manuscript;
     $('indent').checked=s.indent!==false;
   }catch{}
-  applySettings(); updateStatus();
 }
-function saveSettings(){
-  localStorage.setItem(SETTINGS,JSON.stringify({
-    fontSize:$('fontSize').value,lineHeight:$('lineHeight').value,
-    writingMode:$('writingMode').value,
-    charCount:$('charCount').value,lineCount:$('lineCount').value,
-    manuscript:$('manuscript').checked,indent:$('indent').checked
-  }));
+function save(){
+  try{localStorage.setItem(STORAGE,docText);$('saveStatus').textContent='保存済み'}
+  catch{$('saveStatus').textContent='保存エラー'}
 }
-function clamp(n,min,max,fallback){
-  n=parseInt(n,10);
-  if(Number.isNaN(n))return fallback;
-  return Math.max(min,Math.min(max,n));
+function remember(){
+  if(history.length && history[history.length-1]===docText)return;
+  history.push(docText); if(history.length>20)history.shift();
+  $('undoBtn').disabled=!history.length;
 }
 function applySettings(){
-  const chars=clamp($('charCount').value,10,60,40);
-  const lines=clamp($('lineCount').value,10,50,30);
-  $('charCount').value=chars;
-  $('lineCount').value=lines;
-  document.documentElement.style.setProperty('--font-size',$('fontSize').value+'px');
-  document.documentElement.style.setProperty('--line-height',$('lineHeight').value);
-  document.documentElement.style.setProperty('--chars',chars);
-  document.documentElement.style.setProperty('--lines',lines);
-  const vertical=$('writingMode').value==='vertical';
-  paper.classList.toggle('vertical',vertical);
-  paper.classList.toggle('manuscript',$('manuscript').checked);
-  $('charsLabel').textContent=vertical?'1列の文字数':'1行の文字数';
-  $('linesLabel').textContent=vertical?'列数':'行数';
-  $('pageInfo').textContent=vertical ? `${chars}字 × ${lines}列` : `${chars}字 × ${lines}行`;
+  const s=getSettings();
+  $('charCount').value=s.charCount;$('lineCount').value=s.lineCount;
+  document.documentElement.style.setProperty('--font-size',s.fontSize+'px');
+  document.documentElement.style.setProperty('--line-height',s.lineHeight);
+  document.documentElement.style.setProperty('--chars',s.charCount);
+  document.documentElement.style.setProperty('--lines',s.lineCount);
+  const v=s.writingMode==='vertical';
+  $('charsLabel').textContent=v?'1列の文字数':'1行の文字数';
+  $('linesLabel').textContent=v?'列数':'行数';
+  $('pageInfo').textContent=v?`${s.charCount}字 × ${s.lineCount}列`:`${s.charCount}字 × ${s.lineCount}行`;
   saveSettings();
-  forceEditorRepaint();
+  renderPages(globalCaret,globalSelEnd,false);
 }
-['fontSize','lineHeight','writingMode','manuscript','indent','charCount','lineCount'].forEach(id=>{
-  $(id).addEventListener('change',applySettings);
-});
-document.querySelectorAll('[data-preset]').forEach(btn=>{
-  btn.addEventListener('click',()=>{
-    const [c,l]=btn.dataset.preset.split(',');
-    $('charCount').value=c;
-    $('lineCount').value=l;
-    applySettings();
-  });
-});
 
+/* 文字数と明示改行からページを決める。
+   Safariのtextarea内部スクロールにページ管理を任せない。 */
+function paginate(text){
+  const {charCount:cols,lineCount:rows}=getSettings();
+  const out=[];
+  let pageStart=0,row=0,col=0;
+  for(let i=0;i<text.length;i++){
+    const ch=text[i];
+    if(ch==='\n'){
+      row++; col=0;
+    }else{
+      col++;
+      if(col>=cols){col=0;row++}
+    }
+    if(row>=rows){
+      out.push({start:pageStart,end:i+1,text:text.slice(pageStart,i+1)});
+      pageStart=i+1;row=0;col=0;
+    }
+  }
+  out.push({start:pageStart,end:text.length,text:text.slice(pageStart)});
+  if(!out.length)out.push({start:0,end:0,text:''});
+  return out;
+}
+function pageForOffset(pos){
+  pos=Math.max(0,Math.min(pos,docText.length));
+  for(let i=0;i<chunks.length;i++){
+    const c=chunks[i];
+    if(pos>=c.start && pos<=c.end)return i;
+  }
+  return Math.max(0,chunks.length-1);
+}
+function lineCol(text,pos){
+  const {charCount:cols}=getSettings();
+  let row=1,col=1;
+  for(let i=0;i<Math.min(pos,text.length);i++){
+    if(text[i]==='\n'){row++;col=1}
+    else{col++;if(col>cols){row++;col=1}}
+  }
+  return {row,col};
+}
 function updateStatus(){
-  $('count').textContent=editor.value.length+'文字';
-  const p=editor.selectionStart||0;
-  const before=editor.value.slice(0,p);
-  const line=(before.match(/\n/g)||[]).length+1;
-  const col=p-(before.lastIndexOf('\n')+1)+1;
-  $('cursor').textContent=line+'行 '+col+'列';
+  $('count').textContent=docText.length+'文字';
+  const p=pageForOffset(globalCaret);
+  const c=chunks[p]||{start:0,text:''};
+  const lc=lineCol(c.text,globalCaret-c.start);
+  const vertical=getSettings().writingMode==='vertical';
+  $('cursor').textContent=vertical
+    ?`${p+1}ページ ${lc.row}列 ${lc.col}字`
+    :`${p+1}ページ ${lc.row}行 ${lc.col}列`;
+  $('pageCount').textContent=chunks.length+'ページ';
 }
-function forceEditorRepaint(){
-  // iPad Safariでvalueを書き換えた直後に表示だけ古いまま残る現象への対策。
-  const old=editor.style.transform;
-  editor.style.transform='translateZ(0)';
-  void editor.offsetHeight;
-  requestAnimationFrame(()=>{editor.style.transform=old;});
+function pageClass(){
+  const s=getSettings();
+  return 'page'+(s.writingMode==='vertical'?' vertical':'')+(s.manuscript?' manuscript':'');
 }
-function pushHistory(){
-  const text=editor.value;
-  if(historyStack.length && historyStack[historyStack.length-1]===text)return;
-  historyStack.push(text);
-  if(historyStack.length>20)historyStack.shift();
-  $('undoBtn').disabled=historyStack.length===0;
+function bindEditor(ta){
+  if(ta.dataset.bound)return;
+  ta.dataset.bound='1';
+
+  ta.addEventListener('compositionstart',()=>{isComposing=true});
+  ta.addEventListener('compositionend',e=>{
+    isComposing=false;
+    syncFromPage(e.currentTarget,true);
+  });
+
+  ta.addEventListener('focus',e=>syncCaret(e.currentTarget));
+  ta.addEventListener('click',e=>syncCaret(e.currentTarget));
+  ta.addEventListener('select',e=>syncCaret(e.currentTarget));
+  ta.addEventListener('keyup',e=>syncCaret(e.currentTarget));
+
+  ta.addEventListener('input',e=>{
+    if(isComposing)return;
+    syncFromPage(e.currentTarget,true);
+  });
+
+  ta.addEventListener('keydown',e=>{
+    if(isComposing)return;
+    const i=+ta.dataset.index;
+    const c=chunks[i];
+    if(!c)return;
+
+    // EnterはSafari任せにしない。必ず論理改行を1つ挿入する。
+    if(e.key==='Enter'){
+      e.preventDefault();
+      remember();
+      const s=c.start+ta.selectionStart;
+      const en=c.start+ta.selectionEnd;
+      docText=docText.slice(0,s)+'\n'+docText.slice(en);
+      globalCaret=globalSelEnd=s+1;
+      save();
+      renderPages(globalCaret,globalSelEnd,true,true);
+      return;
+    }
+
+    // 2ページ目以降の先頭でBackspace → 前ページ末尾に戻って削除
+    if(e.key==='Backspace' && ta.selectionStart===0 && ta.selectionEnd===0 && i>0){
+      e.preventDefault();
+      const pos=c.start;
+      if(pos>0){
+        remember();
+        docText=docText.slice(0,pos-1)+docText.slice(pos);
+        globalCaret=globalSelEnd=pos-1;
+        save();
+        renderPages(globalCaret,globalSelEnd,true,true);
+      }
+      return;
+    }
+
+    // ページ先頭から左へ
+    if(e.key==='ArrowLeft' && ta.selectionStart===0 && ta.selectionEnd===0 && i>0){
+      e.preventDefault();
+      globalCaret=globalSelEnd=Math.max(0,c.start-1);
+      renderPages(globalCaret,globalSelEnd,true,true);
+      return;
+    }
+
+    // ページ末尾から右へ
+    if(e.key==='ArrowRight' && ta.selectionStart===ta.value.length && ta.selectionEnd===ta.value.length && i<chunks.length-1){
+      e.preventDefault();
+      globalCaret=globalSelEnd=c.end;
+      renderPages(globalCaret,globalSelEnd,true,true);
+    }
+  });
 }
-function setDocumentText(text,opts={}){
-  const {start=null,end=null,focus=true,keepHistory=true}=opts;
-  if(keepHistory)pushHistory();
-  editor.value=String(text ?? '');
-  save();
+function syncCaret(ta){
+  const i=+ta.dataset.index,c=chunks[i];if(!c)return;
+  globalCaret=c.start+ta.selectionStart;
+  globalSelEnd=c.start+ta.selectionEnd;
   updateStatus();
-  forceEditorRepaint();
-  if(start!==null){
-    const s=Math.max(0,Math.min(start,editor.value.length));
-    const e=Math.max(s,Math.min(end===null?s:end,editor.value.length));
+}
+function syncFromPage(ta,focus){
+  const i=+ta.dataset.index,c=chunks[i];if(!c)return;
+  const localStart=ta.selectionStart,localEnd=ta.selectionEnd;
+  docText=docText.slice(0,c.start)+ta.value+docText.slice(c.end);
+  globalCaret=c.start+localStart;
+  globalSelEnd=c.start+localEnd;
+  save();
+  renderPages(globalCaret,globalSelEnd,focus,true);
+}
+function renderPages(caret=globalCaret,selEnd=globalSelEnd,focus=false,scroll=false){
+  chunks=paginate(docText);
+  const container=$('pages');
+
+  while(container.children.length>chunks.length)container.lastElementChild.remove();
+
+  chunks.forEach((c,i)=>{
+    let page=container.children[i];
+    if(!page){
+      page=document.createElement('div');
+      const ta=document.createElement('textarea');
+      ta.className='page-editor';ta.spellcheck=false;
+      page.appendChild(ta);container.appendChild(page);
+      bindEditor(ta);
+    }
+    page.className=pageClass();page.dataset.page=`${i+1}`;
+    const ta=page.firstElementChild;
+    ta.dataset.index=i;
+    if(ta.value!==c.text)ta.value=c.text;
+  });
+
+  globalCaret=Math.max(0,Math.min(caret,docText.length));
+  globalSelEnd=Math.max(globalCaret,Math.min(selEnd,docText.length));
+  updateStatus();
+
+  if(focus){
     requestAnimationFrame(()=>{
-      if(focus)editor.focus();
-      editor.setSelectionRange(s,e);
-      updateStatus();
+      const p=pageForOffset(globalCaret);
+      const c=chunks[p],page=container.children[p],ta=page.firstElementChild;
+      const s=Math.max(0,Math.min(globalCaret-c.start,ta.value.length));
+      const e=Math.max(s,Math.min(globalSelEnd-c.start,ta.value.length));
+      ta.focus({preventScroll:true});
+      ta.setSelectionRange(s,e);
+      // iPad Safari対策：改行後の内部スクロール位置をリセット
+      ta.scrollTop=0;ta.scrollLeft=0;
+      if(scroll)page.scrollIntoView({block:'center',behavior:'smooth'});
+      setTimeout(()=>{ta.setSelectionRange(s,e);ta.scrollTop=0;ta.scrollLeft=0;},40);
     });
-  }else if(focus){
-    requestAnimationFrame(()=>editor.focus());
   }
 }
-function revealRange(start,end){
-  const s=Math.max(0,Math.min(start,editor.value.length));
-  const e=Math.max(s,Math.min(end,editor.value.length));
-  $('findPanel').classList.remove('show');
-  requestAnimationFrame(()=>{
-    editor.focus();
-    editor.setSelectionRange(s,e);
-    // Safariはfocus後に選択範囲を可視領域へ寄せるため、もう一度設定する。
-    setTimeout(()=>{editor.setSelectionRange(s,e);updateStatus();},60);
-  });
+function setDoc(text,caret=0,end=caret,rememberIt=true,focus=true){
+  if(rememberIt)remember();
+  docText=String(text??'');
+  globalCaret=Math.max(0,Math.min(caret,docText.length));
+  globalSelEnd=Math.max(globalCaret,Math.min(end,docText.length));
+  save();renderPages(globalCaret,globalSelEnd,focus,true);
 }
-
-editor.addEventListener('input',()=>{
-  // 削除も含め、入力のたびに即保存。アプリをすぐ閉じても古い本文に戻りにくくする。
-  save();
-  updateStatus();
-});
-editor.addEventListener('change',save);
-editor.addEventListener('compositionend',save);
-editor.addEventListener('keyup',updateStatus);
-editor.addEventListener('click',updateStatus);
-window.addEventListener('pagehide',save);
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')save();});
 
 $('undoBtn').onclick=()=>{
-  if(!historyStack.length)return;
-  const prev=historyStack.pop();
-  editor.value=prev;
-  save();updateStatus();forceEditorRepaint();
-  $('undoBtn').disabled=historyStack.length===0;
-  editor.focus();
+  if(!history.length)return;
+  docText=history.pop();
+  globalCaret=globalSelEnd=Math.min(globalCaret,docText.length);
+  save();renderPages(globalCaret,globalSelEnd,true,true);
+  $('undoBtn').disabled=!history.length;
 };
-$('newBtn').onclick=()=>{
-  if(confirm('現在の本文を消して新規文書にしますか？')){
-    setDocumentText('',{start:0,end:0});
-  }
-};
+$('newBtn').onclick=()=>{if(confirm('現在の本文を消しますか？'))setDoc('',0,0,true,true)};
 $('openBtn').onclick=()=>$('fileInput').click();
 $('fileInput').onchange=async e=>{
   const f=e.target.files?.[0];if(!f)return;
-  setDocumentText(await f.text(),{start:0,end:0});
-  e.target.value='';
+  setDoc(await f.text(),0,0,true,true);e.target.value='';
 };
 $('saveBtn').onclick=()=>{
-  const blob=new Blob([editor.value],{type:'text/plain;charset=utf-8'});
+  const blob=new Blob([docText],{type:'text/plain;charset=utf-8'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);
-  a.download='kotoba-'+new Date().toISOString().slice(0,10)+'.txt';
-  a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  a.download='kotoba-'+new Date().toISOString().slice(0,10)+'.txt';a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
 };
-$('pdfBtn').onclick=()=>{
-  $('printArea').textContent=editor.value;
-  window.print();
-};
+$('pdfBtn').onclick=()=>{$('printArea').textContent=docText;window.print()};
 
 function formatText(){
-  const oldStart=editor.selectionStart||0, oldEnd=editor.selectionEnd||0;
-  let t=editor.value.replace(/\r\n?/g,'\n');
+  let t=docText.replace(/\r\n?/g,'\n');
   t=t.split('\n').map(line=>line.replace(/[ \t]+$/g,'')).join('\n');
   t=t.replace(/\n{4,}/g,'\n\n\n');
   if($('indent').checked){
@@ -456,216 +473,151 @@ function formatText(){
       return '　'+line.replace(/^[ 　]+/,'');
     }).join('\n');
   }
-  setDocumentText(t,{
-    start:Math.min(oldStart,t.length),
-    end:Math.min(oldEnd,t.length)
-  });
+  setDoc(t,Math.min(globalCaret,t.length),Math.min(globalSelEnd,t.length),true,true);
 }
 $('formatBtn').onclick=formatText;
 
-// Find/replace
-$('findBtn').onclick=()=>{
-  $('findPanel').classList.add('show');
-  $('findText').focus();
-};
+/* 検索・置換 */
+$('findBtn').onclick=()=>{$('findPanel').classList.add('show');$('findText').focus()};
 $('closeFind').onclick=()=>$('findPanel').classList.remove('show');
-
-function allMatchPositions(text,q){
-  const out=[];
-  if(!q)return out;
-  let pos=0;
-  while(pos<=text.length-q.length){
-    const i=text.indexOf(q,pos);
-    if(i<0)break;
-    out.push(i);
-    pos=i+Math.max(1,q.length);
-  }
-  return out;
+function matches(q){
+  const a=[];if(!q)return a;let p=0;
+  while(p<=docText.length-q.length){const i=docText.indexOf(q,p);if(i<0)break;a.push(i);p=i+Math.max(1,q.length)}
+  return a;
 }
-function updateSearchPreview(start,q,index,total){
-  if(start<0){
-    $('searchPreview').textContent='見つかりません。';
-    $('findInfo').textContent='0件';
-    $('goMatchBtn').disabled=true;
-    currentMatch=null;
-    return;
-  }
-  const text=editor.value;
-  const a=Math.max(0,start-35),b=Math.min(text.length,start+q.length+35);
-  const prefix=a>0?'…':'',suffix=b<text.length?'…':'';
-  $('searchPreview').textContent=prefix+text.slice(a,b)+suffix;
-  $('findInfo').textContent=`${index+1} / ${total}件`;
-  $('goMatchBtn').disabled=false;
-  currentMatch={start,end:start+q.length};
+function showMatch(start,q,idx,total){
+  if(start<0){$('findInfo').textContent='0件';$('searchPreview').textContent='見つかりません';currentMatch=null;$('goMatchBtn').disabled=true;return}
+  const a=Math.max(0,start-35),b=Math.min(docText.length,start+q.length+35);
+  $('searchPreview').textContent=(a?'…':'')+docText.slice(a,b)+(b<docText.length?'…':'');
+  $('findInfo').textContent=`${idx+1} / ${total}件`;
+  currentMatch={start,end:start+q.length};$('goMatchBtn').disabled=false;
 }
 function findNext(){
-  const q=$('findText').value;
-  if(!q){updateSearchPreview(-1,'',0,0);return false}
-  const text=editor.value;
-  const positions=allMatchPositions(text,q);
-  if(!positions.length){updateSearchPreview(-1,q,0,0);return false}
-  if(q!==lastSearchQuery){
-    lastSearchQuery=q;
-    searchPos=0;
-  }
-  let idx=positions.findIndex(p=>p>=searchPos);
-  if(idx<0)idx=0;
-  const start=positions[idx];
-  searchPos=start+q.length;
-  updateSearchPreview(start,q,idx,positions.length);
-  return true;
+  const q=$('findText').value;if(!q)return false;
+  const m=matches(q);if(!m.length){showMatch(-1,q,0,0);return false}
+  if(q!==lastSearchQuery){lastSearchQuery=q;searchPos=0}
+  let idx=m.findIndex(x=>x>=searchPos);if(idx<0)idx=0;
+  const s=m[idx];searchPos=s+q.length;showMatch(s,q,idx,m.length);return true;
 }
-$('findText').addEventListener('input',()=>{
-  lastSearchQuery='';
-  searchPos=0;
-  currentMatch=null;
-  $('goMatchBtn').disabled=true;
-  $('findInfo').textContent='';
-  $('searchPreview').textContent='「次へ」を押すと検索結果を表示します。';
-});
-$('findText').addEventListener('keydown',e=>{
-  if(e.key==='Enter'){e.preventDefault();findNext();}
-});
 $('nextBtn').onclick=findNext;
+$('findText').oninput=()=>{lastSearchQuery='';searchPos=0;currentMatch=null;$('goMatchBtn').disabled=true};
 $('goMatchBtn').onclick=()=>{
-  if(currentMatch)revealRange(currentMatch.start,currentMatch.end);
+  if(!currentMatch)return;
+  $('findPanel').classList.remove('show');
+  globalCaret=currentMatch.start;globalSelEnd=currentMatch.end;
+  renderPages(globalCaret,globalSelEnd,true,true);
 };
-
 $('replaceOneBtn').onclick=()=>{
-  const q=$('findText').value,r=$('replaceText').value;
-  if(!q)return;
-  // まだ検索していない場合でも、押しただけで最初の1件を置換できる。
-  if(!currentMatch || editor.value.slice(currentMatch.start,currentMatch.end)!==q){
-    lastSearchQuery='';
-    searchPos=0;
-    if(!findNext())return;
-  }
-  const m=currentMatch;
-  const nextText=editor.value.slice(0,m.start)+r+editor.value.slice(m.end);
-  setDocumentText(nextText,{start:m.start,end:m.start+r.length,focus:false});
-  searchPos=m.start+r.length;
-  currentMatch=null;
-  lastSearchQuery=q;
-  findNext();
+  const q=$('findText').value,r=$('replaceText').value;if(!q)return;
+  if(!currentMatch||docText.slice(currentMatch.start,currentMatch.end)!==q){lastSearchQuery='';searchPos=0;if(!findNext())return}
+  const m=currentMatch,next=docText.slice(0,m.start)+r+docText.slice(m.end);
+  setDoc(next,m.start,m.start+r.length,true,false);
+  searchPos=m.start+r.length;currentMatch=null;lastSearchQuery=q;findNext();
 };
-
 $('replaceAllBtn').onclick=()=>{
-  const q=$('findText').value,r=$('replaceText').value;
-  if(!q)return;
-  const positions=allMatchPositions(editor.value,q);
-  if(!positions.length){updateSearchPreview(-1,q,0,0);return}
-  const n=positions.length;
-  const nextText=editor.value.split(q).join(r);
-  setDocumentText(nextText,{start:0,end:0,focus:false});
-  $('findInfo').textContent=n+'件置換しました';
-  $('searchPreview').textContent=n+'件を置き換えました。';
-  currentMatch=null;searchPos=0;lastSearchQuery='';
-  $('goMatchBtn').disabled=true;
+  const q=$('findText').value,r=$('replaceText').value;if(!q)return;
+  const n=matches(q).length;if(!n){showMatch(-1,q,0,0);return}
+  setDoc(docText.split(q).join(r),0,0,true,false);
+  $('findInfo').textContent=n+'件置換しました';$('searchPreview').textContent=n+'件を置換しました';
+  currentMatch=null;searchPos=0;lastSearchQuery='';$('goMatchBtn').disabled=true;
 };
 
-// AI: manual only, no continuation generation.
+/* AI軽推敲 */
 $('aiBtn').onclick=()=>$('aiPanel').classList.add('show');
 $('closeAI').onclick=()=>$('aiPanel').classList.remove('show');
-const MODEL='Qwen2.5-0.5B-Instruct-q4f16_1-MLC';
-const CDN='https://esm.run/@mlc-ai/web-llm@0.2.82';
-
-function currentAIRange(){
-  const s=editor.selectionStart||0,e=editor.selectionEnd||0,text=editor.value;
-  const LIMIT=800;
+function aiTarget(){
+  const LIMIT=800,s=globalCaret,e=globalSelEnd;
   if(e>s){
-    if(e-s>LIMIT)return {error:`選択範囲が長すぎます。AI軽推敲は一度に${LIMIT}字以内で選択してください。`};
-    return {start:s,end:e,text:text.slice(s,e)};
+    if(e-s>LIMIT)return {error:`一度に${LIMIT}字以内で選択してください。`};
+    return {start:s,end:e,text:docText.slice(s,e)};
   }
-  const before=text.slice(0,s),after=text.slice(s);
-  const paragraphStart=Math.max(0,before.lastIndexOf('\n')+1);
+  const before=docText.slice(0,s),after=docText.slice(s);
+  const ps=Math.max(0,before.lastIndexOf('\n')+1);
   let rel=after.indexOf('\n');if(rel<0)rel=after.length;
-  const paragraphEnd=s+rel;
-  if(paragraphEnd-paragraphStart<=LIMIT){
-    return {start:paragraphStart,end:paragraphEnd,text:text.slice(paragraphStart,paragraphEnd)};
-  }
-  // 長い段落ではカーソル周辺だけを対象にし、未送信部分を絶対に置換しない。
-  const half=Math.floor(LIMIT/2);
-  let start=Math.max(paragraphStart,s-half);
-  let end=Math.min(paragraphEnd,start+LIMIT);
-  start=Math.max(paragraphStart,end-LIMIT);
-  return {start,end,text:text.slice(start,end)};
+  const pe=s+rel;
+  if(pe-ps<=LIMIT)return {start:ps,end:pe,text:docText.slice(ps,pe)};
+  let st=Math.max(ps,s-400),en=Math.min(pe,st+LIMIT);st=Math.max(ps,en-LIMIT);
+  return {start:st,end:en,text:docText.slice(st,en)};
 }
-
 $('prepareAI').onclick=async()=>{
-  $('prepareAI').disabled=true;
-  $('aiStatus').textContent=privacyMode?'保存済みAIを端末内から読み込み中…':'AIを準備中…';
+  $('prepareAI').disabled=true;$('aiStatus').textContent=privacyMode?'保存済みAIを読み込み中…':'AIを準備中…';
   try{
     webllm ||= await import(CDN);
     const appConfig={...webllm.prebuiltAppConfig,cacheBackend:'cache'};
-    aiEngine=await webllm.CreateMLCEngine(MODEL,{appConfig,initProgressCallback:p=>{
-      $('aiStatus').textContent=p.text||'AIを準備中…';
-    }});
-    $('aiStatus').textContent=privacyMode?'AI軽推敲 使用可能（秘匿モード・端末内処理）':'AI軽推敲 使用可能。内容を増やさない設定です。';
+    aiEngine=await webllm.CreateMLCEngine(MODEL,{appConfig,initProgressCallback:p=>$('aiStatus').textContent=p.text||'AIを準備中…'});
+    $('aiStatus').textContent=privacyMode?'AI軽推敲 使用可能（秘匿モード）':'AI軽推敲 使用可能';
     $('runAI').disabled=false;$('prepareAI').textContent='AI準備済み';
     localStorage.setItem('kotoba-writer-ai-ready','1');
   }catch(e){
-    const msg=((e&&e.message)||String(e));
-    $('aiStatus').textContent=privacyMode
-      ? '秘匿モード中のためネット取得は行いません。保存済みAIが足りない可能性があります。秘匿モードをOFFにして一度AIを準備し、完了後に再びONにしてください。'
-      : 'AI準備エラー: '+msg;
+    $('aiStatus').textContent=privacyMode?'保存済みAIが不足しています。一度秘匿モードをOFFにして準備してください。':'AI準備エラー: '+((e&&e.message)||String(e));
     $('prepareAI').disabled=false;
   }
 };
 $('runAI').onclick=async()=>{
   if(!aiEngine)return;
-  const r=currentAIRange();
-  if(r.error){$('aiStatus').textContent=r.error;return;}
-  if(!r.text.trim()){ $('aiStatus').textContent='推敲する文章を選択してください'; return; }
-  aiRange=r;aiSourceSnapshot=editor.value;$('runAI').disabled=true;$('applyAI').disabled=true;
-  $('aiResult').textContent='軽推敲中…';$('aiStatus').textContent='文意を変えずに整えています…';
+  const r=aiTarget();if(r.error){$('aiStatus').textContent=r.error;return}
+  if(!r.text.trim()){$('aiStatus').textContent='推敲する文章がありません';return}
+  aiRange=r;aiSnapshot=docText;$('runAI').disabled=true;$('applyAI').disabled=true;$('aiResult').textContent='軽推敲中…';
   const messages=[
-    {role:'system',content:'あなたは日本語小説の校正担当です。原文の事実、設定、固有名詞、人物関係、出来事、感情、会話内容、時系列を一切追加・変更しないでください。新しい描写、比喩、説明、台詞、情報を足してはいけません。許可されるのは、助詞・句読点・語順・重複表現・不自然な語尾・明らかな文法ミスを最小限直すことだけです。直す必要がなければ原文をそのまま返してください。出力は修正文だけにしてください。'},
-    {role:'user',content:'次の文章を、意味を変えず最小限だけ整えてください。\n\n---\n'+r.text+'\n---'}
+    {role:'system',content:'あなたは日本語小説の校正担当です。原文の事実、設定、人物、出来事、感情、会話内容、時系列を追加・変更しないでください。新しい描写、比喩、説明、台詞、情報を足してはいけません。助詞・句読点・語順・重複表現・不自然な語尾・明らかな文法ミスだけを最小限直してください。直す必要がなければ原文をそのまま返してください。出力は修正文だけ。'},
+    {role:'user',content:'次の文章を意味を変えず最小限だけ整えてください。\n\n---\n'+r.text+'\n---'}
   ];
   try{
     const res=await aiEngine.chat.completions.create({messages,temperature:0.1,top_p:0.8,max_tokens:220});
-    const out=(res.choices?.[0]?.message?.content||'').trim();
-    $('aiResult').textContent=out||r.text;
-    $('applyAI').disabled=false;$('aiStatus').textContent='候補を確認してから反映してください。';
-  }catch(e){
-    $('aiResult').textContent='生成エラー: '+((e&&e.message)||String(e));
-    $('aiStatus').textContent='AI軽推敲に失敗しました';
-  }finally{$('runAI').disabled=false}
+    $('aiResult').textContent=(res.choices?.[0]?.message?.content||r.text).trim();
+    $('applyAI').disabled=false;$('aiStatus').textContent='候補を確認してください';
+  }catch(e){$('aiResult').textContent='生成エラー: '+((e&&e.message)||String(e));$('aiStatus').textContent='AI軽推敲に失敗しました'}
+  finally{$('runAI').disabled=false}
 };
 $('applyAI').onclick=()=>{
   if(!aiRange)return;
-  const out=$('aiResult').textContent;
-  if(!out || out.startsWith('生成エラー'))return;
-  if(editor.value!==aiSourceSnapshot){
-    $('aiStatus').textContent='AI生成後に本文が変更されています。誤った位置を置換しないため、もう一度軽推敲してください。';
-    $('applyAI').disabled=true;
-    return;
-  }
-  const nextText=editor.value.slice(0,aiRange.start)+out+editor.value.slice(aiRange.end);
-  setDocumentText(nextText,{
-    start:aiRange.start,
-    end:aiRange.start+out.length
-  });
-  $('applyAI').disabled=true;
-  $('aiStatus').textContent='本文へ反映しました';
-  aiRange=null;aiSourceSnapshot=null;
+  const out=$('aiResult').textContent;if(!out||out.startsWith('生成エラー'))return;
+  if(docText!==aiSnapshot){$('aiStatus').textContent='生成後に本文が変わったため反映を中止しました';$('applyAI').disabled=true;return}
+  const next=docText.slice(0,aiRange.start)+out+docText.slice(aiRange.end);
+  setDoc(next,aiRange.start,aiRange.start+out.length,true,true);
+  $('applyAI').disabled=true;$('aiStatus').textContent='本文へ反映しました';aiRange=null;aiSnapshot=null;
 };
 
-if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('./sw.js?v='+BUILD,{updateViaCache:'none'}).then(async r=>{
-    if(!privacyMode){
-      try{await r.update()}catch(e){}
-    }
-    try{await navigator.serviceWorker.ready}catch(e){}
-    try{await tellServiceWorkerPrivacy(privacyMode)}catch(e){}
-  }).catch(()=>{});
+/* 秘匿モード */
+function syncPrivacy(){
+  $('privacyBtn').textContent=privacyMode?'秘匿モード ON':'秘匿モード OFF';
+  $('privacyBtn').classList.toggle('on',privacyMode);
+  $('privacyBanner').classList.toggle('show',privacyMode);
 }
-load();
-syncPrivacyUI();
-if(localStorage.getItem('kotoba-writer-ai-ready')==='1'){
-  $('aiStatus').textContent=privacyMode
-    ? 'AIは準備済みです。秘匿モードのまま「AIを準備」を押すと端末内キャッシュから読み込みます。'
-    : '前回AIを準備済みです。「AIを準備」を押すとキャッシュから読み込みます。';
+async function tellSW(enabled){
+  if(!('serviceWorker'in navigator))return;
+  const reg=await navigator.serviceWorker.ready,target=navigator.serviceWorker.controller||reg.active;
+  if(target)target.postMessage({type:'SET_OFFLINE_ONLY',enabled});
+}
+$('privacyBtn').onclick=async()=>{
+  if(!privacyMode){
+    if(localStorage.getItem('kotoba-writer-ai-ready')!=='1'&&!confirm('AI準備前です。それでも秘匿モードをONにしますか？'))return;
+    privacyMode=true;
+  }else{
+    if(!confirm('秘匿モードをOFFにしますか？'))return;
+    privacyMode=false;
+  }
+  localStorage.setItem('kotoba-writer-privacy',privacyMode?'1':'0');syncPrivacy();
+  try{await tellSW(privacyMode)}catch{}
+};
+
+['fontSize','lineHeight','writingMode','manuscript','indent','charCount','lineCount'].forEach(id=>$(id).addEventListener('change',applySettings));
+document.querySelectorAll('[data-preset]').forEach(b=>b.onclick=()=>{
+  const [c,l]=b.dataset.preset.split(',');$('charCount').value=c;$('lineCount').value=l;applySettings();
+});
+window.addEventListener('pagehide',save);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')save()});
+
+loadSettings();
+applySettings();
+syncPrivacy();
+renderPages(0,0,false,false);
+
+if('serviceWorker'in navigator){
+  navigator.serviceWorker.register('./sw.js?v='+BUILD,{updateViaCache:'none'}).then(async r=>{
+    if(!privacyMode){try{await r.update()}catch{}}
+    try{await navigator.serviceWorker.ready;await tellSW(privacyMode)}catch{}
+  }).catch(()=>{});
 }
 </script>
 </body>
