@@ -1,180 +1,371 @@
 <!doctype html>
 <html lang="ja">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-<meta name="theme-color" content="#f6f5f2" />
-<link rel="manifest" href="manifest.webmanifest" />
-<title>Kotoba</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#eceae6">
+<link rel="manifest" href="./manifest.webmanifest">
+<title>Kotoba Writer</title>
 <style>
-:root{font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",sans-serif;color:#1b1b1b;background:#f6f5f2}
-*{box-sizing:border-box}body{margin:0;min-height:100vh;background:#f6f5f2}
-header{position:sticky;top:0;z-index:3;display:flex;gap:8px;align-items:center;padding:12px 16px;background:rgba(246,245,242,.94);backdrop-filter:blur(12px);border-bottom:1px solid #ddd}
-h1{font-size:20px;margin:0;flex:1}button{border:0;border-radius:12px;padding:10px 14px;font-size:15px;font-weight:650;background:#222;color:white}button.secondary{background:#e5e3de;color:#222}button.active{background:#222;color:white}button:disabled{opacity:.45}
-main{max-width:980px;margin:auto;padding:16px;display:grid;gap:12px}.status{background:white;border-radius:14px;padding:12px 14px;border:1px solid #e3e1dc}.meter{height:8px;background:#eceae5;border-radius:99px;overflow:hidden;margin-top:8px}.meter>div{height:100%;width:0;background:#222;transition:width .2s}.small{font-size:12px;color:#666;margin-top:6px;line-height:1.45}
-.controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.mode{padding:8px 12px}.auto{margin-left:auto;display:flex;align-items:center;gap:7px;font-size:14px}.auto input{width:19px;height:19px}
-textarea{width:100%;min-height:48vh;resize:vertical;border:1px solid #ddd9d1;border-radius:14px;background:white;padding:18px;font-size:19px;line-height:1.75;font-family:"Hiragino Mincho ProN","Yu Mincho",serif;outline:none}.suggestion{white-space:pre-wrap;background:white;border:1px solid #ddd9d1;border-radius:14px;padding:16px;min-height:120px;font-family:"Hiragino Mincho ProN","Yu Mincho",serif;font-size:17px;line-height:1.7}.suggestion.busy{opacity:.62}.row{display:flex;gap:8px;flex-wrap:wrap}.danger{background:#8d1b1b}.hint{padding:10px 12px;background:#efede8;border-radius:12px;font-size:13px;line-height:1.55;color:#555}
-.build-badge{position:fixed;right:12px;bottom:12px;z-index:9999;padding:6px 9px;border-radius:10px;background:rgba(30,30,30,.82);color:#fff;font-size:11px;font-weight:700;letter-spacing:.02em;backdrop-filter:blur(8px);pointer-events:none}
-@media(max-width:700px){textarea{min-height:44vh;font-size:18px}header{padding-top:max(12px,env(safe-area-inset-top))}.auto{margin-left:0;width:100%}.build-badge{right:8px;bottom:8px}}
+:root{
+  --font-size:18px;
+  --line-height:1.9;
+  --paper-width:794px;
+  --paper-min-height:1123px;
+  font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",sans-serif;
+  color:#202020;background:#d9d8d5;
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{background:#d9d8d5}
+button,select,input{font:inherit}
+button{border:1px solid #c9c7c2;border-radius:9px;background:#fff;color:#222;padding:8px 11px;font-weight:600}
+button.primary{background:#222;color:#fff;border-color:#222}
+button:disabled{opacity:.45}
+.topbar{
+  position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  padding:max(9px,env(safe-area-inset-top)) 10px 9px;background:rgba(246,245,242,.96);
+  border-bottom:1px solid #c9c7c2;backdrop-filter:blur(10px)
+}
+.title{font-weight:800;margin-right:4px}
+.spacer{flex:1}
+.toolbar{
+  position:sticky;top:57px;z-index:19;display:flex;gap:8px;align-items:center;flex-wrap:wrap;
+  padding:8px 10px;background:#efede9;border-bottom:1px solid #ccc9c3
+}
+.toolbar label{display:flex;align-items:center;gap:5px;font-size:13px;color:#555}
+.toolbar select{background:white;border:1px solid #cbc8c0;border-radius:8px;padding:7px}
+.workspace{padding:24px 10px 90px;overflow:auto}
+.paper{
+  position:relative;margin:0 auto;width:min(var(--paper-width),calc(100vw - 24px));min-height:var(--paper-min-height);
+  background:#fff;box-shadow:0 2px 13px rgba(0,0,0,.14);border-radius:2px;padding:72px 68px
+}
+#editor{
+  display:block;width:100%;min-height:980px;border:0;outline:0;resize:none;background:transparent;color:#171717;
+  font-size:var(--font-size);line-height:var(--line-height);font-family:"Hiragino Mincho ProN","Yu Mincho","YuMincho",serif;
+  caret-color:#111;white-space:pre-wrap;overflow:hidden;line-break:strict;word-break:normal;
+}
+.paper.vertical{width:min(1123px,calc(100vw - 24px));min-height:794px;padding:56px}
+.paper.vertical #editor{
+  writing-mode:vertical-rl;text-orientation:mixed;min-height:680px;height:680px;overflow:auto;
+  white-space:pre-wrap;
+}
+.paper.manuscript #editor{
+  background-image:
+    linear-gradient(to right, rgba(0,0,0,.065) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0,0,0,.065) 1px, transparent 1px);
+  background-size:1em calc(var(--font-size) * var(--line-height));
+  letter-spacing:0;
+}
+.statusbar{
+  position:fixed;left:0;right:0;bottom:0;z-index:30;display:flex;gap:14px;align-items:center;flex-wrap:wrap;
+  padding:8px 12px max(8px,env(safe-area-inset-bottom));background:rgba(246,245,242,.96);
+  border-top:1px solid #c9c7c2;font-size:12px;color:#555;backdrop-filter:blur(10px)
+}
+.statusbar .build{margin-left:auto;font-weight:700}
+.panel{
+  position:fixed;inset:auto 12px calc(52px + env(safe-area-inset-bottom)) 12px;z-index:40;
+  background:#fff;border:1px solid #ccc;border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.2);
+  padding:14px;display:none;max-width:720px;margin:auto
+}
+.panel.show{display:block}
+.panel h3{margin:0 0 10px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.row input[type=text]{flex:1;min-width:150px;border:1px solid #bbb;border-radius:9px;padding:9px 10px}
+.ai-result{
+  margin-top:10px;padding:12px;border-radius:10px;background:#f3f1ed;white-space:pre-wrap;
+  max-height:32vh;overflow:auto;font-family:"Hiragino Mincho ProN","Yu Mincho",serif;line-height:1.7
+}
+.note{font-size:12px;color:#666;line-height:1.55;margin-top:8px}
+#fileInput{display:none}
+#printArea{display:none}
+@media(max-width:700px){
+  .toolbar{top:100px}
+  .workspace{padding-top:14px}
+  .paper{padding:42px 26px;min-height:calc(100vh - 160px)}
+  #editor{min-height:calc(100vh - 245px)}
+}
+@media print{
+  .topbar,.toolbar,.statusbar,.panel{display:none!important}
+  body,.workspace{background:white!important;padding:0!important}
+  .paper{display:none!important}
+  #printArea{
+    display:block!important;white-space:pre-wrap;font-family:"Hiragino Mincho ProN","Yu Mincho",serif;
+    font-size:12pt;line-height:1.8;color:#000;padding:0
+  }
+  @page{size:A4;margin:18mm 18mm}
+}
 </style>
 </head>
 <body>
-<header><h1>Kotoba</h1><button id="prepare">AIを準備</button><button id="run" disabled>今すぐ提案</button></header>
-<main>
-<section class="status"><div id="status">起動確認中…</div><div class="meter"><div id="bar"></div></div><div id="detail" class="small">本文はこの端末内に保存されます。AI生成も端末内で実行します。</div></section>
-<section class="controls">
-  <button class="secondary mode active" data-mode="novelize">小説化</button>
-  <button class="secondary mode" data-mode="polish">推敲</button>
-  <button class="secondary mode" data-mode="continue">続き</button>
-  <label class="auto"><input type="checkbox" id="auto" checked> 入力停止後に自動提案</label>
-</section>
-<div class="hint" id="modeHint">小説化：いま書いている段落や選択範囲を、内容を変えすぎず小説らしい地の文・情景・会話へ整えます。</div>
-<textarea id="editor" placeholder="ここにプロット、メモ、小説本文を書きます…" spellcheck="false"></textarea>
-<section><div class="suggestion" id="suggestion">AIの候補はここに表示されます。</div></section>
-<div class="row"><button id="apply" class="secondary" disabled>候補を反映</button><button id="clear" class="secondary">候補を消す</button><button id="reset" class="secondary">本文を消去</button></div>
-<div class="small">リアルタイム提案は、入力が止まって約1.2秒後に動きます。入力中は生成しません。初回のみAI本体とモデルの取得にインターネット接続が必要です。</div>
-</main>
-<div class="build-badge">Kotoba build 6</div>
+<div class="topbar">
+  <div class="title">Kotoba Writer</div>
+  <button id="newBtn">新規</button>
+  <button id="openBtn">TXTを開く</button>
+  <button id="saveBtn">TXT保存</button>
+  <button id="pdfBtn">PDF / 印刷</button>
+  <div class="spacer"></div>
+  <button id="findBtn">検索・置換</button>
+  <button id="formatBtn">体裁を整える</button>
+  <button id="aiBtn">AI軽推敲</button>
+</div>
+
+<div class="toolbar">
+  <label>文字
+    <select id="fontSize">
+      <option>14</option><option>16</option><option selected>18</option><option>20</option><option>22</option><option>24</option><option>28</option>
+    </select>
+  </label>
+  <label>行間
+    <select id="lineHeight">
+      <option value="1.5">狭い</option>
+      <option value="1.7">やや狭い</option>
+      <option value="1.9" selected>標準</option>
+      <option value="2.1">広い</option>
+      <option value="2.3">かなり広い</option>
+    </select>
+  </label>
+  <label>表示
+    <select id="writingMode">
+      <option value="horizontal">横書き</option>
+      <option value="vertical">縦書き</option>
+    </select>
+  </label>
+  <label><input id="manuscript" type="checkbox"> 40×30目安</label>
+  <label><input id="indent" type="checkbox" checked> 段落頭を一字下げ</label>
+</div>
+
+<div class="workspace">
+  <div class="paper" id="paper">
+    <textarea id="editor" spellcheck="false" placeholder="ここに本文を書きます…"></textarea>
+  </div>
+</div>
+
+<div class="statusbar">
+  <span id="saveStatus">自動保存</span>
+  <span id="count">0文字</span>
+  <span id="cursor">1行 1列</span>
+  <span>本文は端末内保存</span>
+  <span class="build">Kotoba Writer build 1</span>
+</div>
+
+<div class="panel" id="findPanel">
+  <h3>検索・置換</h3>
+  <div class="row">
+    <input id="findText" type="text" placeholder="検索する文字">
+    <button id="nextBtn">次へ</button>
+    <span id="findInfo" class="note"></span>
+  </div>
+  <div class="row" style="margin-top:8px">
+    <input id="replaceText" type="text" placeholder="置き換える文字">
+    <button id="replaceOneBtn">1件置換</button>
+    <button id="replaceAllBtn">すべて置換</button>
+    <button id="closeFind">閉じる</button>
+  </div>
+</div>
+
+<div class="panel" id="aiPanel">
+  <h3>AI軽推敲</h3>
+  <div class="row">
+    <button id="prepareAI" class="primary">AIを準備</button>
+    <button id="runAI" disabled>選択範囲を軽推敲</button>
+    <button id="applyAI" disabled>候補を反映</button>
+    <button id="closeAI">閉じる</button>
+  </div>
+  <div id="aiStatus" class="note">選択範囲がなければ、カーソルのある段落だけを対象にします。内容の追加はしません。</div>
+  <div id="aiResult" class="ai-result">候補はここに表示されます。</div>
+</div>
+
+<input id="fileInput" type="file" accept=".txt,text/plain">
+<div id="printArea"></div>
 
 <script type="module">
-const BUILD=6;
+const BUILD=1;
+const $=id=>document.getElementById(id);
+const editor=$('editor'),paper=$('paper');
+const STORAGE='kotoba-writer-draft-v1';
+const SETTINGS='kotoba-writer-settings-v1';
+let lastFound=-1, aiEngine=null, webllm=null, aiRange=null;
+
+function save(){
+  localStorage.setItem(STORAGE,editor.value);
+  $('saveStatus').textContent='保存済み';
+  setTimeout(()=>$('saveStatus').textContent='自動保存',800);
+}
+function load(){
+  editor.value=localStorage.getItem(STORAGE)||'';
+  try{
+    const s=JSON.parse(localStorage.getItem(SETTINGS)||'{}');
+    if(s.fontSize)$('fontSize').value=s.fontSize;
+    if(s.lineHeight)$('lineHeight').value=s.lineHeight;
+    if(s.writingMode)$('writingMode').value=s.writingMode;
+    $('manuscript').checked=!!s.manuscript;
+    $('indent').checked=s.indent!==false;
+  }catch{}
+  applySettings(); updateStatus();
+}
+function saveSettings(){
+  localStorage.setItem(SETTINGS,JSON.stringify({
+    fontSize:$('fontSize').value,lineHeight:$('lineHeight').value,
+    writingMode:$('writingMode').value,manuscript:$('manuscript').checked,indent:$('indent').checked
+  }));
+}
+function applySettings(){
+  document.documentElement.style.setProperty('--font-size',$('fontSize').value+'px');
+  document.documentElement.style.setProperty('--line-height',$('lineHeight').value);
+  paper.classList.toggle('vertical',$('writingMode').value==='vertical');
+  paper.classList.toggle('manuscript',$('manuscript').checked);
+  saveSettings();
+}
+['fontSize','lineHeight','writingMode','manuscript','indent'].forEach(id=>$(id).addEventListener('change',applySettings));
+
+function updateStatus(){
+  $('count').textContent=editor.value.length+'文字';
+  const p=editor.selectionStart||0;
+  const before=editor.value.slice(0,p);
+  const line=(before.match(/\n/g)||[]).length+1;
+  const col=p-(before.lastIndexOf('\n')+1)+1;
+  $('cursor').textContent=line+'行 '+col+'列';
+}
+let saveTimer=null;
+editor.addEventListener('input',()=>{
+  updateStatus();clearTimeout(saveTimer);saveTimer=setTimeout(save,350);
+});
+editor.addEventListener('keyup',updateStatus);
+editor.addEventListener('click',updateStatus);
+
+$('newBtn').onclick=()=>{
+  if(confirm('現在の本文を消して新規文書にしますか？')){
+    editor.value='';save();updateStatus();editor.focus();
+  }
+};
+$('openBtn').onclick=()=>$('fileInput').click();
+$('fileInput').onchange=async e=>{
+  const f=e.target.files?.[0];if(!f)return;
+  editor.value=await f.text();save();updateStatus();
+  e.target.value='';
+};
+$('saveBtn').onclick=()=>{
+  const blob=new Blob([editor.value],{type:'text/plain;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='kotoba-'+new Date().toISOString().slice(0,10)+'.txt';
+  a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+};
+$('pdfBtn').onclick=()=>{
+  $('printArea').textContent=editor.value;
+  window.print();
+};
+
+function formatText(){
+  const oldStart=editor.selectionStart, oldEnd=editor.selectionEnd;
+  let t=editor.value.replace(/\r\n?/g,'\n');
+  t=t.split('\n').map(line=>line.replace(/[ \t]+$/g,'')).join('\n');
+  t=t.replace(/\n{4,}/g,'\n\n\n');
+  if($('indent').checked){
+    t=t.split('\n').map(line=>{
+      if(!line.trim())return '';
+      if(/^[　「『（【〈《〔［｛]/.test(line))return line;
+      return '　'+line.replace(/^[ 　]+/,'');
+    }).join('\n');
+  }
+  editor.value=t;save();updateStatus();
+  editor.setSelectionRange(Math.min(oldStart,t.length),Math.min(oldEnd,t.length));
+}
+$('formatBtn').onclick=formatText;
+
+// Find/replace
+$('findBtn').onclick=()=>{$('findPanel').classList.add('show');$('findText').focus()};
+$('closeFind').onclick=()=>$('findPanel').classList.remove('show');
+function findNext(){
+  const q=$('findText').value;if(!q)return;
+  const text=editor.value;
+  let i=text.indexOf(q,Math.max(0,lastFound+1));
+  if(i<0)i=text.indexOf(q,0);
+  if(i<0){$('findInfo').textContent='見つかりません';return}
+  lastFound=i;editor.focus();editor.setSelectionRange(i,i+q.length);
+  $('findInfo').textContent=(text.slice(0,i).split(q).length)+'件目';
+}
+$('nextBtn').onclick=findNext;
+$('replaceOneBtn').onclick=()=>{
+  const q=$('findText').value,r=$('replaceText').value;
+  const s=editor.selectionStart,e=editor.selectionEnd;
+  if(q && editor.value.slice(s,e)===q){
+    editor.setRangeText(r,s,e,'end');save();updateStatus();
+  }
+  findNext();
+};
+$('replaceAllBtn').onclick=()=>{
+  const q=$('findText').value,r=$('replaceText').value;if(!q)return;
+  const parts=editor.value.split(q),n=parts.length-1;
+  editor.value=parts.join(r);save();updateStatus();$('findInfo').textContent=n+'件置換';
+};
+
+// AI: manual only, no continuation generation.
+$('aiBtn').onclick=()=>$('aiPanel').classList.add('show');
+$('closeAI').onclick=()=>$('aiPanel').classList.remove('show');
 const MODEL='Qwen2.5-0.5B-Instruct-q4f16_1-MLC';
 const CDN='https://esm.run/@mlc-ai/web-llm@0.2.82';
-const $=id=>document.getElementById(id);
-const editor=$('editor'),prepare=$('prepare'),run=$('run'),status=$('status'),detail=$('detail'),bar=$('bar'),suggestion=$('suggestion'),apply=$('apply'),auto=$('auto'),modeHint=$('modeHint');
-editor.value=localStorage.getItem('kotoba-draft')||'';
-auto.checked=(localStorage.getItem('kotoba-auto')??'1')==='1';
-let mode=localStorage.getItem('kotoba-mode')||'novelize';
-let engine=null,webllm=null,busy=false,autoTimer=null,lastJob=0,lastRange=null,pendingAuto=false;
-const hints={
- novelize:'小説化：いま書いている段落や選択範囲を、内容を変えすぎず小説らしい地の文・情景・会話へ整えます。',
- polish:'推敲：意味・設定・視点を維持しながら、重複、くどさ、不自然な語順、説明臭さを減らして文章を磨きます。',
- continue:'続き：本文末尾から自然につながる次の2〜4段落を提案します。'
+
+function currentAIRange(){
+  const s=editor.selectionStart||0,e=editor.selectionEnd||0,text=editor.value;
+  if(e>s)return {start:s,end:e,text:text.slice(s,e)};
+  const before=text.slice(0,s),after=text.slice(s);
+  const start=Math.max(0,before.lastIndexOf('\n')+1);
+  let rel=after.indexOf('\n');if(rel<0)rel=after.length;
+  const end=s+rel;
+  return {start,end,text:text.slice(start,end)};
+}
+$('prepareAI').onclick=async()=>{
+  $('prepareAI').disabled=true;$('aiStatus').textContent='AIを準備中…';
+  try{
+    webllm ||= await import(CDN);
+    const appConfig={...webllm.prebuiltAppConfig,cacheBackend:'cache'};
+    aiEngine=await webllm.CreateMLCEngine(MODEL,{appConfig,initProgressCallback:p=>{
+      $('aiStatus').textContent=p.text||'AIを準備中…';
+    }});
+    $('aiStatus').textContent='AI軽推敲 使用可能。内容を増やさない設定です。';
+    $('runAI').disabled=false;$('prepareAI').textContent='AI準備済み';
+    localStorage.setItem('kotoba-writer-ai-ready','1');
+  }catch(e){
+    $('aiStatus').textContent='AI準備エラー: '+((e&&e.message)||String(e));
+    $('prepareAI').disabled=false;
+  }
 };
-function syncModes(){document.querySelectorAll('.mode').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));modeHint.textContent=hints[mode]}
-syncModes();
-document.querySelectorAll('.mode').forEach(b=>b.onclick=()=>{mode=b.dataset.mode;localStorage.setItem('kotoba-mode',mode);syncModes();scheduleAuto(true)});
-auto.onchange=()=>{localStorage.setItem('kotoba-auto',auto.checked?'1':'0');if(auto.checked)scheduleAuto(true)};
-$('clear').onclick=()=>{suggestion.textContent='AIの候補はここに表示されます。';apply.disabled=true;lastRange=null};
-$('reset').onclick=()=>{if(confirm('本文を消去しますか？')){editor.value='';localStorage.removeItem('kotoba-draft');$('clear').click()}};
-editor.addEventListener('input',()=>{localStorage.setItem('kotoba-draft',editor.value);scheduleAuto(false)});
-editor.addEventListener('select',()=>{if(auto.checked&&mode!=='continue')scheduleAuto(false)});
-
-function currentRange(){
- const text=editor.value; const s=editor.selectionStart||0,e=editor.selectionEnd||0;
- if(e>s) return {start:s,end:e,text:text.slice(s,e)};
- if(mode==='continue') return {start:text.length,end:text.length,text:text.slice(-1000)};
- const before=text.slice(0,s); const after=text.slice(s);
- const p1=Math.max(before.lastIndexOf('\n\n')+2,before.lastIndexOf('\n')+1,0);
- let rel=after.indexOf('\n'); if(rel<0) rel=after.length;
- const p2=Math.min(text.length,s+rel);
- let start=p1,end=p2,seg=text.slice(start,end).trim();
- if(seg.length<12){start=Math.max(0,text.length-1200);end=text.length;seg=text.slice(start,end).trim()}
- if(seg.length>900){start=Math.max(start,end-900);seg=text.slice(start,end)}
- return {start,end,text:seg};
-}
-function scheduleAuto(immediate){
- clearTimeout(autoTimer);
- if(!auto.checked||!engine)return;
- if(busy){pendingAuto=true;return;}
- const r=currentRange(); if((r.text||'').trim().length<12)return;
- autoTimer=setTimeout(()=>generate(true),immediate?200:1200);
-}
-async function check(){
- if(!('gpu' in navigator)){status.textContent='このSafariではWebGPUが使えません';detail.textContent='iPadOS 26のSafariで開いてください。';prepare.disabled=true;return false}
- try{const a=await navigator.gpu.requestAdapter();if(!a)throw new Error('adapter unavailable');status.textContent='WebGPU 使用可能';detail.textContent='AIを準備を押してください。初回のみモデルを取得します。';return true}catch(e){status.textContent='WebGPUを開始できません';detail.textContent=String(e);prepare.disabled=true;return false}
-}
-async function createEngine(showProgress=true){
- webllm ||= await import(CDN);
- const appConfig={...webllm.prebuiltAppConfig,cacheBackend:'cache'};
- return await webllm.CreateMLCEngine(MODEL,{appConfig,initProgressCallback:(p)=>{
-  if(!showProgress)return;
-  const prog=Math.max(0,Math.min(1,p.progress||0));
-  bar.style.width=(prog*100).toFixed(1)+'%';
-  status.textContent=p.text||'AIを準備中…';
-  detail.textContent='初回は時間がかかります。画面を閉じないでください。';
- }});
-}
-async function loadEngine(){
- prepare.disabled=true;run.disabled=true;status.textContent='AIライブラリを読み込み中…';
- try{
-  engine=await createEngine(true);
-  bar.style.width='100%';status.textContent='オフラインAI 使用可能';detail.textContent='安定版WebLLM 0.2.82を使用中。モデルはこのブラウザに保存されています。';run.disabled=false;prepare.textContent='AI準備済み';prepare.disabled=true;localStorage.setItem('kotoba-ai-ready','1');scheduleAuto(true);
- }catch(e){console.error(e);status.textContent='AIの準備に失敗しました';detail.textContent=(e&&e.message)||String(e);prepare.disabled=false}
-}
-prepare.onclick=loadEngine;run.onclick=()=>generate(false);
-
-function makePrompt(r){
- if(mode==='novelize') return [
-  {role:'system',content:'あなたは日本語小説のプロ編集者です。入力されたメモ・プロット・粗い文章を、意味と出来事を守りながら自然な小説本文へ書き換えてください。地の文と情景を補い、会話は短く自然にし、キザな言い回し、過剰な比喩、説明の重複を避けてください。勝手に新設定や新人物を追加しないでください。出力は書き換え後の本文だけ。講評、見出し、前置きは禁止。'},
-  {role:'user',content:'次の文章を小説本文として自然に整えてください。\n\n---\n'+r.text+'\n---'}
- ];
- if(mode==='polish') return [
-  {role:'system',content:'あなたは日本語小説の校閲・推敲担当です。内容、設定、人物関係、視点、時制を変えずに文章だけを磨いてください。重複語、冗長さ、説明臭さ、不自然な語順、同じ語尾の連続を減らし、情景と動作が伝わる文章にしてください。原文にない情報を足さないでください。出力は推敲後の本文だけ。講評や説明は禁止。'},
-  {role:'user',content:'次の文章を推敲してください。\n\n---\n'+r.text+'\n---'}
- ];
- return [
-  {role:'system',content:'あなたは日本語小説の執筆支援AIです。与えられた本文の直後に自然につながる文章だけを書いてください。講評・説明・見出し・箇条書きは禁止。登場人物、視点、時制、文体を本文に合わせ、勝手に大量の新設定を追加しないでください。会話は短く、地の文と情景を適度に補ってください。出力は日本語で2〜4段落程度。'},
-  {role:'user',content:'以下は小説本文の末尾です。この直後の続きを自然に書いてください。\n\n--- 本文末尾 ---\n'+r.text+'\n--- ここまで ---'}
- ];
-}
-async function generate(isAuto,retried=false){
- if(!engine||busy)return; const r=currentRange(); if(!r.text.trim()){status.textContent='まず文章を入力してください';return}
- busy=true;pendingAuto=false;const sourceSnapshot=editor.value;const job=++lastJob;run.disabled=true;apply.disabled=true;suggestion.classList.add('busy');suggestion.textContent=isAuto?'自動提案を作成中…':'提案を作成中…';status.textContent=isAuto?'リアルタイム提案中…':'提案を生成中…';
- try{
-  const messages=makePrompt(r);
-  const maxTokens=mode==='continue'?220:Math.min(320,Math.max(120,Math.ceil(r.text.length*.7)));
-  const chunks=await engine.chat.completions.create({messages,temperature:mode==='polish'?.35:.68,top_p:.9,max_tokens:maxTokens,stream:true});
-  let out='';for await(const ch of chunks){if(job!==lastJob)return;out+=ch.choices?.[0]?.delta?.content||'';suggestion.textContent=out}
-  out=out.trim();
-  if(isAuto&&editor.value!==sourceSnapshot){suggestion.textContent='入力が更新されたため、新しい文章で提案し直します。';apply.disabled=true;status.textContent='入力更新を検出';pendingAuto=true;}
-  else{suggestion.textContent=out||'生成結果が空でした。';lastRange={...r,mode};apply.disabled=!out;status.textContent=isAuto?'自動提案 完了':'生成完了';}
- }catch(e){
-  console.error(e);
-  const msg=((e&&e.message)||String(e));
-  const disposed=/disposed|device lost|device has been lost/i.test(msg);
-  if(disposed && !retried){
-    status.textContent='AIを自動復旧中…';
-    suggestion.textContent='AIエンジンを再初期化しています…';
-    busy=false;
-    try{
-      engine=null;
-      engine=await createEngine(false);
-      status.textContent='AI復旧完了。再生成します…';
-      return await generate(isAuto,true);
-    }catch(re){
-      console.error(re);
-      suggestion.textContent='AIの復旧に失敗しました。Safariを完全に閉じて開き直し、「AIを準備」を押してください。';
-      status.textContent='AI復旧に失敗しました';
-    }
-  }else if(job===lastJob){
-    suggestion.textContent='生成エラー: '+msg;
-    status.textContent='生成に失敗しました';
-  }
- }finally{
-  if(job===lastJob){
-    busy=false;run.disabled=false;suggestion.classList.remove('busy');
-    if(pendingAuto)scheduleAuto(false);
-  }
- }
-}
-apply.onclick=()=>{
- const s=suggestion.textContent.trim();if(!s||!lastRange)return;
- if(lastRange.mode==='continue'){
-  editor.value+=(editor.value&&!editor.value.endsWith('\n')?'\n':'')+s;
- }else{
-  const {start,end}=lastRange;editor.value=editor.value.slice(0,start)+s+editor.value.slice(end);
-  editor.selectionStart=editor.selectionEnd=start+s.length;
- }
- localStorage.setItem('kotoba-draft',editor.value);apply.disabled=true;status.textContent=lastRange.mode==='continue'?'本文へ追加しました':'候補を本文へ反映しました';lastRange=null;
+$('runAI').onclick=async()=>{
+  if(!aiEngine)return;
+  const r=currentAIRange();if(!r.text.trim()){ $('aiStatus').textContent='推敲する文章を選択してください'; return; }
+  aiRange=r;$('runAI').disabled=true;$('applyAI').disabled=true;
+  $('aiResult').textContent='軽推敲中…';$('aiStatus').textContent='文意を変えずに整えています…';
+  const messages=[
+    {role:'system',content:'あなたは日本語小説の校正担当です。原文の事実、設定、固有名詞、人物関係、出来事、感情、会話内容、時系列を一切追加・変更しないでください。新しい描写、比喩、説明、台詞、情報を足してはいけません。許可されるのは、助詞・句読点・語順・重複表現・不自然な語尾・明らかな文法ミスを最小限直すことだけです。直す必要がなければ原文をそのまま返してください。出力は修正文だけにしてください。'},
+    {role:'user',content:'次の文章を、意味を変えず最小限だけ整えてください。\n\n---\n'+r.text.slice(0,900)+'\n---'}
+  ];
+  try{
+    const res=await aiEngine.chat.completions.create({messages,temperature:0.1,top_p:0.8,max_tokens:220});
+    const out=(res.choices?.[0]?.message?.content||'').trim();
+    $('aiResult').textContent=out||r.text;
+    $('applyAI').disabled=false;$('aiStatus').textContent='候補を確認してから反映してください。';
+  }catch(e){
+    $('aiResult').textContent='生成エラー: '+((e&&e.message)||String(e));
+    $('aiStatus').textContent='AI軽推敲に失敗しました';
+  }finally{$('runAI').disabled=false}
+};
+$('applyAI').onclick=()=>{
+  if(!aiRange)return;
+  const out=$('aiResult').textContent;
+  if(!out || out.startsWith('生成エラー'))return;
+  editor.value=editor.value.slice(0,aiRange.start)+out+editor.value.slice(aiRange.end);
+  editor.focus();editor.setSelectionRange(aiRange.start,aiRange.start+out.length);
+  save();updateStatus();$('applyAI').disabled=true;$('aiStatus').textContent='本文へ反映しました';
 };
 
-// Service Worker: build 5。オンライン時は最新版優先、オフライン時のみキャッシュ。
 if('serviceWorker' in navigator){
- navigator.serviceWorker.register('./sw.js?v='+BUILD,{updateViaCache:'none'})
-   .then(reg=>reg.update())
-   .catch(()=>{});
+  navigator.serviceWorker.register('./sw.js?v='+BUILD,{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});
 }
-check().then(ok=>{if(ok&&localStorage.getItem('kotoba-ai-ready')==='1')loadEngine()});
+load();
+if(localStorage.getItem('kotoba-writer-ai-ready')==='1'){
+  $('aiStatus').textContent='前回AIを準備済みです。「AIを準備」を押すとキャッシュから読み込みます。';
+}
 </script>
-</body></html>
+</body>
+</html>

@@ -1,62 +1,33 @@
-const CACHE='kotoba-shell-v6';
+const CACHE='kotoba-writer-shell-v1';
 const SHELL=['./','./index.html','./manifest.webmanifest'];
-
-self.addEventListener('install',event=>{
+self.addEventListener('install',e=>{
   self.skipWaiting();
-  event.waitUntil(
-    caches.open(CACHE).then(cache=>cache.addAll(SHELL))
-  );
+  e.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL)));
 });
-
-self.addEventListener('activate',event=>{
-  event.waitUntil(
-    Promise.all([
-      self.clients.claim(),
-      caches.keys().then(keys=>Promise.all(
-        keys.filter(k=>k.startsWith('kotoba-shell-')&&k!==CACHE).map(k=>caches.delete(k))
-      ))
-    ])
-  );
+self.addEventListener('activate',e=>{
+  e.waitUntil(Promise.all([
+    self.clients.claim(),
+    caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('kotoba-writer-shell-')&&k!==CACHE).map(k=>caches.delete(k))))
+  ]));
 });
-
-async function networkFirst(request){
+async function networkFirst(req){
   try{
-    const response=await fetch(request,{cache:'no-store'});
-    if(response && response.ok){
-      const copy=response.clone();
-      caches.open(CACHE).then(cache=>cache.put(request,copy)).catch(()=>{});
-    }
-    return response;
-  }catch(err){
-    const hit=await caches.match(request);
-    if(hit) return hit;
-    throw err;
+    const r=await fetch(req,{cache:'no-store'});
+    if(r&&r.ok)caches.open(CACHE).then(c=>c.put(req,r.clone())).catch(()=>{});
+    return r;
+  }catch(e){
+    const hit=await caches.match(req);if(hit)return hit;throw e;
   }
 }
-
-async function cacheFirst(request){
-  const hit=await caches.match(request);
-  if(hit) return hit;
-  const response=await fetch(request);
-  if(response && response.ok){
-    const copy=response.clone();
-    caches.open(CACHE).then(cache=>cache.put(request,copy)).catch(()=>{});
-  }
-  return response;
+async function cacheFirst(req){
+  const hit=await caches.match(req);if(hit)return hit;
+  const r=await fetch(req);
+  if(r&&r.ok)caches.open(CACHE).then(c=>c.put(req,r.clone())).catch(()=>{});
+  return r;
 }
-
-self.addEventListener('fetch',event=>{
-  if(event.request.method!=='GET') return;
-  const url=new URL(event.request.url);
-
-  // GitHub Pages上のHTML/manifestはオンライン時に必ず最新版を優先。
-  if(url.origin===self.location.origin){
-    event.respondWith(networkFirst(event.request));
-    return;
-  }
-
-  // AIライブラリはオフライン再利用を優先。
-  if(url.hostname==='esm.run'){
-    event.respondWith(cacheFirst(event.request));
-  }
+self.addEventListener('fetch',e=>{
+  if(e.request.method!=='GET')return;
+  const u=new URL(e.request.url);
+  if(u.origin===self.location.origin){e.respondWith(networkFirst(e.request));return}
+  if(u.hostname==='esm.run'){e.respondWith(cacheFirst(e.request))}
 });
