@@ -8,66 +8,131 @@
 <title>Kotoba</title>
 <style>
 :root{font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",sans-serif;color:#1b1b1b;background:#f6f5f2}
-*{box-sizing:border-box} body{margin:0;min-height:100vh;background:#f6f5f2}
-header{position:sticky;top:0;z-index:3;display:flex;gap:10px;align-items:center;padding:12px 16px;background:rgba(246,245,242,.92);backdrop-filter:blur(12px);border-bottom:1px solid #ddd}
-h1{font-size:20px;margin:0;flex:1} button{border:0;border-radius:12px;padding:10px 14px;font-size:15px;font-weight:650;background:#222;color:white}button.secondary{background:#e5e3de;color:#222}button:disabled{opacity:.45}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:#f6f5f2}
+header{position:sticky;top:0;z-index:3;display:flex;gap:8px;align-items:center;padding:12px 16px;background:rgba(246,245,242,.94);backdrop-filter:blur(12px);border-bottom:1px solid #ddd}
+h1{font-size:20px;margin:0;flex:1}button{border:0;border-radius:12px;padding:10px 14px;font-size:15px;font-weight:650;background:#222;color:white}button.secondary{background:#e5e3de;color:#222}button.active{background:#222;color:white}button:disabled{opacity:.45}
 main{max-width:980px;margin:auto;padding:16px;display:grid;gap:12px}.status{background:white;border-radius:14px;padding:12px 14px;border:1px solid #e3e1dc}.meter{height:8px;background:#eceae5;border-radius:99px;overflow:hidden;margin-top:8px}.meter>div{height:100%;width:0;background:#222;transition:width .2s}.small{font-size:12px;color:#666;margin-top:6px;line-height:1.45}
-textarea{width:100%;min-height:52vh;resize:vertical;border:1px solid #ddd9d1;border-radius:14px;background:white;padding:18px;font-size:19px;line-height:1.75;font-family:"Hiragino Mincho ProN","Yu Mincho",serif;outline:none}.suggestion{white-space:pre-wrap;background:white;border:1px solid #ddd9d1;border-radius:14px;padding:16px;min-height:84px;font-family:"Hiragino Mincho ProN","Yu Mincho",serif;font-size:17px;line-height:1.7}.row{display:flex;gap:8px;flex-wrap:wrap}.danger{background:#8d1b1b}
-@media(max-width:700px){textarea{min-height:48vh;font-size:18px} header{padding-top:max(12px,env(safe-area-inset-top))}}
+.controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.mode{padding:8px 12px}.auto{margin-left:auto;display:flex;align-items:center;gap:7px;font-size:14px}.auto input{width:19px;height:19px}
+textarea{width:100%;min-height:48vh;resize:vertical;border:1px solid #ddd9d1;border-radius:14px;background:white;padding:18px;font-size:19px;line-height:1.75;font-family:"Hiragino Mincho ProN","Yu Mincho",serif;outline:none}.suggestion{white-space:pre-wrap;background:white;border:1px solid #ddd9d1;border-radius:14px;padding:16px;min-height:120px;font-family:"Hiragino Mincho ProN","Yu Mincho",serif;font-size:17px;line-height:1.7}.suggestion.busy{opacity:.62}.row{display:flex;gap:8px;flex-wrap:wrap}.danger{background:#8d1b1b}.hint{padding:10px 12px;background:#efede8;border-radius:12px;font-size:13px;line-height:1.55;color:#555}
+@media(max-width:700px){textarea{min-height:44vh;font-size:18px}header{padding-top:max(12px,env(safe-area-inset-top))}.auto{margin-left:0;width:100%}}
 </style>
 </head>
 <body>
-<header><h1>Kotoba</h1><button id="prepare">AIを準備</button><button id="generate" disabled>続きを生成</button></header>
+<header><h1>Kotoba</h1><button id="prepare">AIを準備</button><button id="run" disabled>今すぐ提案</button></header>
 <main>
 <section class="status"><div id="status">起動確認中…</div><div class="meter"><div id="bar"></div></div><div id="detail" class="small">本文はこの端末内に保存されます。AI生成も端末内で実行します。</div></section>
-<textarea id="editor" placeholder="ここに小説本文を書きます…" spellcheck="false"></textarea>
+<section class="controls">
+  <button class="secondary mode active" data-mode="novelize">小説化</button>
+  <button class="secondary mode" data-mode="polish">推敲</button>
+  <button class="secondary mode" data-mode="continue">続き</button>
+  <label class="auto"><input type="checkbox" id="auto" checked> 入力停止後に自動提案</label>
+</section>
+<div class="hint" id="modeHint">小説化：いま書いている段落や選択範囲を、内容を変えすぎず小説らしい地の文・情景・会話へ整えます。</div>
+<textarea id="editor" placeholder="ここにプロット、メモ、小説本文を書きます…" spellcheck="false"></textarea>
 <section><div class="suggestion" id="suggestion">AIの候補はここに表示されます。</div></section>
-<div class="row"><button id="accept" class="secondary" disabled>本文に追加</button><button id="clear" class="secondary">候補を消す</button><button id="reset" class="secondary">本文を消去</button></div>
-<div class="small">初回のみ、AI本体とモデルの取得にインターネット接続が必要です。取得後はブラウザのキャッシュを使います。Safariの「履歴とWebサイトデータ」を消すとモデルも再取得になります。</div>
+<div class="row"><button id="apply" class="secondary" disabled>候補を反映</button><button id="clear" class="secondary">候補を消す</button><button id="reset" class="secondary">本文を消去</button></div>
+<div class="small">リアルタイム提案は、入力が止まって約1.2秒後に動きます。入力中は生成しません。初回のみAI本体とモデルの取得にインターネット接続が必要です。</div>
 </main>
 <script type="module">
 const MODEL='Qwen2.5-0.5B-Instruct-q4f16_1-MLC';
 const CDN='https://esm.run/@mlc-ai/web-llm';
 const $=id=>document.getElementById(id);
-const editor=$('editor'), prepare=$('prepare'), generate=$('generate'), status=$('status'), detail=$('detail'), bar=$('bar'), suggestion=$('suggestion'), accept=$('accept');
+const editor=$('editor'),prepare=$('prepare'),run=$('run'),status=$('status'),detail=$('detail'),bar=$('bar'),suggestion=$('suggestion'),apply=$('apply'),auto=$('auto'),modeHint=$('modeHint');
 editor.value=localStorage.getItem('kotoba-draft')||'';
-editor.addEventListener('input',()=>localStorage.setItem('kotoba-draft',editor.value));
-$('clear').onclick=()=>{suggestion.textContent='AIの候補はここに表示されます。';accept.disabled=true};
-$('reset').onclick=()=>{if(confirm('本文を消去しますか？')){editor.value='';localStorage.removeItem('kotoba-draft')}};
-let engine=null, webllm=null;
+auto.checked=(localStorage.getItem('kotoba-auto')??'1')==='1';
+let mode=localStorage.getItem('kotoba-mode')||'novelize';
+let engine=null,webllm=null,busy=false,autoTimer=null,lastJob=0,lastRange=null,pendingAuto=false;
+const hints={
+ novelize:'小説化：いま書いている段落や選択範囲を、内容を変えすぎず小説らしい地の文・情景・会話へ整えます。',
+ polish:'推敲：意味・設定・視点を維持しながら、重複、くどさ、不自然な語順、説明臭さを減らして文章を磨きます。',
+ continue:'続き：本文末尾から自然につながる次の2〜4段落を提案します。'
+};
+function syncModes(){document.querySelectorAll('.mode').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));modeHint.textContent=hints[mode]}
+syncModes();
+document.querySelectorAll('.mode').forEach(b=>b.onclick=()=>{mode=b.dataset.mode;localStorage.setItem('kotoba-mode',mode);syncModes();scheduleAuto(true)});
+auto.onchange=()=>{localStorage.setItem('kotoba-auto',auto.checked?'1':'0');if(auto.checked)scheduleAuto(true)};
+$('clear').onclick=()=>{suggestion.textContent='AIの候補はここに表示されます。';apply.disabled=true;lastRange=null};
+$('reset').onclick=()=>{if(confirm('本文を消去しますか？')){editor.value='';localStorage.removeItem('kotoba-draft');$('clear').click()}};
+editor.addEventListener('input',()=>{localStorage.setItem('kotoba-draft',editor.value);scheduleAuto(false)});
+editor.addEventListener('select',()=>{if(auto.checked&&mode!=='continue')scheduleAuto(false)});
+
+function currentRange(){
+ const text=editor.value; const s=editor.selectionStart||0,e=editor.selectionEnd||0;
+ if(e>s) return {start:s,end:e,text:text.slice(s,e)};
+ if(mode==='continue') return {start:text.length,end:text.length,text:text.slice(-2200)};
+ const before=text.slice(0,s); const after=text.slice(s);
+ const p1=Math.max(before.lastIndexOf('\n\n')+2,before.lastIndexOf('\n')+1,0);
+ let rel=after.indexOf('\n'); if(rel<0) rel=after.length;
+ const p2=Math.min(text.length,s+rel);
+ let start=p1,end=p2,seg=text.slice(start,end).trim();
+ if(seg.length<12){start=Math.max(0,text.length-1200);end=text.length;seg=text.slice(start,end).trim()}
+ if(seg.length>1600){start=Math.max(start,end-1600);seg=text.slice(start,end)}
+ return {start,end,text:seg};
+}
+function scheduleAuto(immediate){
+ clearTimeout(autoTimer);
+ if(!auto.checked||!engine)return;
+ if(busy){pendingAuto=true;return;}
+ const r=currentRange(); if((r.text||'').trim().length<12)return;
+ autoTimer=setTimeout(()=>generate(true),immediate?200:1200);
+}
 async function check(){
  if(!('gpu' in navigator)){status.textContent='このSafariではWebGPUが使えません';detail.textContent='iPadOS 26のSafariで開いてください。';prepare.disabled=true;return false}
- try{const a=await navigator.gpu.requestAdapter(); if(!a) throw new Error('adapter unavailable'); status.textContent='WebGPU 使用可能'; detail.textContent='AIを準備を押してください。初回のみモデルを取得します。'; return true}catch(e){status.textContent='WebGPUを開始できません';detail.textContent=String(e);prepare.disabled=true;return false}
+ try{const a=await navigator.gpu.requestAdapter();if(!a)throw new Error('adapter unavailable');status.textContent='WebGPU 使用可能';detail.textContent='AIを準備を押してください。初回のみモデルを取得します。';return true}catch(e){status.textContent='WebGPUを開始できません';detail.textContent=String(e);prepare.disabled=true;return false}
 }
 async function loadEngine(){
- if('serviceWorker' in navigator){try{await navigator.serviceWorker.ready}catch{}}
- prepare.disabled=true; generate.disabled=true; status.textContent='AIライブラリを読み込み中…';
+ prepare.disabled=true;run.disabled=true;status.textContent='AIライブラリを読み込み中…';
  try{
   webllm ||= await import(CDN);
   const appConfig={...webllm.prebuiltAppConfig,cacheBackend:'cache'};
   engine=await webllm.CreateMLCEngine(MODEL,{appConfig,initProgressCallback:(p)=>{
-   const prog=Math.max(0,Math.min(1,p.progress||0)); bar.style.width=(prog*100).toFixed(1)+'%'; status.textContent=p.text||'AIを準備中…'; detail.textContent='初回は時間がかかります。画面を閉じないでください。';
+   const prog=Math.max(0,Math.min(1,p.progress||0));bar.style.width=(prog*100).toFixed(1)+'%';status.textContent=p.text||'AIを準備中…';detail.textContent='初回は時間がかかります。画面を閉じないでください。';
   }});
-  bar.style.width='100%';status.textContent='オフラインAI 使用可能';detail.textContent='モデルはブラウザに保存されました。以後は再ダウンロードせず利用できます。';generate.disabled=false;prepare.textContent='AI準備済み';
+  bar.style.width='100%';status.textContent='オフラインAI 使用可能';detail.textContent='モデルはこのブラウザに保存されています。リアルタイム提案を使えます。';run.disabled=false;prepare.textContent='AI準備済み';prepare.disabled=true;localStorage.setItem('kotoba-ai-ready','1');scheduleAuto(true);
  }catch(e){console.error(e);status.textContent='AIの準備に失敗しました';detail.textContent=(e&&e.message)||String(e);prepare.disabled=false}
 }
-prepare.onclick=loadEngine;
-generate.onclick=async()=>{
- if(!engine)return; const text=editor.value.trim(); if(!text){status.textContent='まず本文を入力してください';return}
- generate.disabled=true;accept.disabled=true;suggestion.textContent='';status.textContent='続きを生成中…';
- const tail=text.slice(-2200);
- const messages=[
-  {role:'system',content:'あなたは日本語小説の執筆支援AIです。与えられた本文の直後に自然につながる文章だけを書いてください。講評・説明・見出し・箇条書きは禁止。登場人物、視点、時制、文体を本文に合わせ、勝手に大量の新設定を追加しないでください。出力は日本語で2〜4段落程度。'},
-  {role:'user',content:'以下は小説本文の末尾です。この直後の続きを自然に書いてください。\n\n--- 本文末尾 ---\n'+tail+'\n--- ここまで ---\n\n続きだけを書いてください。'}
+prepare.onclick=loadEngine;run.onclick=()=>generate(false);
+
+function makePrompt(r){
+ if(mode==='novelize') return [
+  {role:'system',content:'あなたは日本語小説のプロ編集者です。入力されたメモ・プロット・粗い文章を、意味と出来事を守りながら自然な小説本文へ書き換えてください。地の文と情景を補い、会話は短く自然にし、キザな言い回し、過剰な比喩、説明の重複を避けてください。勝手に新設定や新人物を追加しないでください。出力は書き換え後の本文だけ。講評、見出し、前置きは禁止。'},
+  {role:'user',content:'次の文章を小説本文として自然に整えてください。\n\n---\n'+r.text+'\n---'}
  ];
+ if(mode==='polish') return [
+  {role:'system',content:'あなたは日本語小説の校閲・推敲担当です。内容、設定、人物関係、視点、時制を変えずに文章だけを磨いてください。重複語、冗長さ、説明臭さ、不自然な語順、同じ語尾の連続を減らし、情景と動作が伝わる文章にしてください。原文にない情報を足さないでください。出力は推敲後の本文だけ。講評や説明は禁止。'},
+  {role:'user',content:'次の文章を推敲してください。\n\n---\n'+r.text+'\n---'}
+ ];
+ return [
+  {role:'system',content:'あなたは日本語小説の執筆支援AIです。与えられた本文の直後に自然につながる文章だけを書いてください。講評・説明・見出し・箇条書きは禁止。登場人物、視点、時制、文体を本文に合わせ、勝手に大量の新設定を追加しないでください。会話は短く、地の文と情景を適度に補ってください。出力は日本語で2〜4段落程度。'},
+  {role:'user',content:'以下は小説本文の末尾です。この直後の続きを自然に書いてください。\n\n--- 本文末尾 ---\n'+r.text+'\n--- ここまで ---'}
+ ];
+}
+async function generate(isAuto){
+ if(!engine||busy)return; const r=currentRange(); if(!r.text.trim()){status.textContent='まず文章を入力してください';return}
+ busy=true;pendingAuto=false;const sourceSnapshot=editor.value;const job=++lastJob;run.disabled=true;apply.disabled=true;suggestion.classList.add('busy');suggestion.textContent=isAuto?'自動提案を作成中…':'提案を作成中…';status.textContent=isAuto?'リアルタイム提案中…':'提案を生成中…';
  try{
-  const chunks=await engine.chat.completions.create({messages,temperature:.75,top_p:.9,max_tokens:240,stream:true});let out='';
-  for await(const ch of chunks){out+=ch.choices?.[0]?.delta?.content||'';suggestion.textContent=out}
-  suggestion.textContent=out.trim()||'生成結果が空でした。';accept.disabled=!out.trim();status.textContent='生成完了';
- }catch(e){console.error(e);suggestion.textContent='生成エラー: '+((e&&e.message)||String(e));status.textContent='生成に失敗しました'}finally{generate.disabled=false}
+  const messages=makePrompt(r);
+  const maxTokens=mode==='continue'?260:Math.min(420,Math.max(160,Math.ceil(r.text.length*.9)));
+  const chunks=await engine.chat.completions.create({messages,temperature:mode==='polish'?.35:.68,top_p:.9,max_tokens:maxTokens,stream:true});
+  let out='';for await(const ch of chunks){if(job!==lastJob)return;out+=ch.choices?.[0]?.delta?.content||'';suggestion.textContent=out}
+  out=out.trim();
+  if(isAuto&&editor.value!==sourceSnapshot){suggestion.textContent='入力が更新されたため、新しい文章で提案し直します。';apply.disabled=true;status.textContent='入力更新を検出';pendingAuto=true;}
+  else{suggestion.textContent=out||'生成結果が空でした。';lastRange={...r,mode};apply.disabled=!out;status.textContent=isAuto?'自動提案 完了':'生成完了';}
+ }catch(e){console.error(e);if(job===lastJob){suggestion.textContent='生成エラー: '+((e&&e.message)||String(e));status.textContent='生成に失敗しました'}}
+ finally{if(job===lastJob){busy=false;run.disabled=false;suggestion.classList.remove('busy');if(pendingAuto)scheduleAuto(false)}}
+}
+apply.onclick=()=>{
+ const s=suggestion.textContent.trim();if(!s||!lastRange)return;
+ if(lastRange.mode==='continue'){
+  editor.value+=(editor.value&&!editor.value.endsWith('\n')?'\n':'')+s;
+ }else{
+  const {start,end}=lastRange;editor.value=editor.value.slice(0,start)+s+editor.value.slice(end);
+  editor.selectionStart=editor.selectionEnd=start+s.length;
+ }
+ localStorage.setItem('kotoba-draft',editor.value);apply.disabled=true;status.textContent=lastRange.mode==='continue'?'本文へ追加しました':'候補を本文へ反映しました';lastRange=null;
 };
-accept.onclick=()=>{const s=suggestion.textContent.trim();if(!s||s.startsWith('AIの候補'))return;editor.value+=(editor.value&&!editor.value.endsWith('\n')?'\n':'')+s;localStorage.setItem('kotoba-draft',editor.value);accept.disabled=true;status.textContent='本文へ追加しました'};
-if('serviceWorker' in navigator){navigator.serviceWorker.register('./sw.js').catch(()=>{})}
-check();
+if('serviceWorker'in navigator){navigator.serviceWorker.register('./sw.js').catch(()=>{})}
+check().then(ok=>{if(ok&&localStorage.getItem('kotoba-ai-ready')==='1')loadEngine()});
 </script>
-</body></html>
+</body>
+</html>

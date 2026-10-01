@@ -1,12 +1,18 @@
-# Kotoba WebGPU版
+# Kotoba WebGPU リアルタイム版
 
-Swift Playgroundを使わず、Safari 26 / iPadOS 26 のWebGPU上でローカルAIを動かす版です。
+iPad Safari で動く、ローカルAI執筆支援PWAです。
 
-## GitHub Pagesで使う
-1. このフォルダの `index.html` / `manifest.webmanifest` / `sw.js` をGitHubリポジトリのルートへアップロード
-2. GitHubの Settings > Pages で Deploy from a branch、main / root を選択
-3. 表示されたPages URLをiPadのSafariで開く
-4. 「AIを準備」を押す（初回のみモデル取得）
-5. Safari共有メニュー > ホーム画面に追加
+## 主な機能
+- 小説化：メモ・プロット・粗い文章を小説本文へ整える
+- 推敲：意味を維持したまま文章を磨く
+- 続き：本文末尾から次の2〜4段落を提案
+- 入力停止後約1.2秒で自動提案
+- 選択範囲がある場合はその範囲を優先
+- 本文は localStorage に保存
+- AI生成はWebGPUで端末内実行
 
-モデル: Qwen2.5-0.5B-Instruct-q4f16_1-MLC。WebLLMのCache APIへ保存されます。
+## 更新方法
+既存GitHub Pages版の `index.html` と `sw.js` をこの版へ置き換えてください。
+`manifest.webmanifest` と `README.md` も更新できます。
+
+初回のみWebLLM本体とモデルの取得にインターネット接続が必要です。
