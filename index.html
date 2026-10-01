@@ -20,7 +20,7 @@ textarea{width:100%;min-height:48vh;resize:vertical;border:1px solid #ddd9d1;bor
 <body>
 <header><h1>Kotoba</h1><button id="prepare">AIを準備</button><button id="run" disabled>今すぐ提案</button></header>
 <main>
-<section class="status"><div id="status">起動確認中…</div><div class="meter"><div id="bar"></div></div><div id="detail" class="small">本文はこの端末内に保存されます。AI生成も端末内で実行します。</div></section>
+<section class="status"><div id="status">起動確認中…</div><div class="meter"><div id="bar"></div></div><div id="detail" class="small">本文はこの端末内に保存されます。AI生成も端末内で実行します。 <span style="opacity:.55">build 4</span></div></section>
 <section class="controls">
   <button class="secondary mode active" data-mode="novelize">小説化</button>
   <button class="secondary mode" data-mode="polish">推敲</button>
@@ -131,7 +131,7 @@ apply.onclick=()=>{
  }
  localStorage.setItem('kotoba-draft',editor.value);apply.disabled=true;status.textContent=lastRange.mode==='continue'?'本文へ追加しました':'候補を本文へ反映しました';lastRange=null;
 };
-if('serviceWorker'in navigator){navigator.serviceWorker.register('./sw.js').catch(()=>{})}
+if('serviceWorker'in navigator){navigator.serviceWorker.register('./sw.js?v=4').then(reg=>reg.update()).catch(()=>{})}
 check().then(ok=>{if(ok&&localStorage.getItem('kotoba-ai-ready')==='1')loadEngine()});
 </script>
 </body>

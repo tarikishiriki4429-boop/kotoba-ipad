@@ -1,20 +1,80 @@
-const CACHE='kotoba-shell-v3';
-self.addEventListener('install',event=>{
+const CACHE = 'kotoba-shell-v4';
+const SHELL = ['./', './index.html', './manifest.webmanifest'];
+
+self.addEventListener('install', event => {
   self.skipWaiting();
-  event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(['./','./index.html','./manifest.webmanifest'])));
+  event.waitUntil(
+    caches.open(CACHE).then(cache => cache.addAll(SHELL))
+  );
 });
-self.addEventListener('activate',event=>event.waitUntil(
-  Promise.all([
-    self.clients.claim(),
-    caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('kotoba-shell-')&&k!==CACHE).map(k=>caches.delete(k))))
-  ])
-));
-self.addEventListener('fetch',event=>{
-  if(event.request.method!=='GET') return;
-  const url=new URL(event.request.url);
-  const shouldCache=url.origin===self.location.origin||url.hostname==='esm.run';
-  if(!shouldCache) return;
-  event.respondWith(caches.match(event.request).then(hit=>hit||fetch(event.request).then(response=>{
-    const copy=response.clone();caches.open(CACHE).then(cache=>cache.put(event.request,copy)).catch(()=>{});return response;
-  })));
+
+self.addEventListener('activate', event => {
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(
+      keys
+        .filter(key => key.startsWith('kotoba-shell-') && key !== CACHE)
+        .map(key => caches.delete(key))
+    );
+    await self.clients.claim();
+  })());
+});
+
+async function networkFirst(request) {
+  const cache = await caches.open(CACHE);
+  try {
+    // no-store を指定して Safari の古い HTTP キャッシュも避ける。
+    const response = await fetch(request, { cache: 'no-store' });
+    if (response && response.ok) {
+      await cache.put(request, response.clone());
+    }
+    return response;
+  } catch (error) {
+    const cached = await cache.match(request, { ignoreSearch: true });
+    if (cached) return cached;
+    throw error;
+  }
+}
+
+async function cacheFirst(request) {
+  const cache = await caches.open(CACHE);
+  const cached = await cache.match(request);
+  if (cached) return cached;
+  const response = await fetch(request);
+  if (response && response.ok) {
+    await cache.put(request, response.clone());
+  }
+  return response;
+}
+
+self.addEventListener('fetch', event => {
+  if (event.request.method !== 'GET') return;
+
+  const url = new URL(event.request.url);
+  const sameOrigin = url.origin === self.location.origin;
+
+  // ページ本体はオンライン時に必ず最新版を確認する。
+  if (
+    sameOrigin &&
+    (event.request.mode === 'navigate' ||
+      url.pathname.endsWith('/index.html') ||
+      url.pathname.endsWith('/manifest.webmanifest'))
+  ) {
+    event.respondWith(networkFirst(event.request));
+    return;
+  }
+
+  // WebLLM の読み込み用。取得済みならオフラインでも使える。
+  if (
+    url.hostname === 'esm.run' ||
+    url.hostname === 'cdn.jsdelivr.net' ||
+    url.hostname.endsWith('.jsdelivr.net')
+  ) {
+    event.respondWith(cacheFirst(event.request));
+    return;
+  }
+
+  if (sameOrigin) {
+    event.respondWith(networkFirst(event.request));
+  }
 });
