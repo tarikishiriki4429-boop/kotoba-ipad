@@ -1,13 +1,15 @@
-# Kotoba WebGPU リアルタイム版 — build 5
+# Kotoba WebGPU リアルタイム版 — build 6
 
 iPad Safariで動く、ローカルAI執筆支援PWAです。
 
-## build 5 の変更
-- 画面右下に `Kotoba build 5` を常時表示
-- Service Workerをnetwork-firstへ変更
-- オンライン時は最新版を優先
-- オフライン時のみキャッシュへフォールバック
-- Service Worker登録時に `updateViaCache: none` を使用
+## build 6 の変更
+- WebLLMを **0.2.82に固定**
+- `Object has already been disposed` 回帰バグを避ける
+- iPad向けにリアルタイム入力範囲を短縮
+- 生成トークン数を抑えてメモリ使用量を軽減
+- disposed / device lost時にAIエンジンを自動再初期化して1回再試行
+- 画面右下に `Kotoba build 6` を常時表示
+- オンライン時は最新版優先、オフライン時はキャッシュ利用
 
 ## 主な機能
 - 小説化
