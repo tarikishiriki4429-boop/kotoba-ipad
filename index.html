@@ -13,19 +13,21 @@
   color:#202020;background:#d8d7d4;
 }
 *{box-sizing:border-box}
-html,body{margin:0;min-height:100%;background:#d8d7d4}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#d8d7d4}
+body{position:fixed;left:0;right:0;top:var(--viewport-top,0px);height:var(--viewport-height,100dvh);display:flex;flex-direction:column}
+.topbar,.toolbar,.statusbar{flex-shrink:0}
 button,select,input{font:inherit}
 button{border:1px solid #c9c7c2;border-radius:9px;background:#fff;color:#222;padding:8px 11px;font-weight:600}
 button.primary{background:#222;color:#fff;border-color:#222}
 button:disabled{opacity:.45}
 .topbar{
-  position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  position:relative;top:auto;z-index:20;display:flex;align-items:center;gap:8px;flex-wrap:wrap;
   padding:max(9px,env(safe-area-inset-top)) 10px 9px;background:rgba(246,245,242,.96);
   border-bottom:1px solid #c9c7c2;backdrop-filter:blur(10px)
 }
 .title{font-weight:800}.spacer{flex:1}
 .toolbar{
-  position:sticky;top:58px;z-index:19;display:flex;gap:8px;align-items:center;flex-wrap:wrap;
+  position:relative;top:auto;z-index:19;display:flex;gap:8px;align-items:center;flex-wrap:wrap;
   padding:8px 10px;background:#efede9;border-bottom:1px solid #ccc9c3
 }
 .toolbar label{display:flex;align-items:center;gap:5px;font-size:13px;color:#555}
@@ -33,22 +35,22 @@ button:disabled{opacity:.45}
 .toolbar input[type=number]{width:68px}
 .presetbar{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 .presetbar button{padding:6px 9px;font-size:12px}
-.workspace{padding:28px 10px 100px;overflow:auto}
-.pages{display:flex;flex-direction:column;gap:26px;align-items:center}
+.workspace{flex:1;min-height:0;padding:28px 10px 40px;overflow:auto;overscroll-behavior:contain;overflow-anchor:none;scroll-behavior:auto}
+.pages{display:flex;flex-direction:column;gap:26px;align-items:flex-start;min-width:max-content}
 .page{
   position:relative;background:#fff;box-shadow:0 2px 13px rgba(0,0,0,.16);
-  padding:56px 58px;border-radius:2px;width:max-content;
+  padding:56px 58px;border-radius:2px;width:max-content;margin-inline:auto;flex-shrink:0;
 }
 .page::after{
   content:attr(data-page);position:absolute;right:16px;bottom:12px;font-size:11px;color:#999;
 }
 .page-editor{
-  display:block;border:0;outline:0;resize:none;background:transparent;color:#171717;
+  display:block;margin:0;padding:0;border:0;outline:0;resize:none;background:transparent;color:#171717;
   font-size:var(--font-size);line-height:var(--line-height);
   font-family:"Hiragino Mincho ProN","Yu Mincho","YuMincho",serif;
   font-kerning:none;font-variant-east-asian:full-width;
   letter-spacing:0;caret-color:#111;white-space:pre-wrap;overflow:hidden;
-  line-break:strict;word-break:normal;box-sizing:content-box;
+  line-break:anywhere;word-break:break-all;box-sizing:content-box;
   width:calc(var(--chars) * 1em);
   height:calc(var(--lines) * var(--font-size) * var(--line-height));
 }
@@ -70,7 +72,7 @@ button:disabled{opacity:.45}
   background-size:calc(var(--font-size) * var(--line-height)) 1em;
 }
 .statusbar{
-  position:fixed;left:0;right:0;bottom:0;z-index:30;display:flex;gap:14px;align-items:center;flex-wrap:wrap;
+  position:relative;left:auto;right:auto;bottom:auto;z-index:30;display:flex;gap:14px;align-items:center;flex-wrap:wrap;
   padding:8px 12px max(8px,env(safe-area-inset-bottom));background:rgba(246,245,242,.96);
   border-top:1px solid #c9c7c2;font-size:12px;color:#555;backdrop-filter:blur(10px)
 }
@@ -93,11 +95,11 @@ button:disabled{opacity:.45}
 .privacy-banner.show{display:block}
 #fileInput,#printArea{display:none}
 @media(max-width:700px){
-  .toolbar{top:100px}.workspace{padding-top:16px}.page{padding:38px 24px}.pages{align-items:flex-start}
+  .toolbar{top:auto}.workspace{padding-top:16px}.page{padding:38px 24px}.pages{align-items:flex-start}
 }
 @media print{
   .topbar,.toolbar,.statusbar,.panel,.privacy-banner{display:none!important}
-  body,.workspace{background:white!important;padding:0!important}.pages{display:none!important}
+  html,body{position:static!important;height:auto!important;overflow:visible!important}body,.workspace{background:white!important;padding:0!important}.pages{display:none!important}
   #printArea{display:block!important;white-space:pre-wrap;font-family:"Yu Mincho",serif;font-size:12pt;line-height:1.8}
   @page{size:A4;margin:18mm}
 }
@@ -154,7 +156,7 @@ button:disabled{opacity:.45}
   <span id="cursor">1ページ 1行 1列</span>
   <span id="pageInfo">40字 × 30行</span>
   <span id="pageCount">1ページ</span>
-  <span class="build">Kotoba Writer build 5</span>
+  <span class="build">Kotoba Writer build 6</span>
 </div>
 
 <div id="findPanel" class="panel">
@@ -189,7 +191,7 @@ button:disabled{opacity:.45}
 <div id="printArea"></div>
 
 <script type="module">
-const BUILD=5;
+const BUILD=6;
 const $=id=>document.getElementById(id);
 const STORAGE='kotoba-writer-draft-v1';
 const SETTINGS='kotoba-writer-settings-v1';
@@ -201,6 +203,45 @@ let chunks=[];
 let globalCaret=0, globalSelEnd=0;
 let history=[];
 let isComposing=false;
+const graphemes=new Intl.Segmenter('ja',{granularity:'grapheme'});
+function units(text){return Array.from(graphemes.segment(text));}
+function previousOffset(pos){const a=units(docText.slice(0,pos));return a.length?a[a.length-1].index:0;}
+function nextOffset(pos){const a=units(docText.slice(pos));return pos+(a[0]?.segment.length||0);}
+let rendering=false;
+let revealFrame=0;
+function viewportChanged(){
+  const vv=window.visualViewport;
+  document.documentElement.style.setProperty('--viewport-height',(vv?.height||innerHeight)+'px');
+  document.documentElement.style.setProperty('--viewport-top',(vv?.offsetTop||0)+'px');
+  scheduleReveal();
+}
+window.visualViewport?.addEventListener('resize',viewportChanged);
+window.visualViewport?.addEventListener('scroll',viewportChanged);
+window.addEventListener('resize',viewportChanged);
+// Scroll only enough to expose the actual caret, never center the entire sheet.
+function scheduleReveal(){
+  cancelAnimationFrame(revealFrame);
+  revealFrame=requestAnimationFrame(()=>{
+    const ta=document.activeElement;
+    if(!ta?.classList.contains('page-editor')||isComposing)return;
+    const workspace=document.querySelector('.workspace');
+    const mirror=document.createElement('div');
+    const style=getComputedStyle(ta);
+    for(const key of ['fontFamily','fontSize','fontWeight','lineHeight','letterSpacing','writingMode','textOrientation','wordBreak','lineBreak','whiteSpace','fontKerning','fontVariantEastAsian','tabSize'])mirror.style[key]=style[key];
+    Object.assign(mirror.style,{position:'fixed',left:'0',top:'0',width:style.width,height:style.height,visibility:'hidden',pointerEvents:'none'});
+    mirror.textContent=ta.value.slice(0,ta.selectionStart);
+    const marker=document.createElement('span');marker.textContent='\u200b';mirror.append(marker);
+    mirror.append(document.createTextNode(ta.value.slice(ta.selectionStart)||'\u200b'));
+    document.body.append(mirror);
+    const m=marker.getBoundingClientRect(),base=mirror.getBoundingClientRect(),rect=ta.getBoundingClientRect(),view=workspace.getBoundingClientRect();
+    const left=rect.left+m.left-base.left,top=rect.top+m.top-base.top;
+    const right=left+Math.max(2,m.width),bottom=top+Math.max(parseFloat(style.fontSize),m.height);
+    mirror.remove();
+    const dx=left<view.left+12?left-view.left-12:right>view.right-12?right-view.right+12:0;
+    const dy=top<view.top+12?top-view.top-12:bottom>view.bottom-12?bottom-view.bottom+12:0;
+    if(dx||dy)workspace.scrollBy({left:dx,top:dy,behavior:'instant'});
+  });
+}
 let searchPos=0,currentMatch=null,lastSearchQuery='';
 let aiEngine=null,webllm=null,aiRange=null,aiSnapshot=null;
 let privacyMode=localStorage.getItem('kotoba-writer-privacy')==='1';
@@ -260,17 +301,17 @@ function paginate(text){
   const {charCount:cols,lineCount:rows}=getSettings();
   const out=[];
   let pageStart=0,row=0,col=0;
-  for(let i=0;i<text.length;i++){
-    const ch=text[i];
-    if(ch==='\n'){
-      row++; col=0;
-    }else{
-      col++;
-      if(col>=cols){col=0;row++}
-    }
-    if(row>=rows){
-      out.push({start:pageStart,end:i+1,text:text.slice(pageStart,i+1)});
-      pageStart=i+1;row=0;col=0;
+  const chars=units(text);
+  for(let k=0;k<chars.length;k++){
+    const {segment:ch,index:i}=chars[k];
+    if(ch==='\n'){row++;col=0;}
+    else{if(col===cols){row++;col=0;}col++;}
+    let end=i+ch.length;
+    if(row>=rows || (row===rows-1 && col===cols)){
+      // A newline immediately after a full final line belongs to that line.
+      if(col===cols && chars[k+1]?.segment==='\n'){end++;k++;}
+      out.push({start:pageStart,end,text:text.slice(pageStart,end)});
+      pageStart=end;row=0;col=0;
     }
   }
   out.push({start:pageStart,end:text.length,text:text.slice(pageStart)});
@@ -281,16 +322,16 @@ function pageForOffset(pos){
   pos=Math.max(0,Math.min(pos,docText.length));
   for(let i=0;i<chunks.length;i++){
     const c=chunks[i];
-    if(pos>=c.start && pos<=c.end)return i;
+    if(pos>=c.start && (pos<c.end || i===chunks.length-1))return i;
   }
   return Math.max(0,chunks.length-1);
 }
 function lineCol(text,pos){
   const {charCount:cols}=getSettings();
   let row=1,col=1;
-  for(let i=0;i<Math.min(pos,text.length);i++){
-    if(text[i]==='\n'){row++;col=1}
-    else{col++;if(col>cols){row++;col=1}}
+  for(const {segment:ch} of units(text.slice(0,pos))){
+    if(ch==='\n'){row++;col=1;}
+    else{if(col>cols){row++;col=1;}col++;}
   }
   return {row,col};
 }
@@ -313,71 +354,52 @@ function bindEditor(ta){
   if(ta.dataset.bound)return;
   ta.dataset.bound='1';
 
-  ta.addEventListener('compositionstart',()=>{isComposing=true});
-  ta.addEventListener('compositionend',e=>{
-    isComposing=false;
-    syncFromPage(e.currentTarget,true);
+  ta.addEventListener('compositionstart',()=>{isComposing=true;remember()});
+  ta.addEventListener('compositionend',()=>{isComposing=false;syncFromPage(ta,true)});
+  for(const type of ['focus','click','select','keyup'])ta.addEventListener(type,()=>{if(!rendering && document.activeElement===ta)syncCaret(ta)});
+  ta.addEventListener('beforeinput',e=>{
+    if(isComposing||e.isComposing)return;
+    if(handleEdit(e,ta,e.inputType))return;
+    remember();
   });
-
-  ta.addEventListener('focus',e=>syncCaret(e.currentTarget));
-  ta.addEventListener('click',e=>syncCaret(e.currentTarget));
-  ta.addEventListener('select',e=>syncCaret(e.currentTarget));
-  ta.addEventListener('keyup',e=>syncCaret(e.currentTarget));
-
   ta.addEventListener('input',e=>{
-    if(isComposing)return;
-    syncFromPage(e.currentTarget,true);
+    if(document.activeElement!==ta)return;
+    if(isComposing||e.isComposing){saveComposition(ta);return;}
+    syncFromPage(ta,true);
   });
-
   ta.addEventListener('keydown',e=>{
-    if(isComposing)return;
-    const i=+ta.dataset.index;
-    const c=chunks[i];
-    if(!c)return;
-
-    // EnterはSafari任せにしない。必ず論理改行を1つ挿入する。
-    if(e.key==='Enter'){
-      e.preventDefault();
-      remember();
-      const s=c.start+ta.selectionStart;
-      const en=c.start+ta.selectionEnd;
-      docText=docText.slice(0,s)+'\n'+docText.slice(en);
-      globalCaret=globalSelEnd=s+1;
-      save();
-      renderPages(globalCaret,globalSelEnd,true,true);
-      return;
-    }
-
-    // 2ページ目以降の先頭でBackspace → 前ページ末尾に戻って削除
-    if(e.key==='Backspace' && ta.selectionStart===0 && ta.selectionEnd===0 && i>0){
-      e.preventDefault();
-      const pos=c.start;
-      if(pos>0){
-        remember();
-        docText=docText.slice(0,pos-1)+docText.slice(pos);
-        globalCaret=globalSelEnd=pos-1;
-        save();
-        renderPages(globalCaret,globalSelEnd,true,true);
-      }
-      return;
-    }
-
-    // ページ先頭から左へ
-    if(e.key==='ArrowLeft' && ta.selectionStart===0 && ta.selectionEnd===0 && i>0){
-      e.preventDefault();
-      globalCaret=globalSelEnd=Math.max(0,c.start-1);
-      renderPages(globalCaret,globalSelEnd,true,true);
-      return;
-    }
-
-    // ページ末尾から右へ
-    if(e.key==='ArrowRight' && ta.selectionStart===ta.value.length && ta.selectionEnd===ta.value.length && i<chunks.length-1){
-      e.preventDefault();
-      globalCaret=globalSelEnd=c.end;
-      renderPages(globalCaret,globalSelEnd,true,true);
+    if(isComposing||e.isComposing||e.keyCode===229)return;
+    const type={Enter:'insertLineBreak',Backspace:'deleteContentBackward',Delete:'deleteContentForward'}[e.key];
+    if(type && handleEdit(e,ta,type))return;
+    const c=chunks[+ta.dataset.index];if(!c||e.shiftKey)return;
+    const vertical=getSettings().writingMode==='vertical';
+    const backward=vertical?'ArrowUp':'ArrowLeft',forward=vertical?'ArrowDown':'ArrowRight';
+    if(ta.selectionStart!==ta.selectionEnd)return;
+    if(e.key===backward && ta.selectionStart===0 && c.start>0){
+      e.preventDefault();renderPages(previousOffset(c.start),previousOffset(c.start),true,true);
+    }else if(e.key===forward && ta.selectionEnd===ta.value.length && c.end<docText.length){
+      e.preventDefault();renderPages(c.end,c.end,true,true);
     }
   });
 }
+function saveComposition(ta){
+  const c=chunks[+ta.dataset.index];if(!c)return;
+  // Persist provisional input without changing the DOM or offsets during IME.
+  try{localStorage.setItem(STORAGE,docText.slice(0,c.start)+ta.value+docText.slice(c.end));}catch{}
+}
+function handleEdit(event,ta,type){
+  const c=chunks[+ta.dataset.index];if(!c||!event.cancelable)return false;
+  let start=c.start+ta.selectionStart,end=c.start+ta.selectionEnd,text='';
+  if(type==='insertLineBreak'||type==='insertParagraph')text='\n';
+  else if(type==='deleteContentBackward' && start===end && ta.selectionStart===0 && start>0)start=previousOffset(start);
+  else if(type==='deleteContentForward' && start===end && ta.selectionEnd===ta.value.length && end<docText.length)end=nextOffset(end);
+  else return false;
+  event.preventDefault();remember();
+  docText=docText.slice(0,start)+text+docText.slice(end);
+  save();renderPages(start+text.length,start+text.length,true,true);
+  return true;
+}
+
 function syncCaret(ta){
   const i=+ta.dataset.index,c=chunks[i];if(!c)return;
   globalCaret=c.start+ta.selectionStart;
@@ -394,6 +416,7 @@ function syncFromPage(ta,focus){
   renderPages(globalCaret,globalSelEnd,focus,true);
 }
 function renderPages(caret=globalCaret,selEnd=globalSelEnd,focus=false,scroll=false){
+  rendering=true;
   chunks=paginate(docText);
   const container=$('pages');
 
@@ -411,7 +434,7 @@ function renderPages(caret=globalCaret,selEnd=globalSelEnd,focus=false,scroll=fa
     page.className=pageClass();page.dataset.page=`${i+1}`;
     const ta=page.firstElementChild;
     ta.dataset.index=i;
-    if(ta.value!==c.text)ta.value=c.text;
+    if(ta.value!==c.text){ta.value=c.text;ta.scrollTop=0;ta.scrollLeft=0;}
   });
 
   globalCaret=Math.max(0,Math.min(caret,docText.length));
@@ -419,23 +442,22 @@ function renderPages(caret=globalCaret,selEnd=globalSelEnd,focus=false,scroll=fa
   updateStatus();
 
   if(focus){
-    requestAnimationFrame(()=>{
-      const p=pageForOffset(globalCaret);
-      const c=chunks[p],page=container.children[p],ta=page.firstElementChild;
-      const s=Math.max(0,Math.min(globalCaret-c.start,ta.value.length));
-      const e=Math.max(s,Math.min(globalSelEnd-c.start,ta.value.length));
-      ta.focus({preventScroll:true});
-      ta.setSelectionRange(s,e);
-      // iPad Safari対策：改行後の内部スクロール位置をリセット
-      ta.scrollTop=0;ta.scrollLeft=0;
-      if(scroll)page.scrollIntoView({block:'center',behavior:'smooth'});
-      setTimeout(()=>{ta.setSelectionRange(s,e);ta.scrollTop=0;ta.scrollLeft=0;},40);
-    });
+    const p=pageForOffset(globalCaret);
+    const c=chunks[p],ta=container.children[p].firstElementChild;
+    const start=Math.min(globalCaret-c.start,ta.value.length);
+    const end=Math.min(globalSelEnd-c.start,ta.value.length);
+    if(document.activeElement!==ta)ta.focus({preventScroll:true});
+    // Preserve native selection on ordinary keystrokes. No delayed caret reset.
+    if(ta.selectionStart!==start||ta.selectionEnd!==end)ta.setSelectionRange(start,end);
+    ta.scrollTop=0;ta.scrollLeft=0;
+    if(scroll)scheduleReveal();
   }
+  rendering=false;
 }
+
 function setDoc(text,caret=0,end=caret,rememberIt=true,focus=true){
   if(rememberIt)remember();
-  docText=String(text??'');
+  docText=String(text??'').replace(/\r\n?/g,'\n');
   globalCaret=Math.max(0,Math.min(caret,docText.length));
   globalSelEnd=Math.max(globalCaret,Math.min(end,docText.length));
   save();renderPages(globalCaret,globalSelEnd,focus,true);
@@ -605,9 +627,10 @@ $('privacyBtn').onclick=async()=>{
 document.querySelectorAll('[data-preset]').forEach(b=>b.onclick=()=>{
   const [c,l]=b.dataset.preset.split(',');$('charCount').value=c;$('lineCount').value=l;applySettings();
 });
-window.addEventListener('pagehide',save);
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')save()});
+window.addEventListener('pagehide',()=>{if(!isComposing)save()});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&!isComposing)save()});
 
+viewportChanged();
 loadSettings();
 applySettings();
 syncPrivacy();
