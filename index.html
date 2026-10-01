@@ -55,6 +55,7 @@ button:disabled{opacity:.45}
   height:calc(var(--lines) * var(--font-size) * var(--line-height));
 }
 .page.vertical .page-editor{
+  -webkit-user-select:text;user-select:text;cursor:text;
   writing-mode:vertical-rl;text-orientation:mixed;
   width:calc(var(--lines) * var(--font-size) * var(--line-height));
   height:calc(var(--chars) * 1em);
@@ -156,7 +157,7 @@ button:disabled{opacity:.45}
   <span id="cursor">1ページ 1行 1列</span>
   <span id="pageInfo">40字 × 30行</span>
   <span id="pageCount">1ページ</span>
-  <span class="build">Kotoba Writer build 6</span>
+  <span class="build">Kotoba Writer build 7</span>
 </div>
 
 <div id="findPanel" class="panel">
@@ -191,7 +192,7 @@ button:disabled{opacity:.45}
 <div id="printArea"></div>
 
 <script type="module">
-const BUILD=6;
+const BUILD=7;
 const $=id=>document.getElementById(id);
 const STORAGE='kotoba-writer-draft-v1';
 const SETTINGS='kotoba-writer-settings-v1';
@@ -233,8 +234,15 @@ function scheduleReveal(){
     const marker=document.createElement('span');marker.textContent='\u200b';mirror.append(marker);
     mirror.append(document.createTextNode(ta.value.slice(ta.selectionStart)||'\u200b'));
     document.body.append(mirror);
-    const m=marker.getBoundingClientRect(),base=mirror.getBoundingClientRect(),rect=ta.getBoundingClientRect(),view=workspace.getBoundingClientRect();
-    const left=rect.left+m.left-base.left,top=rect.top+m.top-base.top;
+    let m=marker.getBoundingClientRect();
+    const base=mirror.getBoundingClientRect(),rect=ta.getBoundingClientRect(),view=workspace.getBoundingClientRect();
+    let left=rect.left+m.left-base.left,top=rect.top+m.top-base.top;
+    const selection=window.getSelection();
+    if(ta.tagName==='DIV' && selection.rangeCount && ta.contains(selection.focusNode)){
+      const range=selection.getRangeAt(0).cloneRange();range.collapse(true);
+      const nativeRect=range.getClientRects()[0];
+      if(nativeRect && (nativeRect.width||nativeRect.height)){m=nativeRect;left=m.left;top=m.top;}
+    }
     const right=left+Math.max(2,m.width),bottom=top+Math.max(parseFloat(style.fontSize),m.height);
     mirror.remove();
     const dx=left<view.left+12?left-view.left-12:right>view.right-12?right-view.right+12:0;
@@ -350,6 +358,94 @@ function pageClass(){
   const s=getSettings();
   return 'page'+(s.writingMode==='vertical'?' vertical':'')+(s.manuscript?' manuscript':'');
 }
+// Vertical editing uses DOM selection instead of textarea's internal layout.
+function editableMap(root){
+  let text='';const bounds=new Map();const texts=[];
+  function walk(node){
+    if(node.nodeType===Node.TEXT_NODE){
+      const start=text.length;
+      const value=node.parentElement?.hasAttribute('data-caret-end') && node===node.parentElement.lastChild && node.data.endsWith('\u200b')?node.data.slice(0,-1):node.data;
+      text+=value;bounds.set(node,{start,length:value.length});texts.push({node,start,end:text.length});return;
+    }
+    if(node.nodeType!==Node.ELEMENT_NODE)return;
+    if(node.tagName==='BR'){bounds.set(node,{start:text.length,children:[text.length]});text+='\n';return;}
+    const block=node!==root && /^(DIV|P)$/.test(node.tagName);
+    if(block && text && !text.endsWith('\n'))text+='\n';
+    const entry={start:text.length,children:[text.length]};bounds.set(node,entry);
+    for(const child of node.childNodes){walk(child);entry.children.push(text.length);}
+    if(block && node.nextSibling && !text.endsWith('\n'))text+='\n';
+  }
+  walk(root);
+  return {text,texts,offset(node,index){
+    const b=bounds.get(node);if(!b)return null;
+    return node.nodeType===Node.TEXT_NODE?b.start+Math.min(index,b.length):b.children[Math.min(index,b.children.length-1)];
+  }};
+}
+function createEditor(vertical){
+  const el=document.createElement(vertical?'div':'textarea');
+  el.className='page-editor';el.spellcheck=false;
+  el.setAttribute('aria-label',vertical?'縦書き本文':'横書き本文');
+  if(!vertical)return el;
+  el.setAttribute('contenteditable','plaintext-only');el.setAttribute('role','textbox');
+  el.setAttribute('aria-multiline','true');el.tabIndex=0;
+  let lastStart=0,lastEnd=0;
+  function selection(){
+    const sel=window.getSelection(),map=editableMap(el);
+    if(sel?.rangeCount && el.contains(sel.anchorNode) && el.contains(sel.focusNode)){
+      const a=map.offset(sel.anchorNode,sel.anchorOffset),b=map.offset(sel.focusNode,sel.focusOffset);
+      if(a!==null && b!==null){lastStart=Math.min(a,b);lastEnd=Math.max(a,b);}
+    }
+    return [Math.min(lastStart,map.text.length),Math.min(lastEnd,map.text.length)];
+  }
+  Object.defineProperties(el,{
+    value:{get:()=>editableMap(el).text,set:value=>{
+      el.replaceChildren(document.createTextNode(value));
+      if(!value || value.endsWith('\n')){
+        const end=document.createElement('span');end.setAttribute('data-caret-end','');end.textContent='\u200b';el.append(end);
+      }
+      // A value write invalidates the browser's live selection.
+      lastStart=lastEnd=-1;
+    }},
+    selectionStart:{get:()=>selection()[0]},selectionEnd:{get:()=>selection()[1]}
+  });
+  el.setSelectionRange=(start,end)=>{
+    const map=editableMap(el),len=map.text.length;
+    start=Math.max(0,Math.min(start,len));end=Math.max(start,Math.min(end,len));
+    const point=offset=>{
+      const tail=el.querySelector('[data-caret-end]')?.lastChild;
+      if(offset===len && tail?.nodeType===Node.TEXT_NODE)return [tail,Math.max(0,tail.length-1)];
+      for(const t of map.texts)if(offset>=t.start && offset<=t.end)return [t.node,offset-t.start];
+      return [el,el.childNodes.length];
+    };
+    const range=document.createRange();range.setStart(...point(start));range.setEnd(...point(end));
+    const sel=window.getSelection();sel.removeAllRanges();sel.addRange(range);
+    lastStart=start;lastEnd=end;
+  };
+  for(const type of ['copy','cut'])el.addEventListener(type,event=>{
+    if(!event.clipboardData || isComposing)return;
+    const start=el.selectionStart,end=el.selectionEnd;
+    if(end<=start)return;
+    event.preventDefault();event.clipboardData.setData('text/plain',el.value.slice(start,end));
+    if(type==='cut')replaceSelection(el,'');
+  });
+  el.addEventListener('paste',event=>{
+    if(isComposing || !event.clipboardData)return;
+    event.preventDefault();
+    replaceSelection(el,event.clipboardData.getData('text/plain').replace(/\r\n?/g,'\n'));
+  });
+  el.value='';
+  return el;
+}
+function replaceSelection(el,text){
+  const c=chunks[+el.dataset.index];if(!c)return;
+  const start=c.start+Math.max(0,el.selectionStart),end=c.start+Math.max(0,el.selectionEnd);
+  remember();docText=docText.slice(0,start)+text+docText.slice(end);
+  save();renderPages(start+text.length,start+text.length,true,true);
+}
+document.addEventListener('selectionchange',()=>{
+  const el=document.activeElement;
+  if(!rendering && !isComposing && el?.classList.contains('page-editor'))syncCaret(el);
+});
 function bindEditor(ta){
   if(ta.dataset.bound)return;
   ta.dataset.bound='1';
@@ -370,7 +466,7 @@ function bindEditor(ta){
   ta.addEventListener('keydown',e=>{
     if(isComposing||e.isComposing||e.keyCode===229)return;
     const type={Enter:'insertLineBreak',Backspace:'deleteContentBackward',Delete:'deleteContentForward'}[e.key];
-    if(type && handleEdit(e,ta,type))return;
+    if(type && !e.metaKey && !e.ctrlKey && !e.altKey && handleEdit(e,ta,type))return;
     const c=chunks[+ta.dataset.index];if(!c||e.shiftKey)return;
     const vertical=getSettings().writingMode==='vertical';
     const backward=vertical?'ArrowUp':'ArrowLeft',forward=vertical?'ArrowDown':'ArrowRight';
@@ -391,8 +487,8 @@ function handleEdit(event,ta,type){
   const c=chunks[+ta.dataset.index];if(!c||!event.cancelable)return false;
   let start=c.start+ta.selectionStart,end=c.start+ta.selectionEnd,text='';
   if(type==='insertLineBreak'||type==='insertParagraph')text='\n';
-  else if(type==='deleteContentBackward' && start===end && ta.selectionStart===0 && start>0)start=previousOffset(start);
-  else if(type==='deleteContentForward' && start===end && ta.selectionEnd===ta.value.length && end<docText.length)end=nextOffset(end);
+  else if(type==='deleteContentBackward' && (ta.tagName==='DIV' || (start===end && ta.selectionStart===0 && start>0))){if(start===end)start=previousOffset(start);}
+  else if(type==='deleteContentForward' && (ta.tagName==='DIV' || (start===end && ta.selectionEnd===ta.value.length && end<docText.length))){if(start===end)end=nextOffset(end);}
   else return false;
   event.preventDefault();remember();
   docText=docText.slice(0,start)+text+docText.slice(end);
@@ -424,17 +520,16 @@ function renderPages(caret=globalCaret,selEnd=globalSelEnd,focus=false,scroll=fa
 
   chunks.forEach((c,i)=>{
     let page=container.children[i];
-    if(!page){
-      page=document.createElement('div');
-      const ta=document.createElement('textarea');
-      ta.className='page-editor';ta.spellcheck=false;
-      page.appendChild(ta);container.appendChild(page);
-      bindEditor(ta);
-    }
+    if(!page){page=document.createElement('div');container.appendChild(page);}
     page.className=pageClass();page.dataset.page=`${i+1}`;
-    const ta=page.firstElementChild;
+    const vertical=getSettings().writingMode==='vertical';
+    let ta=page.firstElementChild;
+    if(!ta || (ta.tagName==='DIV')!==vertical){
+      ta=createEditor(vertical);page.replaceChildren(ta);bindEditor(ta);
+    }
     ta.dataset.index=i;
-    if(ta.value!==c.text){ta.value=c.text;ta.scrollTop=0;ta.scrollLeft=0;}
+    ta._valueChanged=ta.value!==c.text;
+    if(ta._valueChanged){ta.value=c.text;ta.scrollTop=0;ta.scrollLeft=0;}
   });
 
   globalCaret=Math.max(0,Math.min(caret,docText.length));
@@ -448,7 +543,7 @@ function renderPages(caret=globalCaret,selEnd=globalSelEnd,focus=false,scroll=fa
     const end=Math.min(globalSelEnd-c.start,ta.value.length);
     if(document.activeElement!==ta)ta.focus({preventScroll:true});
     // Preserve native selection on ordinary keystrokes. No delayed caret reset.
-    if(ta.selectionStart!==start||ta.selectionEnd!==end)ta.setSelectionRange(start,end);
+    if(ta._valueChanged||ta.selectionStart!==start||ta.selectionEnd!==end)ta.setSelectionRange(start,end);
     ta.scrollTop=0;ta.scrollLeft=0;
     if(scroll)scheduleReveal();
   }
