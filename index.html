@@ -129,6 +129,7 @@ button:disabled{opacity:.45}
 <div class="topbar">
   <div class="title">Kotoba Writer</div>
   <button id="newBtn">新規</button>
+  <button id="undoBtn" disabled>取り消し</button>
   <button id="openBtn">TXTを開く</button>
   <button id="saveBtn">TXT保存</button>
   <button id="pdfBtn">PDF / 印刷</button>
@@ -194,7 +195,7 @@ button:disabled{opacity:.45}
   <span id="cursor">1行 1列</span>
   <span id="pageInfo">40字 × 30行</span>
   <span>本文は端末内保存</span>
-  <span class="build">Kotoba Writer build 3</span>
+  <span class="build">Kotoba Writer build 4</span>
 </div>
 
 <div class="panel" id="findPanel">
@@ -208,8 +209,10 @@ button:disabled{opacity:.45}
     <input id="replaceText" type="text" placeholder="置き換える文字">
     <button id="replaceOneBtn">1件置換</button>
     <button id="replaceAllBtn">すべて置換</button>
+    <button id="goMatchBtn" disabled>本文で確認</button>
     <button id="closeFind">閉じる</button>
   </div>
+  <div id="searchPreview" class="ai-result" style="min-height:54px;max-height:18vh">検索結果の前後をここに表示します。</div>
 </div>
 
 <div class="panel" id="aiPanel">
@@ -228,13 +231,15 @@ button:disabled{opacity:.45}
 <div id="printArea"></div>
 
 <script type="module">
-const BUILD=3;
+const BUILD=4;
 const $=id=>document.getElementById(id);
 const editor=$('editor'),paper=$('paper');
 const STORAGE='kotoba-writer-draft-v1';
 const SETTINGS='kotoba-writer-settings-v1';
-let lastFound=-1, aiEngine=null, webllm=null, aiRange=null;
+let aiEngine=null, webllm=null, aiRange=null, aiSourceSnapshot=null;
 let privacyMode=localStorage.getItem('kotoba-writer-privacy')==='1';
+let historyStack=[];
+let searchPos=0,currentMatch=null,lastSearchQuery='';
 
 
 function syncPrivacyUI(){
@@ -280,9 +285,12 @@ $('privacyBtn').onclick=async()=>{
 };
 
 function save(){
-  localStorage.setItem(STORAGE,editor.value);
-  $('saveStatus').textContent='保存済み';
-  setTimeout(()=>$('saveStatus').textContent='自動保存',800);
+  try{
+    localStorage.setItem(STORAGE,editor.value);
+    $('saveStatus').textContent='保存済み';
+  }catch(e){
+    $('saveStatus').textContent='保存エラー';
+  }
 }
 function load(){
   editor.value=localStorage.getItem(STORAGE)||'';
@@ -327,6 +335,7 @@ function applySettings(){
   $('linesLabel').textContent=vertical?'列数':'行数';
   $('pageInfo').textContent=vertical ? `${chars}字 × ${lines}列` : `${chars}字 × ${lines}行`;
   saveSettings();
+  forceEditorRepaint();
 }
 ['fontSize','lineHeight','writingMode','manuscript','indent','charCount','lineCount'].forEach(id=>{
   $(id).addEventListener('change',applySettings);
@@ -348,22 +357,80 @@ function updateStatus(){
   const col=p-(before.lastIndexOf('\n')+1)+1;
   $('cursor').textContent=line+'行 '+col+'列';
 }
-let saveTimer=null;
+function forceEditorRepaint(){
+  // iPad Safariでvalueを書き換えた直後に表示だけ古いまま残る現象への対策。
+  const old=editor.style.transform;
+  editor.style.transform='translateZ(0)';
+  void editor.offsetHeight;
+  requestAnimationFrame(()=>{editor.style.transform=old;});
+}
+function pushHistory(){
+  const text=editor.value;
+  if(historyStack.length && historyStack[historyStack.length-1]===text)return;
+  historyStack.push(text);
+  if(historyStack.length>20)historyStack.shift();
+  $('undoBtn').disabled=historyStack.length===0;
+}
+function setDocumentText(text,opts={}){
+  const {start=null,end=null,focus=true,keepHistory=true}=opts;
+  if(keepHistory)pushHistory();
+  editor.value=String(text ?? '');
+  save();
+  updateStatus();
+  forceEditorRepaint();
+  if(start!==null){
+    const s=Math.max(0,Math.min(start,editor.value.length));
+    const e=Math.max(s,Math.min(end===null?s:end,editor.value.length));
+    requestAnimationFrame(()=>{
+      if(focus)editor.focus();
+      editor.setSelectionRange(s,e);
+      updateStatus();
+    });
+  }else if(focus){
+    requestAnimationFrame(()=>editor.focus());
+  }
+}
+function revealRange(start,end){
+  const s=Math.max(0,Math.min(start,editor.value.length));
+  const e=Math.max(s,Math.min(end,editor.value.length));
+  $('findPanel').classList.remove('show');
+  requestAnimationFrame(()=>{
+    editor.focus();
+    editor.setSelectionRange(s,e);
+    // Safariはfocus後に選択範囲を可視領域へ寄せるため、もう一度設定する。
+    setTimeout(()=>{editor.setSelectionRange(s,e);updateStatus();},60);
+  });
+}
+
 editor.addEventListener('input',()=>{
-  updateStatus();clearTimeout(saveTimer);saveTimer=setTimeout(save,350);
+  // 削除も含め、入力のたびに即保存。アプリをすぐ閉じても古い本文に戻りにくくする。
+  save();
+  updateStatus();
 });
+editor.addEventListener('change',save);
+editor.addEventListener('compositionend',save);
 editor.addEventListener('keyup',updateStatus);
 editor.addEventListener('click',updateStatus);
+window.addEventListener('pagehide',save);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')save();});
 
+$('undoBtn').onclick=()=>{
+  if(!historyStack.length)return;
+  const prev=historyStack.pop();
+  editor.value=prev;
+  save();updateStatus();forceEditorRepaint();
+  $('undoBtn').disabled=historyStack.length===0;
+  editor.focus();
+};
 $('newBtn').onclick=()=>{
   if(confirm('現在の本文を消して新規文書にしますか？')){
-    editor.value='';save();updateStatus();editor.focus();
+    setDocumentText('',{start:0,end:0});
   }
 };
 $('openBtn').onclick=()=>$('fileInput').click();
 $('fileInput').onchange=async e=>{
   const f=e.target.files?.[0];if(!f)return;
-  editor.value=await f.text();save();updateStatus();
+  setDocumentText(await f.text(),{start:0,end:0});
   e.target.value='';
 };
 $('saveBtn').onclick=()=>{
@@ -378,7 +445,7 @@ $('pdfBtn').onclick=()=>{
 };
 
 function formatText(){
-  const oldStart=editor.selectionStart, oldEnd=editor.selectionEnd;
+  const oldStart=editor.selectionStart||0, oldEnd=editor.selectionEnd||0;
   let t=editor.value.replace(/\r\n?/g,'\n');
   t=t.split('\n').map(line=>line.replace(/[ \t]+$/g,'')).join('\n');
   t=t.replace(/\n{4,}/g,'\n\n\n');
@@ -389,36 +456,111 @@ function formatText(){
       return '　'+line.replace(/^[ 　]+/,'');
     }).join('\n');
   }
-  editor.value=t;save();updateStatus();
-  editor.setSelectionRange(Math.min(oldStart,t.length),Math.min(oldEnd,t.length));
+  setDocumentText(t,{
+    start:Math.min(oldStart,t.length),
+    end:Math.min(oldEnd,t.length)
+  });
 }
 $('formatBtn').onclick=formatText;
 
 // Find/replace
-$('findBtn').onclick=()=>{$('findPanel').classList.add('show');$('findText').focus()};
+$('findBtn').onclick=()=>{
+  $('findPanel').classList.add('show');
+  $('findText').focus();
+};
 $('closeFind').onclick=()=>$('findPanel').classList.remove('show');
-function findNext(){
-  const q=$('findText').value;if(!q)return;
-  const text=editor.value;
-  let i=text.indexOf(q,Math.max(0,lastFound+1));
-  if(i<0)i=text.indexOf(q,0);
-  if(i<0){$('findInfo').textContent='見つかりません';return}
-  lastFound=i;editor.focus();editor.setSelectionRange(i,i+q.length);
-  $('findInfo').textContent=(text.slice(0,i).split(q).length)+'件目';
+
+function allMatchPositions(text,q){
+  const out=[];
+  if(!q)return out;
+  let pos=0;
+  while(pos<=text.length-q.length){
+    const i=text.indexOf(q,pos);
+    if(i<0)break;
+    out.push(i);
+    pos=i+Math.max(1,q.length);
+  }
+  return out;
 }
+function updateSearchPreview(start,q,index,total){
+  if(start<0){
+    $('searchPreview').textContent='見つかりません。';
+    $('findInfo').textContent='0件';
+    $('goMatchBtn').disabled=true;
+    currentMatch=null;
+    return;
+  }
+  const text=editor.value;
+  const a=Math.max(0,start-35),b=Math.min(text.length,start+q.length+35);
+  const prefix=a>0?'…':'',suffix=b<text.length?'…':'';
+  $('searchPreview').textContent=prefix+text.slice(a,b)+suffix;
+  $('findInfo').textContent=`${index+1} / ${total}件`;
+  $('goMatchBtn').disabled=false;
+  currentMatch={start,end:start+q.length};
+}
+function findNext(){
+  const q=$('findText').value;
+  if(!q){updateSearchPreview(-1,'',0,0);return false}
+  const text=editor.value;
+  const positions=allMatchPositions(text,q);
+  if(!positions.length){updateSearchPreview(-1,q,0,0);return false}
+  if(q!==lastSearchQuery){
+    lastSearchQuery=q;
+    searchPos=0;
+  }
+  let idx=positions.findIndex(p=>p>=searchPos);
+  if(idx<0)idx=0;
+  const start=positions[idx];
+  searchPos=start+q.length;
+  updateSearchPreview(start,q,idx,positions.length);
+  return true;
+}
+$('findText').addEventListener('input',()=>{
+  lastSearchQuery='';
+  searchPos=0;
+  currentMatch=null;
+  $('goMatchBtn').disabled=true;
+  $('findInfo').textContent='';
+  $('searchPreview').textContent='「次へ」を押すと検索結果を表示します。';
+});
+$('findText').addEventListener('keydown',e=>{
+  if(e.key==='Enter'){e.preventDefault();findNext();}
+});
 $('nextBtn').onclick=findNext;
+$('goMatchBtn').onclick=()=>{
+  if(currentMatch)revealRange(currentMatch.start,currentMatch.end);
+};
+
 $('replaceOneBtn').onclick=()=>{
   const q=$('findText').value,r=$('replaceText').value;
-  const s=editor.selectionStart,e=editor.selectionEnd;
-  if(q && editor.value.slice(s,e)===q){
-    editor.setRangeText(r,s,e,'end');save();updateStatus();
+  if(!q)return;
+  // まだ検索していない場合でも、押しただけで最初の1件を置換できる。
+  if(!currentMatch || editor.value.slice(currentMatch.start,currentMatch.end)!==q){
+    lastSearchQuery='';
+    searchPos=0;
+    if(!findNext())return;
   }
+  const m=currentMatch;
+  const nextText=editor.value.slice(0,m.start)+r+editor.value.slice(m.end);
+  setDocumentText(nextText,{start:m.start,end:m.start+r.length,focus:false});
+  searchPos=m.start+r.length;
+  currentMatch=null;
+  lastSearchQuery=q;
   findNext();
 };
+
 $('replaceAllBtn').onclick=()=>{
-  const q=$('findText').value,r=$('replaceText').value;if(!q)return;
-  const parts=editor.value.split(q),n=parts.length-1;
-  editor.value=parts.join(r);save();updateStatus();$('findInfo').textContent=n+'件置換';
+  const q=$('findText').value,r=$('replaceText').value;
+  if(!q)return;
+  const positions=allMatchPositions(editor.value,q);
+  if(!positions.length){updateSearchPreview(-1,q,0,0);return}
+  const n=positions.length;
+  const nextText=editor.value.split(q).join(r);
+  setDocumentText(nextText,{start:0,end:0,focus:false});
+  $('findInfo').textContent=n+'件置換しました';
+  $('searchPreview').textContent=n+'件を置き換えました。';
+  currentMatch=null;searchPos=0;lastSearchQuery='';
+  $('goMatchBtn').disabled=true;
 };
 
 // AI: manual only, no continuation generation.
@@ -429,13 +571,26 @@ const CDN='https://esm.run/@mlc-ai/web-llm@0.2.82';
 
 function currentAIRange(){
   const s=editor.selectionStart||0,e=editor.selectionEnd||0,text=editor.value;
-  if(e>s)return {start:s,end:e,text:text.slice(s,e)};
+  const LIMIT=800;
+  if(e>s){
+    if(e-s>LIMIT)return {error:`選択範囲が長すぎます。AI軽推敲は一度に${LIMIT}字以内で選択してください。`};
+    return {start:s,end:e,text:text.slice(s,e)};
+  }
   const before=text.slice(0,s),after=text.slice(s);
-  const start=Math.max(0,before.lastIndexOf('\n')+1);
+  const paragraphStart=Math.max(0,before.lastIndexOf('\n')+1);
   let rel=after.indexOf('\n');if(rel<0)rel=after.length;
-  const end=s+rel;
+  const paragraphEnd=s+rel;
+  if(paragraphEnd-paragraphStart<=LIMIT){
+    return {start:paragraphStart,end:paragraphEnd,text:text.slice(paragraphStart,paragraphEnd)};
+  }
+  // 長い段落ではカーソル周辺だけを対象にし、未送信部分を絶対に置換しない。
+  const half=Math.floor(LIMIT/2);
+  let start=Math.max(paragraphStart,s-half);
+  let end=Math.min(paragraphEnd,start+LIMIT);
+  start=Math.max(paragraphStart,end-LIMIT);
   return {start,end,text:text.slice(start,end)};
 }
+
 $('prepareAI').onclick=async()=>{
   $('prepareAI').disabled=true;
   $('aiStatus').textContent=privacyMode?'保存済みAIを端末内から読み込み中…':'AIを準備中…';
@@ -458,12 +613,14 @@ $('prepareAI').onclick=async()=>{
 };
 $('runAI').onclick=async()=>{
   if(!aiEngine)return;
-  const r=currentAIRange();if(!r.text.trim()){ $('aiStatus').textContent='推敲する文章を選択してください'; return; }
-  aiRange=r;$('runAI').disabled=true;$('applyAI').disabled=true;
+  const r=currentAIRange();
+  if(r.error){$('aiStatus').textContent=r.error;return;}
+  if(!r.text.trim()){ $('aiStatus').textContent='推敲する文章を選択してください'; return; }
+  aiRange=r;aiSourceSnapshot=editor.value;$('runAI').disabled=true;$('applyAI').disabled=true;
   $('aiResult').textContent='軽推敲中…';$('aiStatus').textContent='文意を変えずに整えています…';
   const messages=[
     {role:'system',content:'あなたは日本語小説の校正担当です。原文の事実、設定、固有名詞、人物関係、出来事、感情、会話内容、時系列を一切追加・変更しないでください。新しい描写、比喩、説明、台詞、情報を足してはいけません。許可されるのは、助詞・句読点・語順・重複表現・不自然な語尾・明らかな文法ミスを最小限直すことだけです。直す必要がなければ原文をそのまま返してください。出力は修正文だけにしてください。'},
-    {role:'user',content:'次の文章を、意味を変えず最小限だけ整えてください。\n\n---\n'+r.text.slice(0,900)+'\n---'}
+    {role:'user',content:'次の文章を、意味を変えず最小限だけ整えてください。\n\n---\n'+r.text+'\n---'}
   ];
   try{
     const res=await aiEngine.chat.completions.create({messages,temperature:0.1,top_p:0.8,max_tokens:220});
@@ -479,9 +636,19 @@ $('applyAI').onclick=()=>{
   if(!aiRange)return;
   const out=$('aiResult').textContent;
   if(!out || out.startsWith('生成エラー'))return;
-  editor.value=editor.value.slice(0,aiRange.start)+out+editor.value.slice(aiRange.end);
-  editor.focus();editor.setSelectionRange(aiRange.start,aiRange.start+out.length);
-  save();updateStatus();$('applyAI').disabled=true;$('aiStatus').textContent='本文へ反映しました';
+  if(editor.value!==aiSourceSnapshot){
+    $('aiStatus').textContent='AI生成後に本文が変更されています。誤った位置を置換しないため、もう一度軽推敲してください。';
+    $('applyAI').disabled=true;
+    return;
+  }
+  const nextText=editor.value.slice(0,aiRange.start)+out+editor.value.slice(aiRange.end);
+  setDocumentText(nextText,{
+    start:aiRange.start,
+    end:aiRange.start+out.length
+  });
+  $('applyAI').disabled=true;
+  $('aiStatus').textContent='本文へ反映しました';
+  aiRange=null;aiSourceSnapshot=null;
 };
 
 if('serviceWorker' in navigator){
