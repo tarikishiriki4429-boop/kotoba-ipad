@@ -14,13 +14,14 @@ h1{font-size:20px;margin:0;flex:1}button{border:0;border-radius:12px;padding:10p
 main{max-width:980px;margin:auto;padding:16px;display:grid;gap:12px}.status{background:white;border-radius:14px;padding:12px 14px;border:1px solid #e3e1dc}.meter{height:8px;background:#eceae5;border-radius:99px;overflow:hidden;margin-top:8px}.meter>div{height:100%;width:0;background:#222;transition:width .2s}.small{font-size:12px;color:#666;margin-top:6px;line-height:1.45}
 .controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.mode{padding:8px 12px}.auto{margin-left:auto;display:flex;align-items:center;gap:7px;font-size:14px}.auto input{width:19px;height:19px}
 textarea{width:100%;min-height:48vh;resize:vertical;border:1px solid #ddd9d1;border-radius:14px;background:white;padding:18px;font-size:19px;line-height:1.75;font-family:"Hiragino Mincho ProN","Yu Mincho",serif;outline:none}.suggestion{white-space:pre-wrap;background:white;border:1px solid #ddd9d1;border-radius:14px;padding:16px;min-height:120px;font-family:"Hiragino Mincho ProN","Yu Mincho",serif;font-size:17px;line-height:1.7}.suggestion.busy{opacity:.62}.row{display:flex;gap:8px;flex-wrap:wrap}.danger{background:#8d1b1b}.hint{padding:10px 12px;background:#efede8;border-radius:12px;font-size:13px;line-height:1.55;color:#555}
-@media(max-width:700px){textarea{min-height:44vh;font-size:18px}header{padding-top:max(12px,env(safe-area-inset-top))}.auto{margin-left:0;width:100%}}
+.build-badge{position:fixed;right:12px;bottom:12px;z-index:9999;padding:6px 9px;border-radius:10px;background:rgba(30,30,30,.82);color:#fff;font-size:11px;font-weight:700;letter-spacing:.02em;backdrop-filter:blur(8px);pointer-events:none}
+@media(max-width:700px){textarea{min-height:44vh;font-size:18px}header{padding-top:max(12px,env(safe-area-inset-top))}.auto{margin-left:0;width:100%}.build-badge{right:8px;bottom:8px}}
 </style>
 </head>
 <body>
 <header><h1>Kotoba</h1><button id="prepare">AIを準備</button><button id="run" disabled>今すぐ提案</button></header>
 <main>
-<section class="status"><div id="status">起動確認中…</div><div class="meter"><div id="bar"></div></div><div id="detail" class="small">本文はこの端末内に保存されます。AI生成も端末内で実行します。 <span style="opacity:.55">build 4</span></div></section>
+<section class="status"><div id="status">起動確認中…</div><div class="meter"><div id="bar"></div></div><div id="detail" class="small">本文はこの端末内に保存されます。AI生成も端末内で実行します。</div></section>
 <section class="controls">
   <button class="secondary mode active" data-mode="novelize">小説化</button>
   <button class="secondary mode" data-mode="polish">推敲</button>
@@ -33,7 +34,10 @@ textarea{width:100%;min-height:48vh;resize:vertical;border:1px solid #ddd9d1;bor
 <div class="row"><button id="apply" class="secondary" disabled>候補を反映</button><button id="clear" class="secondary">候補を消す</button><button id="reset" class="secondary">本文を消去</button></div>
 <div class="small">リアルタイム提案は、入力が止まって約1.2秒後に動きます。入力中は生成しません。初回のみAI本体とモデルの取得にインターネット接続が必要です。</div>
 </main>
+<div class="build-badge">Kotoba build 5</div>
+
 <script type="module">
+const BUILD=5;
 const MODEL='Qwen2.5-0.5B-Instruct-q4f16_1-MLC';
 const CDN='https://esm.run/@mlc-ai/web-llm';
 const $=id=>document.getElementById(id);
@@ -131,8 +135,13 @@ apply.onclick=()=>{
  }
  localStorage.setItem('kotoba-draft',editor.value);apply.disabled=true;status.textContent=lastRange.mode==='continue'?'本文へ追加しました':'候補を本文へ反映しました';lastRange=null;
 };
-if('serviceWorker'in navigator){navigator.serviceWorker.register('./sw.js?v=4').then(reg=>reg.update()).catch(()=>{})}
+
+// Service Worker: build 5。オンライン時は最新版優先、オフライン時のみキャッシュ。
+if('serviceWorker' in navigator){
+ navigator.serviceWorker.register('./sw.js?v='+BUILD,{updateViaCache:'none'})
+   .then(reg=>reg.update())
+   .catch(()=>{});
+}
 check().then(ok=>{if(ok&&localStorage.getItem('kotoba-ai-ready')==='1')loadEngine()});
 </script>
-</body>
-</html>
+</body></html>
