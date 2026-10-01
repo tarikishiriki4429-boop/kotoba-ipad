@@ -157,7 +157,7 @@ button:disabled{opacity:.45}
   <span id="cursor">1ページ 1行 1列</span>
   <span id="pageInfo">40字 × 30行</span>
   <span id="pageCount">1ページ</span>
-  <span class="build">Kotoba Writer build 7</span>
+  <span class="build">Kotoba Writer build 8</span>
 </div>
 
 <div id="findPanel" class="panel">
@@ -192,7 +192,7 @@ button:disabled{opacity:.45}
 <div id="printArea"></div>
 
 <script type="module">
-const BUILD=7;
+const BUILD=8;
 const $=id=>document.getElementById(id);
 const STORAGE='kotoba-writer-draft-v1';
 const SETTINGS='kotoba-writer-settings-v1';
@@ -210,27 +210,49 @@ function previousOffset(pos){const a=units(docText.slice(0,pos));return a.length
 function nextOffset(pos){const a=units(docText.slice(pos));return pos+(a[0]?.segment.length||0);}
 let rendering=false;
 let revealFrame=0;
+let inputScroll=null,restoreFrame=0;
+function captureInputScroll(){
+  const w=document.querySelector('.workspace');
+  inputScroll={left:w.scrollLeft,top:w.scrollTop};
+}
+function restoreInputScroll(){
+  if(!inputScroll)return;
+  const position=inputScroll;inputScroll=null;
+  const w=document.querySelector('.workspace');
+  w.scrollLeft=position.left;w.scrollTop=position.top;
+  cancelAnimationFrame(restoreFrame);
+  restoreFrame=requestAnimationFrame(()=>{
+    w.scrollLeft=position.left;w.scrollTop=position.top;
+    scheduleReveal();
+  });
+}
+// A real touch/wheel gesture always takes precedence over automatic restoration.
+for(const type of ['touchstart','pointerdown','wheel'])document.addEventListener(type,()=>{
+  inputScroll=null;cancelAnimationFrame(restoreFrame);cancelAnimationFrame(revealFrame);
+},{passive:true});
 function viewportChanged(){
   const vv=window.visualViewport;
   document.documentElement.style.setProperty('--viewport-height',(vv?.height||innerHeight)+'px');
   document.documentElement.style.setProperty('--viewport-top',(vv?.offsetTop||0)+'px');
-  scheduleReveal();
 }
-window.visualViewport?.addEventListener('resize',viewportChanged);
+function viewportResized(){viewportChanged();scheduleReveal();}
+window.visualViewport?.addEventListener('resize',viewportResized);
+// Panning the visual viewport must not start another editor scroll.
 window.visualViewport?.addEventListener('scroll',viewportChanged);
-window.addEventListener('resize',viewportChanged);
+window.addEventListener('resize',viewportResized);
 // Scroll only enough to expose the actual caret, never center the entire sheet.
 function scheduleReveal(){
   cancelAnimationFrame(revealFrame);
   revealFrame=requestAnimationFrame(()=>{
     const ta=document.activeElement;
-    if(!ta?.classList.contains('page-editor')||isComposing)return;
+    if(!ta?.classList.contains('page-editor'))return;
     const workspace=document.querySelector('.workspace');
     const mirror=document.createElement('div');
     const style=getComputedStyle(ta);
     for(const key of ['fontFamily','fontSize','fontWeight','lineHeight','letterSpacing','writingMode','textOrientation','wordBreak','lineBreak','whiteSpace','fontKerning','fontVariantEastAsian','tabSize'])mirror.style[key]=style[key];
     Object.assign(mirror.style,{position:'fixed',left:'0',top:'0',width:style.width,height:style.height,visibility:'hidden',pointerEvents:'none'});
-    mirror.textContent=ta.value.slice(0,ta.selectionStart);
+    if(ta.tagName==='DIV')writeVerticalText(mirror,ta.value.slice(0,ta.selectionStart));
+    else mirror.textContent=ta.value.slice(0,ta.selectionStart);
     const marker=document.createElement('span');marker.textContent='\u200b';mirror.append(marker);
     mirror.append(document.createTextNode(ta.value.slice(ta.selectionStart)||'\u200b'));
     document.body.append(mirror);
@@ -239,7 +261,7 @@ function scheduleReveal(){
     let left=rect.left+m.left-base.left,top=rect.top+m.top-base.top;
     const selection=window.getSelection();
     if(ta.tagName==='DIV' && selection.rangeCount && ta.contains(selection.focusNode)){
-      const range=selection.getRangeAt(0).cloneRange();range.collapse(true);
+      const range=document.createRange();range.setStart(selection.focusNode,selection.focusOffset);range.collapse(true);
       const nativeRect=range.getClientRects()[0];
       if(nativeRect && (nativeRect.width||nativeRect.height)){m=nativeRect;left=m.left;top=m.top;}
     }
@@ -358,6 +380,22 @@ function pageClass(){
   const s=getSettings();
   return 'page'+(s.writingMode==='vertical'?' vertical':'')+(s.manuscript?' manuscript':'');
 }
+// Explicit BR nodes reset the vertical inline position in WebKit as well as Chromium.
+// Newline characters alone in a pre-wrap text node can leave Safari's caret on
+// the preceding column. Keep the saved document independent of the DOM layout.
+function writeVerticalText(el,value){
+  const fragment=document.createDocumentFragment();
+  const lines=value.split('\n');
+  lines.forEach((line,i)=>{
+    if(i)fragment.append(document.createElement('br'));
+    fragment.append(document.createTextNode(line));
+  });
+  if(!value || value.endsWith('\n')){
+    const end=document.createElement('span');end.setAttribute('data-caret-end','');
+    end.textContent='\u200b';fragment.append(end);
+  }
+  el.replaceChildren(fragment);
+}
 // Vertical editing uses DOM selection instead of textarea's internal layout.
 function editableMap(root){
   let text='';const bounds=new Map();const texts=[];
@@ -399,10 +437,7 @@ function createEditor(vertical){
   }
   Object.defineProperties(el,{
     value:{get:()=>editableMap(el).text,set:value=>{
-      el.replaceChildren(document.createTextNode(value));
-      if(!value || value.endsWith('\n')){
-        const end=document.createElement('span');end.setAttribute('data-caret-end','');end.textContent='\u200b';el.append(end);
-      }
+      writeVerticalText(el,value);
       // A value write invalidates the browser's live selection.
       lastStart=lastEnd=-1;
     }},
@@ -450,23 +485,27 @@ function bindEditor(ta){
   if(ta.dataset.bound)return;
   ta.dataset.bound='1';
 
-  ta.addEventListener('compositionstart',()=>{isComposing=true;remember()});
+  ta.addEventListener('compositionstart',()=>{captureInputScroll();isComposing=true;remember()});
   ta.addEventListener('compositionend',()=>{isComposing=false;syncFromPage(ta,true)});
   for(const type of ['focus','click','select','keyup'])ta.addEventListener(type,()=>{if(!rendering && document.activeElement===ta)syncCaret(ta)});
   ta.addEventListener('beforeinput',e=>{
+    captureInputScroll();
     if(isComposing||e.isComposing)return;
     if(handleEdit(e,ta,e.inputType))return;
     remember();
   });
   ta.addEventListener('input',e=>{
     if(document.activeElement!==ta)return;
-    if(isComposing||e.isComposing){saveComposition(ta);return;}
+    if(isComposing||e.isComposing){saveComposition(ta);restoreInputScroll();return;}
     syncFromPage(ta,true);
   });
   ta.addEventListener('keydown',e=>{
     if(isComposing||e.isComposing||e.keyCode===229)return;
     const type={Enter:'insertLineBreak',Backspace:'deleteContentBackward',Delete:'deleteContentForward'}[e.key];
-    if(type && !e.metaKey && !e.ctrlKey && !e.altKey && handleEdit(e,ta,type))return;
+    if(type && !e.metaKey && !e.ctrlKey && !e.altKey){
+      captureInputScroll();
+      if(handleEdit(e,ta,type))return;
+    }
     const c=chunks[+ta.dataset.index];if(!c||e.shiftKey)return;
     const vertical=getSettings().writingMode==='vertical';
     const backward=vertical?'ArrowUp':'ArrowLeft',forward=vertical?'ArrowDown':'ArrowRight';
@@ -545,7 +584,10 @@ function renderPages(caret=globalCaret,selEnd=globalSelEnd,focus=false,scroll=fa
     // Preserve native selection on ordinary keystrokes. No delayed caret reset.
     if(ta._valueChanged||ta.selectionStart!==start||ta.selectionEnd!==end)ta.setSelectionRange(start,end);
     ta.scrollTop=0;ta.scrollLeft=0;
-    if(scroll)scheduleReveal();
+    if(scroll){
+      if(inputScroll)restoreInputScroll();
+      else scheduleReveal();
+    }
   }
   rendering=false;
 }
