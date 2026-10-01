@@ -10,6 +10,8 @@
 :root{
   --font-size:18px;
   --line-height:1.9;
+  --chars:40;
+  --lines:30;
   --paper-width:794px;
   --paper-min-height:1123px;
   font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",sans-serif;
@@ -34,35 +36,62 @@ button:disabled{opacity:.45}
   padding:8px 10px;background:#efede9;border-bottom:1px solid #ccc9c3
 }
 .toolbar label{display:flex;align-items:center;gap:5px;font-size:13px;color:#555}
-.toolbar select{background:white;border:1px solid #cbc8c0;border-radius:8px;padding:7px}
+.toolbar select,.toolbar input[type=number]{background:white;border:1px solid #cbc8c0;border-radius:8px;padding:7px}
+.toolbar input[type=number]{width:68px}
+.presetbar{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.presetbar button{padding:6px 9px;font-size:12px}
 .workspace{padding:24px 10px 90px;overflow:auto}
 .paper{
-  position:relative;margin:0 auto;width:min(var(--paper-width),calc(100vw - 24px));min-height:var(--paper-min-height);
-  background:#fff;box-shadow:0 2px 13px rgba(0,0,0,.14);border-radius:2px;padding:72px 68px
+  position:relative;margin:0 auto;background:#fff;box-shadow:0 2px 13px rgba(0,0,0,.14);
+  border-radius:2px;padding:72px 68px;width:max-content;min-width:min(var(--paper-width),calc(100vw - 24px));
+  min-height:var(--paper-min-height)
 }
 #editor{
-  display:block;width:100%;min-height:980px;border:0;outline:0;resize:none;background:transparent;color:#171717;
+  display:block;border:0;outline:0;resize:none;background:transparent;color:#171717;
   font-size:var(--font-size);line-height:var(--line-height);font-family:"Hiragino Mincho ProN","Yu Mincho","YuMincho",serif;
-  caret-color:#111;white-space:pre-wrap;overflow:hidden;line-break:strict;word-break:normal;
+  caret-color:#111;white-space:pre-wrap;overflow:auto;line-break:strict;word-break:normal;
+  box-sizing:content-box;
+  width:calc(var(--chars) * 1em);
+  min-width:calc(var(--chars) * 1em);
+  height:calc(var(--lines) * var(--font-size) * var(--line-height));
+  min-height:calc(var(--lines) * var(--font-size) * var(--line-height));
 }
-.paper.vertical{width:min(1123px,calc(100vw - 24px));min-height:794px;padding:56px}
+.paper.vertical{padding:56px;min-height:auto}
 .paper.vertical #editor{
-  writing-mode:vertical-rl;text-orientation:mixed;min-height:680px;height:680px;overflow:auto;
-  white-space:pre-wrap;
+  writing-mode:vertical-rl;text-orientation:mixed;
+  width:calc(var(--lines) * var(--font-size) * var(--line-height));
+  min-width:calc(var(--lines) * var(--font-size) * var(--line-height));
+  height:calc(var(--chars) * 1em);
+  min-height:calc(var(--chars) * 1em);
 }
-.paper.manuscript #editor{
+.paper.manuscript:not(.vertical) #editor{
   background-image:
-    linear-gradient(to right, rgba(0,0,0,.065) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(0,0,0,.065) 1px, transparent 1px);
+    linear-gradient(to right, rgba(0,0,0,.075) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0,0,0,.075) 1px, transparent 1px);
   background-size:1em calc(var(--font-size) * var(--line-height));
-  letter-spacing:0;
+  background-position:0 0;
 }
+.paper.manuscript.vertical #editor{
+  background-image:
+    linear-gradient(to right, rgba(0,0,0,.075) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0,0,0,.075) 1px, transparent 1px);
+  background-size:calc(var(--font-size) * var(--line-height)) 1em;
+  background-position:100% 0;
+}
+.paper.manuscript #editor{letter-spacing:0;}
 .statusbar{
   position:fixed;left:0;right:0;bottom:0;z-index:30;display:flex;gap:14px;align-items:center;flex-wrap:wrap;
   padding:8px 12px max(8px,env(safe-area-inset-bottom));background:rgba(246,245,242,.96);
   border-top:1px solid #c9c7c2;font-size:12px;color:#555;backdrop-filter:blur(10px)
 }
 .statusbar .build{margin-left:auto;font-weight:700}
+.privacy-btn.on{background:#153d24;color:#fff;border-color:#153d24}
+.privacy-banner{
+  display:none;padding:9px 12px;background:#e8f3eb;border:1px solid #b9d7c1;border-radius:10px;
+  font-size:12px;line-height:1.5;color:#21482c
+}
+.privacy-banner.show{display:block}
+.privacy-banner.warn{background:#fff3df;border-color:#e6c68c;color:#6a4710}
 .panel{
   position:fixed;inset:auto 12px calc(52px + env(safe-area-inset-bottom)) 12px;z-index:40;
   background:#fff;border:1px solid #ccc;border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.2);
@@ -82,8 +111,7 @@ button:disabled{opacity:.45}
 @media(max-width:700px){
   .toolbar{top:100px}
   .workspace{padding-top:14px}
-  .paper{padding:42px 26px;min-height:calc(100vh - 160px)}
-  #editor{min-height:calc(100vh - 245px)}
+  .paper{padding:42px 26px}
 }
 @media print{
   .topbar,.toolbar,.statusbar,.panel{display:none!important}
@@ -108,10 +136,11 @@ button:disabled{opacity:.45}
   <button id="findBtn">検索・置換</button>
   <button id="formatBtn">体裁を整える</button>
   <button id="aiBtn">AI軽推敲</button>
+  <button id="privacyBtn" class="privacy-btn">秘匿モード OFF</button>
 </div>
 
 <div class="toolbar">
-  <label>文字
+  <label>文字サイズ
     <select id="fontSize">
       <option>14</option><option>16</option><option selected>18</option><option>20</option><option>22</option><option>24</option><option>28</option>
     </select>
@@ -131,8 +160,26 @@ button:disabled{opacity:.45}
       <option value="vertical">縦書き</option>
     </select>
   </label>
-  <label><input id="manuscript" type="checkbox"> 40×30目安</label>
+  <label><span id="charsLabel">1行の文字数</span>
+    <input id="charCount" type="number" min="10" max="60" step="1" value="40">
+  </label>
+  <label><span id="linesLabel">行数</span>
+    <input id="lineCount" type="number" min="10" max="50" step="1" value="30">
+  </label>
+  <label><input id="manuscript" type="checkbox"> マス目</label>
   <label><input id="indent" type="checkbox" checked> 段落頭を一字下げ</label>
+  <div class="presetbar">
+    <span style="font-size:12px;color:#666">プリセット</span>
+    <button type="button" data-preset="40,30">40×30</button>
+    <button type="button" data-preset="42,34">42×34</button>
+    <button type="button" data-preset="20,20">20×20</button>
+  </div>
+</div>
+
+<div style="max-width:980px;margin:10px auto 0;padding:0 10px">
+  <div id="privacyBanner" class="privacy-banner">
+    秘匿モードON：アプリからのネット取得をキャッシュ限定にしています。AI推敲の本文・候補を外部へ送る処理はありません。
+  </div>
 </div>
 
 <div class="workspace">
@@ -145,8 +192,9 @@ button:disabled{opacity:.45}
   <span id="saveStatus">自動保存</span>
   <span id="count">0文字</span>
   <span id="cursor">1行 1列</span>
+  <span id="pageInfo">40字 × 30行</span>
   <span>本文は端末内保存</span>
-  <span class="build">Kotoba Writer build 1</span>
+  <span class="build">Kotoba Writer build 3</span>
 </div>
 
 <div class="panel" id="findPanel">
@@ -180,12 +228,56 @@ button:disabled{opacity:.45}
 <div id="printArea"></div>
 
 <script type="module">
-const BUILD=1;
+const BUILD=3;
 const $=id=>document.getElementById(id);
 const editor=$('editor'),paper=$('paper');
 const STORAGE='kotoba-writer-draft-v1';
 const SETTINGS='kotoba-writer-settings-v1';
 let lastFound=-1, aiEngine=null, webllm=null, aiRange=null;
+let privacyMode=localStorage.getItem('kotoba-writer-privacy')==='1';
+
+
+function syncPrivacyUI(){
+  const btn=$('privacyBtn'), banner=$('privacyBanner');
+  btn.textContent=privacyMode?'秘匿モード ON':'秘匿モード OFF';
+  btn.classList.toggle('on',privacyMode);
+  banner.classList.toggle('show',privacyMode);
+  banner.classList.toggle('warn',false);
+}
+async function tellServiceWorkerPrivacy(enabled){
+  if(!('serviceWorker' in navigator))return;
+  const reg=await navigator.serviceWorker.ready;
+  const target=navigator.serviceWorker.controller || reg.active;
+  if(target){
+    target.postMessage({type:'SET_OFFLINE_ONLY',enabled});
+  }
+}
+async function setPrivacyMode(enabled){
+  privacyMode=enabled;
+  localStorage.setItem('kotoba-writer-privacy',enabled?'1':'0');
+  syncPrivacyUI();
+  try{
+    await tellServiceWorkerPrivacy(enabled);
+  }catch(e){}
+  if(enabled){
+    $('privacyBanner').textContent='秘匿モードON：アプリからのネット取得をキャッシュ限定にしています。AI推敲の本文・候補を外部へ送る処理はありません。';
+  }else{
+    $('privacyBanner').textContent='秘匿モードOFF：初回のAI準備やアプリ更新のため、必要なファイルをネットから取得できます。';
+  }
+}
+$('privacyBtn').onclick=async()=>{
+  if(!privacyMode){
+    const ready=localStorage.getItem('kotoba-writer-ai-ready')==='1';
+    if(!ready){
+      const ok=confirm('AIモデルの準備完了記録がありません。秘匿モードをONにすると新しいAIファイルを取得できません。それでもONにしますか？');
+      if(!ok)return;
+    }
+    await setPrivacyMode(true);
+  }else{
+    const ok=confirm('秘匿モードをOFFにすると、このアプリは必要に応じてネットからファイルを取得できる状態になります。OFFにしますか？');
+    if(ok)await setPrivacyMode(false);
+  }
+};
 
 function save(){
   localStorage.setItem(STORAGE,editor.value);
@@ -199,6 +291,8 @@ function load(){
     if(s.fontSize)$('fontSize').value=s.fontSize;
     if(s.lineHeight)$('lineHeight').value=s.lineHeight;
     if(s.writingMode)$('writingMode').value=s.writingMode;
+    if(s.charCount)$('charCount').value=s.charCount;
+    if(s.lineCount)$('lineCount').value=s.lineCount;
     $('manuscript').checked=!!s.manuscript;
     $('indent').checked=s.indent!==false;
   }catch{}
@@ -207,17 +301,44 @@ function load(){
 function saveSettings(){
   localStorage.setItem(SETTINGS,JSON.stringify({
     fontSize:$('fontSize').value,lineHeight:$('lineHeight').value,
-    writingMode:$('writingMode').value,manuscript:$('manuscript').checked,indent:$('indent').checked
+    writingMode:$('writingMode').value,
+    charCount:$('charCount').value,lineCount:$('lineCount').value,
+    manuscript:$('manuscript').checked,indent:$('indent').checked
   }));
 }
+function clamp(n,min,max,fallback){
+  n=parseInt(n,10);
+  if(Number.isNaN(n))return fallback;
+  return Math.max(min,Math.min(max,n));
+}
 function applySettings(){
+  const chars=clamp($('charCount').value,10,60,40);
+  const lines=clamp($('lineCount').value,10,50,30);
+  $('charCount').value=chars;
+  $('lineCount').value=lines;
   document.documentElement.style.setProperty('--font-size',$('fontSize').value+'px');
   document.documentElement.style.setProperty('--line-height',$('lineHeight').value);
-  paper.classList.toggle('vertical',$('writingMode').value==='vertical');
+  document.documentElement.style.setProperty('--chars',chars);
+  document.documentElement.style.setProperty('--lines',lines);
+  const vertical=$('writingMode').value==='vertical';
+  paper.classList.toggle('vertical',vertical);
   paper.classList.toggle('manuscript',$('manuscript').checked);
+  $('charsLabel').textContent=vertical?'1列の文字数':'1行の文字数';
+  $('linesLabel').textContent=vertical?'列数':'行数';
+  $('pageInfo').textContent=vertical ? `${chars}字 × ${lines}列` : `${chars}字 × ${lines}行`;
   saveSettings();
 }
-['fontSize','lineHeight','writingMode','manuscript','indent'].forEach(id=>$(id).addEventListener('change',applySettings));
+['fontSize','lineHeight','writingMode','manuscript','indent','charCount','lineCount'].forEach(id=>{
+  $(id).addEventListener('change',applySettings);
+});
+document.querySelectorAll('[data-preset]').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    const [c,l]=btn.dataset.preset.split(',');
+    $('charCount').value=c;
+    $('lineCount').value=l;
+    applySettings();
+  });
+});
 
 function updateStatus(){
   $('count').textContent=editor.value.length+'文字';
@@ -316,18 +437,22 @@ function currentAIRange(){
   return {start,end,text:text.slice(start,end)};
 }
 $('prepareAI').onclick=async()=>{
-  $('prepareAI').disabled=true;$('aiStatus').textContent='AIを準備中…';
+  $('prepareAI').disabled=true;
+  $('aiStatus').textContent=privacyMode?'保存済みAIを端末内から読み込み中…':'AIを準備中…';
   try{
     webllm ||= await import(CDN);
     const appConfig={...webllm.prebuiltAppConfig,cacheBackend:'cache'};
     aiEngine=await webllm.CreateMLCEngine(MODEL,{appConfig,initProgressCallback:p=>{
       $('aiStatus').textContent=p.text||'AIを準備中…';
     }});
-    $('aiStatus').textContent='AI軽推敲 使用可能。内容を増やさない設定です。';
+    $('aiStatus').textContent=privacyMode?'AI軽推敲 使用可能（秘匿モード・端末内処理）':'AI軽推敲 使用可能。内容を増やさない設定です。';
     $('runAI').disabled=false;$('prepareAI').textContent='AI準備済み';
     localStorage.setItem('kotoba-writer-ai-ready','1');
   }catch(e){
-    $('aiStatus').textContent='AI準備エラー: '+((e&&e.message)||String(e));
+    const msg=((e&&e.message)||String(e));
+    $('aiStatus').textContent=privacyMode
+      ? '秘匿モード中のためネット取得は行いません。保存済みAIが足りない可能性があります。秘匿モードをOFFにして一度AIを準備し、完了後に再びONにしてください。'
+      : 'AI準備エラー: '+msg;
     $('prepareAI').disabled=false;
   }
 };
@@ -360,11 +485,20 @@ $('applyAI').onclick=()=>{
 };
 
 if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('./sw.js?v='+BUILD,{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});
+  navigator.serviceWorker.register('./sw.js?v='+BUILD,{updateViaCache:'none'}).then(async r=>{
+    if(!privacyMode){
+      try{await r.update()}catch(e){}
+    }
+    try{await navigator.serviceWorker.ready}catch(e){}
+    try{await tellServiceWorkerPrivacy(privacyMode)}catch(e){}
+  }).catch(()=>{});
 }
 load();
+syncPrivacyUI();
 if(localStorage.getItem('kotoba-writer-ai-ready')==='1'){
-  $('aiStatus').textContent='前回AIを準備済みです。「AIを準備」を押すとキャッシュから読み込みます。';
+  $('aiStatus').textContent=privacyMode
+    ? 'AIは準備済みです。秘匿モードのまま「AIを準備」を押すと端末内キャッシュから読み込みます。'
+    : '前回AIを準備済みです。「AIを準備」を押すとキャッシュから読み込みます。';
 }
 </script>
 </body>
