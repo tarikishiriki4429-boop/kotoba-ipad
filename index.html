@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<meta name="theme-color" content="#f6f5f2" />
+<link rel="manifest" href="manifest.webmanifest" />
+<title>Kotoba</title>
+<style>
+:root{font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",sans-serif;color:#1b1b1b;background:#f6f5f2}
+*{box-sizing:border-box} body{margin:0;min-height:100vh;background:#f6f5f2}
+header{position:sticky;top:0;z-index:3;display:flex;gap:10px;align-items:center;padding:12px 16px;background:rgba(246,245,242,.92);backdrop-filter:blur(12px);border-bottom:1px solid #ddd}
+h1{font-size:20px;margin:0;flex:1} button{border:0;border-radius:12px;padding:10px 14px;font-size:15px;font-weight:650;background:#222;color:white}button.secondary{background:#e5e3de;color:#222}button:disabled{opacity:.45}
+main{max-width:980px;margin:auto;padding:16px;display:grid;gap:12px}.status{background:white;border-radius:14px;padding:12px 14px;border:1px solid #e3e1dc}.meter{height:8px;background:#eceae5;border-radius:99px;overflow:hidden;margin-top:8px}.meter>div{height:100%;width:0;background:#222;transition:width .2s}.small{font-size:12px;color:#666;margin-top:6px;line-height:1.45}
+textarea{width:100%;min-height:52vh;resize:vertical;border:1px solid #ddd9d1;border-radius:14px;background:white;padding:18px;font-size:19px;line-height:1.75;font-family:"Hiragino Mincho ProN","Yu Mincho",serif;outline:none}.suggestion{white-space:pre-wrap;background:white;border:1px solid #ddd9d1;border-radius:14px;padding:16px;min-height:84px;font-family:"Hiragino Mincho ProN","Yu Mincho",serif;font-size:17px;line-height:1.7}.row{display:flex;gap:8px;flex-wrap:wrap}.danger{background:#8d1b1b}
+@media(max-width:700px){textarea{min-height:48vh;font-size:18px} header{padding-top:max(12px,env(safe-area-inset-top))}}
+</style>
+</head>
+<body>
+<header><h1>Kotoba</h1><button id="prepare">AIを準備</button><button id="generate" disabled>続きを生成</button></header>
+<main>
+<section class="status"><div id="status">起動確認中…</div><div class="meter"><div id="bar"></div></div><div id="detail" class="small">本文はこの端末内に保存されます。AI生成も端末内で実行します。</div></section>
+<textarea id="editor" placeholder="ここに小説本文を書きます…" spellcheck="false"></textarea>
+<section><div class="suggestion" id="suggestion">AIの候補はここに表示されます。</div></section>
+<div class="row"><button id="accept" class="secondary" disabled>本文に追加</button><button id="clear" class="secondary">候補を消す</button><button id="reset" class="secondary">本文を消去</button></div>
+<div class="small">初回のみ、AI本体とモデルの取得にインターネット接続が必要です。取得後はブラウザのキャッシュを使います。Safariの「履歴とWebサイトデータ」を消すとモデルも再取得になります。</div>
+</main>
+<script type="module">
+const MODEL='Qwen2.5-0.5B-Instruct-q4f16_1-MLC';
+const CDN='https://esm.run/@mlc-ai/web-llm';
+const $=id=>document.getElementById(id);
+const editor=$('editor'), prepare=$('prepare'), generate=$('generate'), status=$('status'), detail=$('detail'), bar=$('bar'), suggestion=$('suggestion'), accept=$('accept');
+editor.value=localStorage.getItem('kotoba-draft')||'';
+editor.addEventListener('input',()=>localStorage.setItem('kotoba-draft',editor.value));
+$('clear').onclick=()=>{suggestion.textContent='AIの候補はここに表示されます。';accept.disabled=true};
+$('reset').onclick=()=>{if(confirm('本文を消去しますか？')){editor.value='';localStorage.removeItem('kotoba-draft')}};
+let engine=null, webllm=null;
+async function check(){
+ if(!('gpu' in navigator)){status.textContent='このSafariではWebGPUが使えません';detail.textContent='iPadOS 26のSafariで開いてください。';prepare.disabled=true;return false}
+ try{const a=await navigator.gpu.requestAdapter(); if(!a) throw new Error('adapter unavailable'); status.textContent='WebGPU 使用可能'; detail.textContent='AIを準備を押してください。初回のみモデルを取得します。'; return true}catch(e){status.textContent='WebGPUを開始できません';detail.textContent=String(e);prepare.disabled=true;return false}
+}
+async function loadEngine(){
+ if('serviceWorker' in navigator){try{await navigator.serviceWorker.ready}catch{}}
+ prepare.disabled=true; generate.disabled=true; status.textContent='AIライブラリを読み込み中…';
+ try{
+  webllm ||= await import(CDN);
+  const appConfig={...webllm.prebuiltAppConfig,cacheBackend:'cache'};
+  engine=await webllm.CreateMLCEngine(MODEL,{appConfig,initProgressCallback:(p)=>{
+   const prog=Math.max(0,Math.min(1,p.progress||0)); bar.style.width=(prog*100).toFixed(1)+'%'; status.textContent=p.text||'AIを準備中…'; detail.textContent='初回は時間がかかります。画面を閉じないでください。';
+  }});
+  bar.style.width='100%';status.textContent='オフラインAI 使用可能';detail.textContent='モデルはブラウザに保存されました。以後は再ダウンロードせず利用できます。';generate.disabled=false;prepare.textContent='AI準備済み';
+ }catch(e){console.error(e);status.textContent='AIの準備に失敗しました';detail.textContent=(e&&e.message)||String(e);prepare.disabled=false}
+}
+prepare.onclick=loadEngine;
+generate.onclick=async()=>{
+ if(!engine)return; const text=editor.value.trim(); if(!text){status.textContent='まず本文を入力してください';return}
+ generate.disabled=true;accept.disabled=true;suggestion.textContent='';status.textContent='続きを生成中…';
+ const tail=text.slice(-2200);
+ const messages=[
+  {role:'system',content:'あなたは日本語小説の執筆支援AIです。与えられた本文の直後に自然につながる文章だけを書いてください。講評・説明・見出し・箇条書きは禁止。登場人物、視点、時制、文体を本文に合わせ、勝手に大量の新設定を追加しないでください。出力は日本語で2〜4段落程度。'},
+  {role:'user',content:'以下は小説本文の末尾です。この直後の続きを自然に書いてください。\n\n--- 本文末尾 ---\n'+tail+'\n--- ここまで ---\n\n続きだけを書いてください。'}
+ ];
+ try{
+  const chunks=await engine.chat.completions.create({messages,temperature:.75,top_p:.9,max_tokens:240,stream:true});let out='';
+  for await(const ch of chunks){out+=ch.choices?.[0]?.delta?.content||'';suggestion.textContent=out}
+  suggestion.textContent=out.trim()||'生成結果が空でした。';accept.disabled=!out.trim();status.textContent='生成完了';
+ }catch(e){console.error(e);suggestion.textContent='生成エラー: '+((e&&e.message)||String(e));status.textContent='生成に失敗しました'}finally{generate.disabled=false}
+};
+accept.onclick=()=>{const s=suggestion.textContent.trim();if(!s||s.startsWith('AIの候補'))return;editor.value+=(editor.value&&!editor.value.endsWith('\n')?'\n':'')+s;localStorage.setItem('kotoba-draft',editor.value);accept.disabled=true;status.textContent='本文へ追加しました'};
+if('serviceWorker' in navigator){navigator.serviceWorker.register('./sw.js').catch(()=>{})}
+check();
+</script>
+</body></html>
