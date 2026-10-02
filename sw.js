@@ -1,5 +1,50 @@
-const CACHE="kotoba-music-v1.6";
-const ASSETS=["./","./index.html","./manifest.webmanifest"];
-self.addEventListener("install",e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting())));
-self.addEventListener("activate",e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
-self.addEventListener("fetch",e=>e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request).then(resp=>{const copy=resp.clone();caches.open(CACHE).then(c=>c.put(e.request,copy));return resp}).catch(()=>caches.match("./index.html")))));
+const CACHE='kotoba-writer-shell-v11';
+const PRIVACY_FLAG='kotoba-writer-privacy-lock-v1';
+const SHELL=['./','./index.html','./manifest.webmanifest'];
+
+self.addEventListener('install',e=>{
+  self.skipWaiting();
+  e.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL)));
+});
+self.addEventListener('activate',e=>{
+  e.waitUntil(Promise.all([
+    self.clients.claim(),
+    caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('kotoba-writer-shell-')&&k!==CACHE).map(k=>caches.delete(k))))
+  ]));
+});
+self.addEventListener('message',event=>{
+  const d=event.data||{};
+  if(d.type!=='SET_OFFLINE_ONLY')return;
+  event.waitUntil(d.enabled?caches.open(PRIVACY_FLAG):caches.delete(PRIVACY_FLAG));
+});
+async function locked(){return await caches.has(PRIVACY_FLAG)}
+async function cacheOnly(req){
+  const hit=await caches.match(req);
+  if(hit)return hit;
+  return new Response('Blocked by privacy mode',{status:503});
+}
+async function networkFirst(req){
+  try{
+    const r=await fetch(req,{cache:'no-store'});
+    if(r&&r.ok)caches.open(CACHE).then(c=>c.put(req,r.clone())).catch(()=>{});
+    return r;
+  }catch(e){
+    const hit=await caches.match(req);if(hit)return hit;throw e;
+  }
+}
+async function cacheFirst(req){
+  const hit=await caches.match(req);if(hit)return hit;
+  const r=await fetch(req);
+  if(r&&r.ok)caches.open(CACHE).then(c=>c.put(req,r.clone())).catch(()=>{});
+  return r;
+}
+self.addEventListener('fetch',event=>{
+  if(event.request.method!=='GET')return;
+  event.respondWith((async()=>{
+    if(await locked())return await cacheOnly(event.request);
+    const u=new URL(event.request.url);
+    if(u.origin===self.location.origin)return await networkFirst(event.request);
+    if(u.hostname==='esm.run')return await cacheFirst(event.request);
+    return await fetch(event.request);
+  })());
+});
