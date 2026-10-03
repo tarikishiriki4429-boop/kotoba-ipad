@@ -79,6 +79,12 @@ button:disabled{opacity:.45}
 .page-editor.is-composing .editor-line{display:inline;white-space:pre-wrap}
 .page-editor.is-composing .editor-char{display:inline;white-space:pre-wrap;inline-size:auto}
 .page-editor.is-composing .editor-line > br{display:initial}
+.page-editor.is-composing{color:transparent;caret-color:transparent;-webkit-text-fill-color:transparent}
+.page-editor.is-composing *{text-decoration-color:transparent!important}
+.composition-preview{position:absolute;pointer-events:none!important;user-select:none!important;-webkit-user-select:none!important;background-image:none!important}
+.composition-preview *{pointer-events:none!important;user-select:none!important;-webkit-user-select:none!important}
+.ime-preedit{text-decoration:underline;text-underline-offset:.12em}
+.ime-preview-caret{position:absolute;background:#111;pointer-events:none}
 .page.manuscript:not(.vertical) .page-editor{
   background-image:
     linear-gradient(to right,rgba(0,0,0,.065) 1px,transparent 1px),
@@ -180,7 +186,7 @@ button:disabled{opacity:.45}
   <span id="cursor">1ページ 1行 1列</span>
   <span id="pageInfo">40字 × 30行</span>
   <span id="pageCount">1ページ</span>
-  <span class="build">Kotoba Writer build 14</span>
+  <span class="build">Kotoba Writer build 15</span>
 </div>
 
 <div id="findPanel" class="panel">
@@ -230,7 +236,7 @@ button:disabled{opacity:.45}
 <div id="printArea"></div>
 
 <script type="module">
-const BUILD=14;
+const BUILD=15;
 const $=id=>document.getElementById(id);
 const STORAGE='kotoba-writer-draft-v1';
 const SETTINGS='kotoba-writer-settings-v1';
@@ -288,7 +294,7 @@ function scheduleReveal(){
     const selection=window.getSelection();
     if(!selection.rangeCount || !ta.contains(selection.focusNode))return;
     const range=document.createRange();range.setStart(selection.focusNode,selection.focusOffset);range.collapse(true);
-    let m=range.getClientRects()[0];
+    let m=ta._compositionPreview?.querySelector('.ime-preview-caret')?.getBoundingClientRect()||range.getClientRects()[0];
     if(!m || !(m.width||m.height))m=selection.focusNode.parentElement?.getBoundingClientRect();
     if(!m)return;
     const style=getComputedStyle(ta),view=workspace.getBoundingClientRect();
@@ -548,10 +554,14 @@ function bindEditor(ta){
   ta.dataset.bound='1';
 
   ta.addEventListener('compositionstart',()=>{
-    captureInputScroll();isComposing=true;remember();ta.classList.add('is-composing');
+    captureInputScroll();
+    ta._compositionStart=ta.selectionStart;ta._compositionData='';
+    isComposing=true;remember();ta.classList.add('is-composing');paintComposition(ta);
   });
+  ta.addEventListener('compositionupdate',e=>{ta._compositionData=e.data||''});
   ta.addEventListener('compositionend',()=>{
     isComposing=false;ta.classList.remove('is-composing');
+    ta._compositionPreview?.remove();ta._compositionPreview=null;
     ta._layoutKey=null;syncFromPage(ta,true);
   });
   for(const type of ['focus','click','select','keyup'])ta.addEventListener(type,()=>{if(!rendering && document.activeElement===ta)syncCaret(ta)});
@@ -563,7 +573,10 @@ function bindEditor(ta){
   });
   ta.addEventListener('input',e=>{
     if(document.activeElement!==ta)return;
-    if(isComposing||e.isComposing){saveComposition(ta);restoreInputScroll();return;}
+    if(isComposing||e.isComposing){
+      if(e.data!==null)ta._compositionData=e.data;
+      paintComposition(ta);saveComposition(ta);restoreInputScroll();return;
+    }
     syncFromPage(ta,true);
   });
   ta.addEventListener('keydown',e=>{
@@ -583,6 +596,32 @@ function bindEditor(ta){
       e.preventDefault();renderPages(c.end,c.end,true,true);
     }
   });
+}
+// The live IME DOM is untouched. A pointer-transparent preview uses the same
+// line layout as committed text, including punctuation in the margin.
+function paintComposition(ta){
+  let preview=ta._compositionPreview;
+  if(!preview){
+    preview=document.createElement('div');preview.className='page-editor composition-preview';
+    preview.setAttribute('aria-hidden','true');ta.parentElement.append(preview);
+    ta._compositionPreview=preview;
+  }
+  preview.style.left=ta.offsetLeft+'px';preview.style.top=ta.offsetTop+'px';
+  writeEditorText(preview,ta.value);
+  const map=editableMap(preview),start=ta._compositionStart||0,end=start+(ta._compositionData||'').length;
+  for(const t of map.texts)if(t.end>start && t.start<end)t.node.parentElement.classList.add('ime-preedit');
+  const pos=Math.max(0,Math.min(ta.selectionEnd,map.text.length));
+  let point=map.texts.find(t=>pos===t.start || (pos>t.start && pos<t.end));
+  let offset=point?pos-point.start:0;
+  if(!point){point=map.texts.at(-1);offset=point?point.end-point.start:0;}
+  if(!point)return;
+  const range=document.createRange();range.setStart(point.node,offset);range.collapse(true);
+  const b=range.getClientRects?.()[0],base=preview.getBoundingClientRect();
+  if(!b)return;
+  const caret=document.createElement('span');caret.className='ime-preview-caret';
+  const vertical=getSettings().writingMode==='vertical',size=parseFloat(getComputedStyle(ta).fontSize);
+  Object.assign(caret.style,{left:(b.left-base.left)+'px',top:(b.top-base.top)+'px',width:(vertical?size:2)+'px',height:(vertical?2:size)+'px'});
+  preview.append(caret);
 }
 function saveComposition(ta){
   const c=chunks[+ta.dataset.index];if(!c)return;

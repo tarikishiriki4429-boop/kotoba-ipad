@@ -1,4 +1,4 @@
-const CACHE='kotoba-writer-shell-v14';
+const CACHE='kotoba-writer-shell-v15';
 const PRIVACY_FLAG='kotoba-writer-privacy-lock-v1';
 const SHELL=['./','./index.html','./manifest.webmanifest'];
 
