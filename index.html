@@ -73,6 +73,12 @@ button:disabled{opacity:.45}
 .editor-line > br{display:none}
 .hanging-char{position:relative;z-index:2;overflow:visible}
 .hanging-char::selection{background:Highlight;color:HighlightText}
+/* Keep the browser's live IME range intact, but allow its growing text to wrap.
+   Commit restores the explicit cell layout and hanging punctuation. */
+.page-editor.is-composing{white-space:pre-wrap;word-break:break-all;line-break:anywhere}
+.page-editor.is-composing .editor-line{display:inline;white-space:pre-wrap}
+.page-editor.is-composing .editor-char{display:inline;white-space:pre-wrap;inline-size:auto}
+.page-editor.is-composing .editor-line > br{display:initial}
 .page.manuscript:not(.vertical) .page-editor{
   background-image:
     linear-gradient(to right,rgba(0,0,0,.065) 1px,transparent 1px),
@@ -174,7 +180,7 @@ button:disabled{opacity:.45}
   <span id="cursor">1ページ 1行 1列</span>
   <span id="pageInfo">40字 × 30行</span>
   <span id="pageCount">1ページ</span>
-  <span class="build">Kotoba Writer build 13</span>
+  <span class="build">Kotoba Writer build 14</span>
 </div>
 
 <div id="findPanel" class="panel">
@@ -224,7 +230,7 @@ button:disabled{opacity:.45}
 <div id="printArea"></div>
 
 <script type="module">
-const BUILD=13;
+const BUILD=14;
 const $=id=>document.getElementById(id);
 const STORAGE='kotoba-writer-draft-v1';
 const SETTINGS='kotoba-writer-settings-v1';
@@ -541,8 +547,13 @@ function bindEditor(ta){
   if(ta.dataset.bound)return;
   ta.dataset.bound='1';
 
-  ta.addEventListener('compositionstart',()=>{captureInputScroll();isComposing=true;remember()});
-  ta.addEventListener('compositionend',()=>{isComposing=false;syncFromPage(ta,true)});
+  ta.addEventListener('compositionstart',()=>{
+    captureInputScroll();isComposing=true;remember();ta.classList.add('is-composing');
+  });
+  ta.addEventListener('compositionend',()=>{
+    isComposing=false;ta.classList.remove('is-composing');
+    ta._layoutKey=null;syncFromPage(ta,true);
+  });
   for(const type of ['focus','click','select','keyup'])ta.addEventListener(type,()=>{if(!rendering && document.activeElement===ta)syncCaret(ta)});
   ta.addEventListener('beforeinput',e=>{
     captureInputScroll();
