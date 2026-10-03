@@ -4,7 +4,8 @@
     "test": "node tests/editor.cjs",
     "test:browser": "node tests/browser.cjs",
     "test:proofreading": "node tests/proofreading.cjs",
-    "test:hanging": "node tests/hanging.cjs"
+    "test:hanging": "node tests/hanging.cjs",
+    "test:hanging-browser": "node tests/hanging-browser.cjs"
   },
   "devDependencies": {
     "jsdom": "30.1.1",
