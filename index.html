@@ -49,8 +49,9 @@ button:disabled{opacity:.45}
   font-size:var(--font-size);line-height:var(--line-height);
   font-family:"Hiragino Mincho ProN","Yu Mincho","YuMincho",serif;
   font-kerning:none;font-variant-east-asian:full-width;
-  letter-spacing:0;caret-color:#111;white-space:pre-wrap;overflow:hidden;
+  letter-spacing:0;caret-color:#111;white-space:pre-wrap;overflow:visible;
   line-break:anywhere;word-break:break-all;box-sizing:content-box;
+  -webkit-user-select:text;user-select:text;cursor:text;
   width:calc(var(--chars) * 1em);
   height:calc(var(--lines) * var(--font-size) * var(--line-height));
 }
@@ -60,6 +61,18 @@ button:disabled{opacity:.45}
   width:calc(var(--lines) * var(--font-size) * var(--line-height));
   height:calc(var(--chars) * 1em);
 }
+.hanging-char{
+  display:inline-block;inline-size:0;min-inline-size:0;max-inline-size:0;
+  overflow:visible;white-space:nowrap;position:relative;z-index:2;
+  transform:translateX(var(--hang-offset,.08em));
+  transform-origin:left center;
+  -webkit-user-select:text;user-select:text;
+}
+.page.vertical .hanging-char{
+  transform:translateY(var(--hang-offset,.08em));
+  transform-origin:center top;
+}
+.hanging-char::selection{background:Highlight;color:HighlightText}
 .page.manuscript:not(.vertical) .page-editor{
   background-image:
     linear-gradient(to right,rgba(0,0,0,.065) 1px,transparent 1px),
@@ -161,7 +174,7 @@ button:disabled{opacity:.45}
   <span id="cursor">1ページ 1行 1列</span>
   <span id="pageInfo">40字 × 30行</span>
   <span id="pageCount">1ページ</span>
-  <span class="build">Kotoba Writer build 10</span>
+  <span class="build">Kotoba Writer build 12</span>
 </div>
 
 <div id="findPanel" class="panel">
@@ -211,7 +224,7 @@ button:disabled{opacity:.45}
 <div id="printArea"></div>
 
 <script type="module">
-const BUILD=11;
+const BUILD=12;
 const $=id=>document.getElementById(id);
 const STORAGE='kotoba-writer-draft-v1';
 const SETTINGS='kotoba-writer-settings-v1';
@@ -348,6 +361,11 @@ function applySettings(){
 
 /* 文字数と明示改行からページを決める。
    Safariのtextarea内部スクロールにページ管理を任せない。 */
+const HANGING_RE=/[、。，．！？!?：；」』）】〉》〕］｝〟’”]/u;
+function isHangingChar(ch){return HANGING_RE.test(ch)}
+
+/* 行頭に孤立させたくない句読点・閉じ括弧は、満行の直後なら
+   文字数に数えず行末の余白へぶら下げる。本文文字そのものは保持する。 */
 function paginate(text){
   const {charCount:cols,lineCount:rows}=getSettings();
   const out=[];
@@ -355,18 +373,26 @@ function paginate(text){
   const chars=units(text);
   for(let k=0;k<chars.length;k++){
     const {segment:ch,index:i}=chars[k];
-    if(ch==='\n'){row++;col=0;}
-    else{if(col===cols){row++;col=0;}col++;}
-    let end=i+ch.length;
-    if(row>=rows || (row===rows-1 && col===cols)){
-      // A newline immediately after a full final line belongs to that line.
-      if(col===cols && chars[k+1]?.segment==='\n'){end++;k++;}
-      out.push({start:pageStart,end,text:text.slice(pageStart,end)});
-      pageStart=end;row=0;col=0;
+    if(ch==='\n'){
+      row++;col=0;
+      const end=i+ch.length;
+      if(row>=rows){out.push({start:pageStart,end,text:text.slice(pageStart,end)});pageStart=end;row=0;col=0;}
+      continue;
     }
+    if(col>=cols){
+      if(isHangingChar(ch)){
+        // Keep it on the completed line, outside the measure.
+        continue;
+      }
+      row++;col=0;
+      if(row>=rows){
+        out.push({start:pageStart,end:i,text:text.slice(pageStart,i)});
+        pageStart=i;row=0;col=0;
+      }
+    }
+    col++;
   }
-  out.push({start:pageStart,end:text.length,text:text.slice(pageStart)});
-  if(!out.length)out.push({start:0,end:0,text:''});
+  if(pageStart<text.length || !out.length)out.push({start:pageStart,end:text.length,text:text.slice(pageStart)});
   return out;
 }
 function pageForOffset(pos){
@@ -381,10 +407,14 @@ function lineCol(text,pos){
   const {charCount:cols}=getSettings();
   let row=1,col=1;
   for(const {segment:ch} of units(text.slice(0,pos))){
-    if(ch==='\n'){row++;col=1;}
-    else{if(col>cols){row++;col=1;}col++;}
+    if(ch==='\n'){row++;col=1;continue;}
+    if(col>cols){
+      if(isHangingChar(ch))continue;
+      row++;col=1;
+    }
+    col++;
   }
-  return {row,col};
+  return {row,col:Math.min(col,cols+1)};
 }
 function updateStatus(){
   $('count').textContent=docText.length+'文字';
@@ -404,20 +434,32 @@ function pageClass(){
 // Explicit BR nodes reset the vertical inline position in WebKit as well as Chromium.
 // Newline characters alone in a pre-wrap text node can leave Safari's caret on
 // the preceding column. Keep the saved document independent of the DOM layout.
-function writeVerticalText(el,value){
+function writeEditorText(el,value){
+  const {charCount:cols}=getSettings();
   const fragment=document.createDocumentFragment();
-  const lines=value.split('\n');
-  lines.forEach((line,i)=>{
-    if(i)fragment.append(document.createElement('br'));
-    fragment.append(document.createTextNode(line));
-  });
+  let col=0,hangIndex=0;
+  for(const {segment:ch} of units(value)){
+    if(ch==='\n'){fragment.append(document.createElement('br'));col=0;hangIndex=0;continue;}
+    if(col>=cols && isHangingChar(ch)){
+      const span=document.createElement('span');
+      span.className='hanging-char';
+      span.dataset.hanging='1';
+      span.style.setProperty('--hang-offset',(0.08+hangIndex*0.90)+'em');
+      span.textContent=ch;
+      fragment.append(span);hangIndex++;
+      continue;
+    }
+    if(col>=cols){col=0;hangIndex=0;}
+    fragment.append(document.createTextNode(ch));
+    col++;
+  }
   if(!value || value.endsWith('\n')){
     const end=document.createElement('span');end.setAttribute('data-caret-end','');
     end.textContent='\u200b';fragment.append(end);
   }
   el.replaceChildren(fragment);
 }
-// Vertical editing uses DOM selection instead of textarea's internal layout.
+// Both writing modes use DOM selection so hanging punctuation remains real, selectable text.
 function editableMap(root){
   let text='';const bounds=new Map();const texts=[];
   function walk(node){
@@ -441,10 +483,9 @@ function editableMap(root){
   }};
 }
 function createEditor(vertical){
-  const el=document.createElement(vertical?'div':'textarea');
+  const el=document.createElement('div');
   el.className='page-editor';el.spellcheck=false;
   el.setAttribute('aria-label',vertical?'縦書き本文':'横書き本文');
-  if(!vertical)return el;
   el.setAttribute('contenteditable','plaintext-only');el.setAttribute('role','textbox');
   el.setAttribute('aria-multiline','true');el.tabIndex=0;
   let lastStart=0,lastEnd=0;
@@ -458,7 +499,7 @@ function createEditor(vertical){
   }
   Object.defineProperties(el,{
     value:{get:()=>editableMap(el).text,set:value=>{
-      writeVerticalText(el,value);
+      writeEditorText(el,value);
       // A value write invalidates the browser's live selection.
       lastStart=lastEnd=-1;
     }},
@@ -584,12 +625,13 @@ function renderPages(caret=globalCaret,selEnd=globalSelEnd,focus=false,scroll=fa
     page.className=pageClass();page.dataset.page=`${i+1}`;
     const vertical=getSettings().writingMode==='vertical';
     let ta=page.firstElementChild;
-    if(!ta || (ta.tagName==='DIV')!==vertical){
-      ta=createEditor(vertical);page.replaceChildren(ta);bindEditor(ta);
+    if(!ta || ta.dataset.mode!==(vertical?'vertical':'horizontal')){
+      ta=createEditor(vertical);ta.dataset.mode=vertical?'vertical':'horizontal';page.replaceChildren(ta);bindEditor(ta);
     }
     ta.dataset.index=i;
-    ta._valueChanged=ta.value!==c.text;
-    if(ta._valueChanged){ta.value=c.text;ta.scrollTop=0;ta.scrollLeft=0;}
+    const layoutKey=c.text+'\u0000'+getSettings().charCount+'\u0000'+(vertical?'v':'h');
+    ta._valueChanged=ta._layoutKey!==layoutKey;
+    if(ta._valueChanged){ta.value=c.text;ta._layoutKey=layoutKey;ta.scrollTop=0;ta.scrollLeft=0;}
   });
 
   globalCaret=Math.max(0,Math.min(caret,docText.length));
