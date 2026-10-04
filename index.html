@@ -142,6 +142,7 @@ button:disabled{opacity:.45}
   <button id="undoBtn" disabled>取り消し</button>
   <button id="openBtn">TXTを開く</button>
   <button id="saveBtn">TXT保存</button>
+  <button id="fileNameBtn">名前変更</button>
   <button id="pdfBtn">PDF / 印刷</button>
   <div class="spacer"></div>
   <button id="findBtn">検索・置換</button>
@@ -186,7 +187,18 @@ button:disabled{opacity:.45}
   <span id="cursor">1ページ 1行 1列</span>
   <span id="pageInfo">40字 × 30行</span>
   <span id="pageCount">1ページ</span>
-  <span class="build">Kotoba Writer build 15</span>
+  <span id="documentName"></span>
+  <span class="build">Kotoba Writer build 17</span>
+</div>
+
+<div id="fileNamePanel" class="panel">
+  <h3>保存するファイル名</h3>
+  <div class="row">
+    <input id="fileName" type="text" aria-label="保存するファイル名" autocomplete="off" spellcheck="false">
+    <button id="applyFileName">名前を変更</button><button id="closeFileName">閉じる</button>
+  </div>
+  <div class="note" id="fileSaveInfo"></div>
+  <div class="note">名前の変更は次のTXT保存に使います。元ファイルの名前は、この操作だけでは変わりません。</div>
 </div>
 
 <div id="findPanel" class="panel">
@@ -236,10 +248,14 @@ button:disabled{opacity:.45}
 <div id="printArea"></div>
 
 <script type="module">
-const BUILD=15;
+const BUILD=17;
 const $=id=>document.getElementById(id);
 const STORAGE='kotoba-writer-draft-v1';
 const SETTINGS='kotoba-writer-settings-v1';
+const FILE_NAME_KEY='kotoba-writer-file-name-v1';
+const defaultFileName=()=> 'kotoba-'+new Date().toISOString().slice(0,10)+'.txt';
+let documentFileName=localStorage.getItem(FILE_NAME_KEY)||defaultFileName();
+let documentFileHandle=null,fileOperationBusy=false;
 const MODEL='Qwen2.5-1.5B-Instruct-q4f16_1-MLC';
 const CDN='https://esm.run/@mlc-ai/web-llm@0.2.82';
 
@@ -337,7 +353,7 @@ function loadSettings(){
   }catch{}
 }
 function save(){
-  try{localStorage.setItem(STORAGE,docText);$('saveStatus').textContent='保存済み'}
+  try{localStorage.setItem(STORAGE,docText);$('saveStatus').textContent='端末内に保存済み'}
   catch{$('saveStatus').textContent='保存エラー'}
 }
 function remember(){
@@ -470,8 +486,16 @@ function editableMap(root){
   function walk(node){
     if(node.nodeType===Node.TEXT_NODE){
       const start=text.length;
-      const value=node.parentElement?.hasAttribute('data-caret-end') && node===node.parentElement.lastChild && node.data.endsWith('\u200b')?node.data.slice(0,-1):node.data;
-      text+=value;bounds.set(node,{start,length:value.length});texts.push({node,start,end:text.length});return;
+      // WebKit may put IME text before OR after the empty-line sentinel, and
+      // may split its node. Exclude only sentinels in their marked subtree.
+      const marker=!!node.parentElement?.closest('[data-caret-end]');
+      let value='';const rawToText=[0],textToRaw=[0];
+      for(let i=0;i<node.data.length;i++){
+        if(!(marker && node.data[i]==='\u200b'))value+=node.data[i];
+        rawToText.push(value.length);textToRaw[value.length]=i+1;
+      }
+      text+=value;bounds.set(node,{start,rawToText});
+      texts.push({node,start,end:text.length,rawOffset:offset=>textToRaw[Math.min(offset,value.length)]});return;
     }
     if(node.nodeType!==Node.ELEMENT_NODE)return;
     if(node.tagName==='BR'){bounds.set(node,{start:text.length,children:[text.length]});text+='\n';return;}
@@ -484,7 +508,7 @@ function editableMap(root){
   walk(root);
   return {text,texts,offset(node,index){
     const b=bounds.get(node);if(!b)return null;
-    return node.nodeType===Node.TEXT_NODE?b.start+Math.min(index,b.length):b.children[Math.min(index,b.children.length-1)];
+    return node.nodeType===Node.TEXT_NODE?b.start+b.rawToText[Math.min(index,b.rawToText.length-1)]:b.children[Math.min(index,b.children.length-1)];
   }};
 }
 function createEditor(vertical){
@@ -514,10 +538,10 @@ function createEditor(vertical){
     const map=editableMap(el),len=map.text.length;
     start=Math.max(0,Math.min(start,len));end=Math.max(start,Math.min(end,len));
     const point=(offset,preferPrevious=false)=>{
-      if(preferPrevious)for(const t of map.texts)if(offset>t.start && offset<=t.end)return [t.node,offset-t.start];
-      for(const t of map.texts)if(offset===t.start || (offset>t.start && offset<t.end))return [t.node,offset-t.start];
+      if(preferPrevious)for(const t of map.texts)if(offset>t.start && offset<=t.end)return [t.node,t.rawOffset(offset-t.start)];
+      for(const t of map.texts)if(offset===t.start || (offset>t.start && offset<t.end))return [t.node,t.rawOffset(offset-t.start)];
       const tail=map.texts.at(-1);
-      if(offset===len && tail)return [tail.node,tail.end-tail.start];
+      if(offset===len && tail)return [tail.node,tail.rawOffset(tail.end-tail.start)];
       return [el,el.childNodes.length];
     };
     const range=document.createRange();range.setStart(...point(start));range.setEnd(...point(end,end>start));
@@ -615,7 +639,7 @@ function paintComposition(ta){
   let offset=point?pos-point.start:0;
   if(!point){point=map.texts.at(-1);offset=point?point.end-point.start:0;}
   if(!point)return;
-  const range=document.createRange();range.setStart(point.node,offset);range.collapse(true);
+  const range=document.createRange();range.setStart(point.node,point.rawOffset(offset));range.collapse(true);
   const b=range.getClientRects?.()[0],base=preview.getBoundingClientRect();
   if(!b)return;
   const caret=document.createElement('span');caret.className='ime-preview-caret';
@@ -714,17 +738,80 @@ $('undoBtn').onclick=()=>{
   save();renderPages(globalCaret,globalSelEnd,true,true);
   $('undoBtn').disabled=!history.length;
 };
-$('newBtn').onclick=()=>{if(confirm('現在の本文を消しますか？'))setDoc('',0,0,true,true)};
-$('openBtn').onclick=()=>$('fileInput').click();
+function cleanFileName(name){
+  name=String(name||'').trim().replace(/[\\/\u0000-\u001f\u007f]/g,'_');
+  if(!name || /^\.+$/.test(name))return defaultFileName();
+  return /\.txt$/i.test(name)?name:name+'.txt';
+}
+function syncFileName(){
+  $('documentName').textContent=documentFileName;
+  $('fileName').value=documentFileName;
+  $('saveBtn').textContent=documentFileHandle && documentFileHandle.name===documentFileName?'上書き保存':'TXT保存';
+  $('fileSaveInfo').textContent=typeof window.showOpenFilePicker==='function'
+    ?'対応ブラウザでは、TXTを開いた元ファイルへ上書きできます。名前を変えた場合は保存先を選びます。'
+    :'TXT保存で共有画面が開いたら「ファイルに保存」を選んでください。元ファイルのフォルダへ同じ名前で保存し、確認が出たら「置き換え」を選びます。';
+}
+function setFileName(name){
+  documentFileName=cleanFileName(name);
+  try{localStorage.setItem(FILE_NAME_KEY,documentFileName)}catch{}
+  syncFileName();
+}
+$('fileNameBtn').onclick=()=>{syncFileName();$('fileNamePanel').classList.add('show');$('fileName').focus();$('fileName').select()};
+$('closeFileName').onclick=()=>$('fileNamePanel').classList.remove('show');
+$('applyFileName').onclick=()=>{setFileName($('fileName').value);$('fileNamePanel').classList.remove('show')};
+$('fileName').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.isComposing){e.preventDefault();$('applyFileName').click()}});
+$('newBtn').onclick=()=>{if(confirm('現在の本文を消しますか？')){documentFileHandle=null;setFileName(defaultFileName());setDoc('',0,0,true,true)}};
+$('openBtn').onclick=async()=>{
+  if(typeof window.showOpenFilePicker!=='function'){$('fileInput').click();return;}
+  try{
+    const [handle]=await window.showOpenFilePicker({multiple:false,types:[{description:'テキスト',accept:{'text/plain':['.txt']}}]});
+    const file=await handle.getFile(),text=await file.text();
+    documentFileHandle=handle;setFileName(file.name);setDoc(text,0,0,true,true);
+  }catch(e){if(e.name!=='AbortError')$('saveStatus').textContent='ファイルを開けませんでした：'+e.message;}
+};
 $('fileInput').onchange=async e=>{
   const f=e.target.files?.[0];if(!f)return;
-  setDoc(await f.text(),0,0,true,true);e.target.value='';
+  try{
+    const text=await f.text();documentFileHandle=null;setFileName(f.name);setDoc(text,0,0,true,true);
+  }catch(error){$('saveStatus').textContent='読み込みに失敗しました：'+error.message;}
+  finally{e.target.value='';}
 };
-$('saveBtn').onclick=()=>{
-  const blob=new Blob([docText],{type:'text/plain;charset=utf-8'});
+function downloadText(text,name){
+  const blob=new Blob([text],{type:'text/plain;charset=utf-8'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);
-  a.download='kotoba-'+new Date().toISOString().slice(0,10)+'.txt';a.click();
+  a.download=name;a.click();
   setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+function setFileOperationBusy(on){
+  fileOperationBusy=on;
+  for(const id of ['saveBtn','openBtn','newBtn','fileNameBtn','applyFileName'])$(id).disabled=on;
+}
+$('saveBtn').onclick=async()=>{
+  if(fileOperationBusy)return;
+  if(isComposing){$('saveStatus').textContent='変換を確定してからTXT保存してください';return;}
+  const text=docText,name=documentFileName;let writer=null;
+  setFileOperationBusy(true);
+  try{
+    let handle=documentFileHandle?.name===name?documentFileHandle:null;
+    if(!handle&&typeof window.showSaveFilePicker==='function'){
+      handle=await window.showSaveFilePicker({suggestedName:name,types:[{description:'テキスト',accept:{'text/plain':['.txt']}}]});
+    }
+    if(handle){
+      writer=await handle.createWritable();await writer.write(text);await writer.close();writer=null;
+      documentFileHandle=handle;setFileName(handle.name);
+      $('saveStatus').textContent=docText===text?'TXTファイルへ保存済み':'保存後に本文が変更されています';return;
+    }
+    const file=new File([text],name,{type:'text/plain'});
+    if(typeof navigator.share==='function' && navigator.canShare?.({files:[file]})){
+      await navigator.share({files:[file]});
+      $('saveStatus').textContent='共有画面へ渡しました。保存先で保存を確認してください';
+    }else{
+      downloadText(text,name);$('saveStatus').textContent='TXTを書き出しました。同じフォルダへ保存する場合は置き換えを選んでください';
+    }
+  }catch(e){
+    if(writer){try{await writer.abort()}catch{}}
+    $('saveStatus').textContent=e.name==='AbortError'?'TXT保存を中止しました':'TXT保存に失敗しました：'+e.message;
+  }finally{setFileOperationBusy(false);}
 };
 $('pdfBtn').onclick=()=>{$('printArea').textContent=docText;window.print()};
 
@@ -1038,6 +1125,7 @@ window.addEventListener('pagehide',()=>{if(!isComposing)save()});
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&!isComposing)save()});
 
 viewportChanged();
+syncFileName();
 loadSettings();
 syncPoliteMode();
 applySettings();
