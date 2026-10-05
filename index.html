@@ -79,11 +79,12 @@ button:disabled{opacity:.45}
 .page-editor.is-composing .editor-line{display:inline;white-space:pre-wrap}
 .page-editor.is-composing .editor-char{display:inline;white-space:pre-wrap;inline-size:auto}
 .page-editor.is-composing .editor-line > br{display:initial}
-.page-editor.is-composing{color:transparent;caret-color:transparent;-webkit-text-fill-color:transparent}
+/* Hide native WebKit IME decorations too; keep its input DOM intact. */
+.page-editor.is-composing{opacity:0;color:transparent;caret-color:transparent;-webkit-text-fill-color:transparent}
 .page-editor.is-composing *{text-decoration-color:transparent!important}
 .composition-preview{position:absolute;pointer-events:none!important;user-select:none!important;-webkit-user-select:none!important;background-image:none!important}
 .composition-preview *{pointer-events:none!important;user-select:none!important;-webkit-user-select:none!important}
-.ime-preedit{text-decoration:underline;text-underline-offset:.12em}
+.ime-preedit{text-decoration:underline;text-decoration-color:#007aff;text-decoration-thickness:1px;text-underline-offset:.18em;text-decoration-skip-ink:none}
 .ime-preview-caret{position:absolute;background:#111;pointer-events:none}
 .page.manuscript:not(.vertical) .page-editor{
   background-image:
@@ -188,7 +189,7 @@ button:disabled{opacity:.45}
   <span id="pageInfo">40字 × 30行</span>
   <span id="pageCount">1ページ</span>
   <span id="documentName"></span>
-  <span class="build">Kotoba Writer build 17</span>
+  <span class="build">Kotoba Writer build 18</span>
 </div>
 
 <div id="fileNamePanel" class="panel">
@@ -248,7 +249,7 @@ button:disabled{opacity:.45}
 <div id="printArea"></div>
 
 <script type="module">
-const BUILD=17;
+const BUILD=18;
 const $=id=>document.getElementById(id);
 const STORAGE='kotoba-writer-draft-v1';
 const SETTINGS='kotoba-writer-settings-v1';
