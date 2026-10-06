@@ -189,7 +189,7 @@ button:disabled{opacity:.45}
   <span id="pageInfo">40字 × 30行</span>
   <span id="pageCount">1ページ</span>
   <span id="documentName"></span>
-  <span class="build">Kotoba Writer build 18</span>
+  <span class="build">Kotoba Writer build 19</span>
 </div>
 
 <div id="fileNamePanel" class="panel">
@@ -249,7 +249,7 @@ button:disabled{opacity:.45}
 <div id="printArea"></div>
 
 <script type="module">
-const BUILD=18;
+const BUILD=19;
 const $=id=>document.getElementById(id);
 const STORAGE='kotoba-writer-draft-v1';
 const SETTINGS='kotoba-writer-settings-v1';
@@ -541,6 +541,8 @@ function createEditor(vertical){
     const point=(offset,preferPrevious=false)=>{
       if(preferPrevious)for(const t of map.texts)if(offset>t.start && offset<=t.end)return [t.node,t.rawOffset(offset-t.start)];
       for(const t of map.texts)if(offset===t.start || (offset>t.start && offset<t.end))return [t.node,t.rawOffset(offset-t.start)];
+      // A source newline has no text node: its preceding caret lives at the end of the prior text.
+      for(const t of map.texts)if(offset===t.end)return [t.node,t.rawOffset(t.end-t.start)];
       const tail=map.texts.at(-1);
       if(offset===len && tail)return [tail.node,tail.rawOffset(tail.end-tail.start)];
       return [el,el.childNodes.length];
@@ -580,20 +582,27 @@ function bindEditor(ta){
 
   ta.addEventListener('compositionstart',()=>{
     captureInputScroll();
-    ta._compositionStart=ta.selectionStart;ta._compositionData='';
+    ta._compositionStart=ta.selectionStart;ta._compositionEnd=ta.selectionEnd;ta._compositionOriginal=ta.value;ta._compositionData='';
     isComposing=true;remember();ta.classList.add('is-composing');paintComposition(ta);
   });
   ta.addEventListener('compositionupdate',e=>{ta._compositionData=e.data||''});
   ta.addEventListener('compositionend',()=>{
     isComposing=false;ta.classList.remove('is-composing');
     ta._compositionPreview?.remove();ta._compositionPreview=null;
+    // WebKit can relocate its native selection while the IME layout changes.
+    // Restore the insertion endpoint from the original replacement range.
+    const inserted=ta.value.length-(ta._compositionOriginal.length-(ta._compositionEnd-ta._compositionStart));
+    ta.setSelectionRange(ta._compositionStart+Math.max(0,inserted),ta._compositionStart+Math.max(0,inserted));
     ta._layoutKey=null;syncFromPage(ta,true);
   });
   for(const type of ['focus','click','select','keyup'])ta.addEventListener(type,()=>{if(!rendering && document.activeElement===ta)syncCaret(ta)});
   ta.addEventListener('beforeinput',e=>{
-    captureInputScroll();
+    captureInputScroll();arrowGoal=null;arrowAnchor=null;
     if(isComposing||e.isComposing)return;
     if(handleEdit(e,ta,e.inputType))return;
+    if(e.cancelable && e.inputType==='insertText' && e.data!==null){
+      e.preventDefault();replaceSelection(ta,e.data);return;
+    }
     remember();
   });
   ta.addEventListener('input',e=>{
@@ -611,16 +620,53 @@ function bindEditor(ta){
       captureInputScroll();
       if(handleEdit(e,ta,type))return;
     }
-    const c=chunks[+ta.dataset.index];if(!c||e.shiftKey)return;
-    const vertical=getSettings().writingMode==='vertical';
-    const backward=vertical?'ArrowUp':'ArrowLeft',forward=vertical?'ArrowDown':'ArrowRight';
-    if(ta.selectionStart!==ta.selectionEnd)return;
-    if(e.key===backward && ta.selectionStart===0 && c.start>0){
-      e.preventDefault();renderPages(previousOffset(c.start),previousOffset(c.start),true,true);
-    }else if(e.key===forward && ta.selectionEnd===ta.value.length && c.end<docText.length){
-      e.preventDefault();renderPages(c.end,c.end,true,true);
-    }
+    if(/^Arrow(Left|Right|Up|Down)$/.test(e.key) && !e.metaKey && !e.ctrlKey && !e.altKey)moveArrow(ta,e);
   });
+}
+let arrowGoal=null,arrowAnchor=null;
+function moveArrow(ta,event){
+  const c=chunks[+ta.dataset.index];if(!c)return;
+  const vertical=getSettings().writingMode==='vertical';
+  const backward=event.key===(vertical?'ArrowUp':'ArrowLeft');
+  const forward=event.key===(vertical?'ArrowDown':'ArrowRight');
+  const sel=window.getSelection(),map=editableMap(ta);
+  const focus=map.offset(sel.focusNode,sel.focusOffset);
+  const pos=c.start+(focus??ta.selectionEnd);
+  let target=pos;
+  if(backward||forward){
+    arrowGoal=null;
+    if(!event.shiftKey && ta.selectionStart!==ta.selectionEnd)target=c.start+(backward?ta.selectionStart:ta.selectionEnd);
+    else target=backward?previousOffset(pos):nextOffset(pos);
+  }else{
+    const lines=[];
+    document.querySelectorAll('#pages > .page').forEach((page,i)=>{
+      const editor=page.firstElementChild,m=editableMap(editor);
+      for(const line of editor.querySelectorAll('.editor-line')){
+        const start=m.offset(line,0),end=m.offset(line,line.childNodes.length);
+        const text=m.text.slice(start,end).replace(/\n$/,'');
+        const stops=[chunks[i].start+start];
+        for(const u of units(text))stops.push(chunks[i].start+start+u.index+u.segment.length);
+        lines.push(stops);
+      }
+    });
+    let row=lines.findIndex((stops,i)=>pos>=stops[0] && (i===lines.length-1 || pos<lines[i+1][0]));
+    if(row<0)row=lines.length-1;
+    const column=lines[row].findIndex(x=>x>=pos);
+    if(arrowGoal===null)arrowGoal=column<0?lines[row].length-1:column;
+    const delta=event.key===(vertical?'ArrowRight':'ArrowUp')?-1:1;
+    const next=lines[Math.max(0,Math.min(lines.length-1,row+delta))];
+    target=next[Math.min(arrowGoal,next.length-1)];
+  }
+  event.preventDefault();
+  if(event.shiftKey){
+    if(arrowAnchor===null)arrowAnchor=c.start+(map.offset(sel.anchorNode,sel.anchorOffset)??ta.selectionStart);
+    renderPages(Math.min(arrowAnchor,target),Math.max(arrowAnchor,target),true,true);
+    const active=document.activeElement;
+    if(target<arrowAnchor && window.getSelection().setBaseAndExtent){
+      const range=window.getSelection().getRangeAt(0);
+      window.getSelection().setBaseAndExtent(range.endContainer,range.endOffset,range.startContainer,range.startOffset);
+    }
+  }else{arrowAnchor=null;renderPages(target,target,true,true);}
 }
 // The live IME DOM is untouched. A pointer-transparent preview uses the same
 // line layout as committed text, including punctuation in the margin.
