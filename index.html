@@ -189,7 +189,7 @@ button:disabled{opacity:.45}
   <span id="pageInfo">40字 × 30行</span>
   <span id="pageCount">1ページ</span>
   <span id="documentName"></span>
-  <span class="build">Kotoba Writer build 19</span>
+  <span class="build">Kotoba Writer build 20</span>
 </div>
 
 <div id="fileNamePanel" class="panel">
@@ -249,7 +249,7 @@ button:disabled{opacity:.45}
 <div id="printArea"></div>
 
 <script type="module">
-const BUILD=19;
+const BUILD=20;
 const $=id=>document.getElementById(id);
 const STORAGE='kotoba-writer-draft-v1';
 const SETTINGS='kotoba-writer-settings-v1';
@@ -308,11 +308,11 @@ function scheduleReveal(){
     const ta=document.activeElement;
     if(!ta?.classList.contains('page-editor'))return;
     const workspace=document.querySelector('.workspace');
-    const selection=window.getSelection();
-    if(!selection.rangeCount || !ta.contains(selection.focusNode))return;
-    const range=document.createRange();range.setStart(selection.focusNode,selection.focusOffset);range.collapse(true);
-    let m=ta._compositionPreview?.querySelector('.ime-preview-caret')?.getBoundingClientRect()||range.getClientRects()[0];
-    if(!m || !(m.width||m.height))m=selection.focusNode.parentElement?.getBoundingClientRect();
+    // Native collapsed ranges can have no rect (especially during WebKit
+    // layout). Never substitute the entire editor/line's bounding box: its
+    // bottom would scroll the viewport to the end of the manuscript.
+    let m=ta._compositionPreview?.querySelector('.ime-preview-caret')?.getBoundingClientRect();
+    if(!m)m=editorCaretRect(ta);
     if(!m)return;
     const style=getComputedStyle(ta),view=workspace.getBoundingClientRect();
     const left=m.left,top=m.top;
@@ -321,6 +321,26 @@ function scheduleReveal(){
     const dy=top<view.top+12?top-view.top-12:bottom>view.bottom-12?bottom-view.bottom+12:0;
     if(dx||dy)workspace.scrollBy({left:dx,top:dy,behavior:'instant'});
   });
+}
+function editorCaretRect(ta){
+  const c=chunks[+ta.dataset.index];if(!c)return null;
+  const map=editableMap(ta),pos=Math.max(0,Math.min(globalCaret-c.start,map.text.length));
+  let point=map.texts.find(t=>pos===t.start || (pos>t.start && pos<t.end));
+  if(!point)point=map.texts.find(t=>pos===t.end);
+  if(!point)return null;
+  const offset=point.rawOffset(pos-point.start),range=document.createRange();
+  range.setStart(point.node,offset);range.collapse(true);
+  let rect=range.getClientRects()[0];
+  if(rect && (rect.width||rect.height))return rect;
+  // Measure just the adjacent grapheme when an empty caret range has no box.
+  const data=point.node.data,segments=units(data);
+  const next=segments.find(u=>u.index>=offset),previous=segments.filter(u=>u.index<offset).at(-1);
+  const unit=next||previous;if(!unit)return null;
+  range.setStart(point.node,unit.index);range.setEnd(point.node,unit.index+unit.segment.length);
+  rect=range.getClientRects()[0];if(!rect)return null;
+  const vertical=getSettings().writingMode==='vertical',atEnd=!next;
+  return {left:vertical?rect.left:(atEnd?rect.right:rect.left),top:vertical?(atEnd?rect.bottom:rect.top):rect.top,
+    width:vertical?rect.width:2,height:vertical?2:rect.height};
 }
 let searchPos=0,currentMatch=null,lastSearchQuery='';
 let aiEngine=null,webllm=null,aiRange=null,aiSnapshot=null;
