@@ -189,7 +189,7 @@ button:disabled{opacity:.45}
   <span id="pageInfo">40字 × 30行</span>
   <span id="pageCount">1ページ</span>
   <span id="documentName"></span>
-  <span class="build">Kotoba Writer build 21</span>
+  <span class="build">Kotoba Writer build 22</span>
 </div>
 
 <div id="fileNamePanel" class="panel">
@@ -251,7 +251,7 @@ button:disabled{opacity:.45}
 <div id="printArea"></div>
 
 <script type="module">
-const BUILD=21;
+const BUILD=22;
 const $=id=>document.getElementById(id);
 const STORAGE='kotoba-writer-draft-v1';
 const SETTINGS='kotoba-writer-settings-v1';
@@ -273,10 +273,10 @@ function previousOffset(pos){const a=units(docText.slice(0,pos));return a.length
 function nextOffset(pos){const a=units(docText.slice(pos));return pos+(a[0]?.segment.length||0);}
 let rendering=false;
 let revealFrame=0;
-let inputScroll=null,restoreFrame=0;
+let inputScroll=null,restoreFrame=0,compositionScroll=null;
 function captureInputScroll(){
   const w=document.querySelector('.workspace');
-  inputScroll={left:w.scrollLeft,top:w.scrollTop};
+  inputScroll=compositionScroll || {left:w.scrollLeft,top:w.scrollTop};
 }
 function restoreInputScroll(){
   if(!inputScroll)return;
@@ -286,19 +286,19 @@ function restoreInputScroll(){
   cancelAnimationFrame(restoreFrame);
   restoreFrame=requestAnimationFrame(()=>{
     w.scrollLeft=position.left;w.scrollTop=position.top;
-    scheduleReveal();
+    if(!isComposing)scheduleReveal();
   });
 }
 // A real touch/wheel gesture always takes precedence over automatic restoration.
 for(const type of ['touchstart','pointerdown','wheel'])document.addEventListener(type,()=>{
-  inputScroll=null;cancelAnimationFrame(restoreFrame);cancelAnimationFrame(revealFrame);
+  inputScroll=null;compositionScroll=null;cancelAnimationFrame(restoreFrame);cancelAnimationFrame(revealFrame);
 },{passive:true});
 function viewportChanged(){
   const vv=window.visualViewport;
   document.documentElement.style.setProperty('--viewport-height',(vv?.height||innerHeight)+'px');
   document.documentElement.style.setProperty('--viewport-top',(vv?.offsetTop||0)+'px');
 }
-function viewportResized(){viewportChanged();scheduleReveal();}
+function viewportResized(){viewportChanged();if(compositionScroll){inputScroll=compositionScroll;restoreInputScroll()}else scheduleReveal();}
 window.visualViewport?.addEventListener('resize',viewportResized);
 // Panning the visual viewport must not start another editor scroll.
 window.visualViewport?.addEventListener('scroll',viewportChanged);
@@ -308,7 +308,7 @@ function scheduleReveal(){
   cancelAnimationFrame(revealFrame);
   revealFrame=requestAnimationFrame(()=>{
     const ta=document.activeElement;
-    if(!ta?.classList.contains('page-editor'))return;
+    if(isComposing || !ta?.classList.contains('page-editor'))return;
     const workspace=document.querySelector('.workspace');
     // Native collapsed ranges can have no rect (especially during WebKit
     // layout). Never substitute the entire editor/line's bounding box: its
@@ -596,19 +596,31 @@ function replaceSelection(el,text){
 }
 document.addEventListener('selectionchange',()=>{
   const el=document.activeElement;
-  if(!rendering && !isComposing && el?.classList.contains('page-editor'))syncCaret(el);
+  if(!rendering && !isComposing && el?.classList.contains('page-editor')){
+    syncCaret(el);
+    if(chunks.length>1 && el.value.length>0 && el.selectionStart===0 && el.selectionEnd===el.value.length){
+      $('selectAllBtn').click();
+    }
+  }
 });
 function bindEditor(ta){
   if(ta.dataset.bound)return;
   ta.dataset.bound='1';
 
   ta.addEventListener('compositionstart',()=>{
-    captureInputScroll();
-    ta._compositionStart=ta.selectionStart;ta._compositionEnd=ta.selectionEnd;ta._compositionOriginal=ta.value;ta._compositionData='';
+    ta._commitCaret=null;captureInputScroll();compositionScroll={...inputScroll};
+    const c=chunks[+ta.dataset.index];
+    // Some IMEs have already inserted preedit text when compositionstart fires.
+    // Use the committed manuscript as the baseline, never the provisional DOM.
+    const changed=ta.value!==c.text;
+    ta._compositionStart=changed?Math.max(0,globalCaret-c.start):ta.selectionStart;
+    ta._compositionEnd=changed?Math.max(ta._compositionStart,globalSelEnd-c.start):ta.selectionEnd;
+    ta._compositionOriginal=c.text;ta._compositionData='';
     isComposing=true;remember();ta.classList.add('is-composing');paintComposition(ta);
   });
   ta.addEventListener('compositionupdate',e=>{ta._compositionData=e.data||''});
   ta.addEventListener('compositionend',()=>{
+    inputScroll=compositionScroll || inputScroll;compositionScroll=null;
     isComposing=false;ta.classList.remove('is-composing');
     ta._compositionPreview?.remove();ta._compositionPreview=null;
     // WebKit can relocate its native selection while the IME layout changes.
@@ -616,9 +628,12 @@ function bindEditor(ta){
     const inserted=ta.value.length-(ta._compositionOriginal.length-(ta._compositionEnd-ta._compositionStart));
     ta.setSelectionRange(ta._compositionStart+Math.max(0,inserted),ta._compositionStart+Math.max(0,inserted));
     ta._layoutKey=null;syncFromPage(ta,true);
+    const active=document.activeElement;active._commitCaret={position:globalCaret,text:docText};
   });
   for(const type of ['focus','click','select','keyup'])ta.addEventListener(type,()=>{if(!rendering && document.activeElement===ta)syncCaret(ta)});
   ta.addEventListener('beforeinput',e=>{
+    if(e.inputType==='selectAll'){e.preventDefault();$('selectAllBtn').click();return;}
+    if(!isComposing && !/Composition/.test(e.inputType))ta._commitCaret=null;
     captureInputScroll();arrowGoal=null;arrowAnchor=null;
     if(isComposing||e.isComposing)return;
     if(handleEdit(e,ta,e.inputType))return;
@@ -629,13 +644,18 @@ function bindEditor(ta){
   });
   ta.addEventListener('input',e=>{
     if(document.activeElement!==ta)return;
-    if(isComposing||e.isComposing){
+    if(isComposing){
       if(e.data!==null)ta._compositionData=e.data;
       paintComposition(ta);saveComposition(ta);restoreInputScroll();return;
+    }
+    const committed=ta._commitCaret,c=chunks[+ta.dataset.index];
+    if(committed && committed.text===docText && ta.value===c.text){
+      ta._commitCaret=null;renderPages(committed.position,committed.position,true,true);return;
     }
     syncFromPage(ta,true);
   });
   ta.addEventListener('keydown',e=>{
+    if((e.metaKey||e.ctrlKey) && e.key.toLowerCase()==='a' && !isComposing){e.preventDefault();$('selectAllBtn').click();return;}
     if(isComposing||e.isComposing||e.keyCode===229)return;
     const type={Enter:'insertLineBreak',Backspace:'deleteContentBackward',Delete:'deleteContentForward'}[e.key];
     if(type && !e.metaKey && !e.ctrlKey && !e.altKey){
