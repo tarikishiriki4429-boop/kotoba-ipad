@@ -1,0 +1,105 @@
+[
+  {
+    "file": "WebLLM-LICENSE.txt",
+    "url": "https://raw.githubusercontent.com/mlc-ai/web-llm/fa6ead5156d096c00f0543cc98b7841cb82f573f/LICENSE",
+    "sha256": "d412ab9d5ac17e6931705aac01e5a0d323da5acd2e89a2c19aa8fc05becc59ad"
+  },
+  {
+    "name": "WebLLM",
+    "upstream_file": "NOTICE",
+    "url": "https://raw.githubusercontent.com/mlc-ai/web-llm/fa6ead5156d096c00f0543cc98b7841cb82f573f/NOTICE",
+    "error": "HTTP Error 404: Not Found"
+  },
+  {
+    "file": "TVM-LICENSE.txt",
+    "url": "https://raw.githubusercontent.com/apache/tvm/e08a3f94db86134f487367e10f34763a04f52710/LICENSE",
+    "sha256": "f58a0b778d1a658149b0486b347b2e4cc60a819e9c02998088971c11f41c9d9f"
+  },
+  {
+    "file": "TVM-NOTICE.txt",
+    "url": "https://raw.githubusercontent.com/apache/tvm/e08a3f94db86134f487367e10f34763a04f52710/NOTICE",
+    "sha256": "967cd2fb97712c43271e2b1c4f636c4d8823898869f0f76f65bf8a3232584f0f"
+  },
+  {
+    "file": "Tokenizers-cpp-LICENSE.txt",
+    "url": "https://raw.githubusercontent.com/mlc-ai/tokenizers-cpp/d54e3683dc44d37163cf8e77c243b505e12a1616/LICENSE",
+    "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+  },
+  {
+    "name": "Tokenizers-cpp",
+    "upstream_file": "NOTICE",
+    "url": "https://raw.githubusercontent.com/mlc-ai/tokenizers-cpp/d54e3683dc44d37163cf8e77c243b505e12a1616/NOTICE",
+    "error": "HTTP Error 404: Not Found"
+  },
+  {
+    "file": "XGrammar-LICENSE.txt",
+    "url": "https://raw.githubusercontent.com/mlc-ai/xgrammar/ace2321a29471130f3f64fb1882741a5547c6f36/LICENSE",
+    "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+  },
+  {
+    "file": "XGrammar-NOTICE.txt",
+    "url": "https://raw.githubusercontent.com/mlc-ai/xgrammar/ace2321a29471130f3f64fb1882741a5547c6f36/NOTICE",
+    "sha256": "769c6907073c65801bfcfe3ce1c0e80bf0ae4e124e2769d4f026c038ad583c0f"
+  },
+  {
+    "file": "Qwen2.5-1.5B-Instruct-LICENSE.txt",
+    "url": "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct/resolve/main/LICENSE",
+    "sha256": "832dd9e00a68dd83b3c3fb9f5588dad7dcf337a0db50f7d9483f310cd292e92e"
+  },
+  {
+    "file": "MLC-LLM-LICENSE.txt",
+    "url": "https://raw.githubusercontent.com/mlc-ai/mlc-llm/main/LICENSE",
+    "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+  },
+  {
+    "file": "MLC-LLM-NOTICE.txt",
+    "url": "https://raw.githubusercontent.com/mlc-ai/mlc-llm/main/NOTICE",
+    "sha256": "3a7dfb37bb96ce6f5a1cc0d6d4c8da3b8a35e6ec4692647ba0a37f6155c7e694"
+  },
+  {
+    "file": "loglevel-LICENSE-MIT.txt",
+    "url": "https://registry.npmjs.org/loglevel/-/loglevel-1.9.2.tgz",
+    "sha256": "18e8cf5f0dbaf13d9562e93b9bef79aff2acff18fab698c2d589d2159375a1f9"
+  },
+  {
+    "file": "source/licenses/SentencePiece-LICENSE.txt",
+    "url": "https://raw.githubusercontent.com/google/sentencepiece/f2219b53e24ff5deee4cacdc2d0ca3074e529a07/LICENSE",
+    "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+  },
+  {
+    "file": "SentencePiece-NOTICE.txt",
+    "url": "https://raw.githubusercontent.com/google/sentencepiece/f2219b53e24ff5deee4cacdc2d0ca3074e529a07/NOTICE",
+    "error": "HTTP Error 404: Not Found"
+  },
+  {
+    "file": "source/licenses/DLPack-LICENSE.txt",
+    "url": "https://raw.githubusercontent.com/dmlc/dlpack/bbd2f4d32427e548797929af08cfe2a9cbb3cf12/LICENSE",
+    "sha256": "3e8f6bc39276a586d60c8c5aaece2ff989262181cf2b3d2a128db58f97a9300c"
+  },
+  {
+    "file": "release-review/XGrammar-picojson.h",
+    "url": "https://raw.githubusercontent.com/mlc-ai/xgrammar/ace2321a29471130f3f64fb1882741a5547c6f36/3rdparty/picojson/picojson.h",
+    "sha256": "969b0587433ae0f28b1a0b8f7c82fe42c673358aa4d6460697649b57a62cc533"
+  },
+  {
+    "file": "source/licenses/Tokenizers-Rust-LICENSE.txt",
+    "url": "https://raw.githubusercontent.com/huggingface/tokenizers/v0.21.0/LICENSE",
+    "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+  },
+  {
+    "file": "release-review/Tokenizers-CMakeLists.txt",
+    "url": "https://raw.githubusercontent.com/mlc-ai/tokenizers-cpp/d54e3683dc44d37163cf8e77c243b505e12a1616/CMakeLists.txt",
+    "sha256": "7920485031a16a61f541db0dc44c840206597d6758c47aec2443d592e17ff9ca"
+  },
+  {
+    "file": "tslib-LICENSE.txt",
+    "url": "https://raw.githubusercontent.com/microsoft/tslib/v2.8.1/LICENSE.txt",
+    "sha256": "210b19e543130388c68654b7497e967119ce17145f66ab7d85688fbd70f08751"
+  },
+  {
+    "file": "picojson-LICENSE.txt",
+    "url": "https://raw.githubusercontent.com/mlc-ai/xgrammar/ace2321a29471130f3f64fb1882741a5547c6f36/3rdparty/picojson/picojson.h",
+    "extraction": "Leading block comment, unchanged",
+    "sha256": "52a7da16781b4b899382c9ddfcf059235cdee73e2f45cfd7402c2ae9a2e9d28d"
+  }
+]

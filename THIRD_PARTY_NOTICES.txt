@@ -1,0 +1,62 @@
+Kotoba Writer — 第三者ソフトウェア・AIモデルのライセンス
+
+本アプリは、以下の第三者ソフトウェアおよびAIモデルを利用します。それぞれの権利は各権利者に帰属し、各部品には提供元のライセンスが適用されます。これらの表示は、提供元による本アプリの推奨・公認を意味しません。
+
+AI実行用ライブラリとモデルはAIの準備時に外部配布元から取得します。このZIPにはモデル本体を同梱していません。モデルやライブラリの利用条件は取得した部品にも適用されます。
+
+この一覧は第三者部品の告知です。Kotoba Writer全体をApache 2.0として公開する宣言ではありません。アプリ独自部分の販売条件は別途定めるものです。
+
+収録したライセンス・NOTICEは提供元の原文です。説明文は理解の補助であり、原文の条件を変更しません。
+
+
+WebLLM
+バージョン等: 0.2.82
+配布元: https://github.com/mlc-ai/web-llm
+ブラウザ内のAI実行。npm配布物のLICENSEと、内包コードの権利表示を収録。
+原文: licenses/WebLLM-LICENSE.txt
+
+loglevel
+バージョン等: 1.9.2
+配布元: https://github.com/pimterry/loglevel
+ログ出力。WebLLMのソースマップ内コードとの一致を確認。
+原文: licenses/loglevel-LICENSE-MIT.txt
+
+Apache TVM / web-runtime
+バージョン等: 0.24.0-dev1（WebLLMの依存指定）
+配布元: https://github.com/apache/tvm
+AI実行基盤。配布元LICENSEとNOTICEを収録。
+原文: licenses/TVM-LICENSE.txt
+
+Tokenizers-cpp / web-tokenizers
+バージョン等: 0.1.6（WebLLMの依存指定）
+配布元: https://github.com/mlc-ai/tokenizers-cpp
+文章のトークン変換。配布元LICENSEを収録。
+原文: licenses/Tokenizers-cpp-LICENSE.txt
+
+XGrammar / web-xgrammar
+バージョン等: 0.1.27
+配布元: https://github.com/mlc-ai/xgrammar
+生成形式の制御。配布元LICENSEとNOTICEを収録。
+原文: licenses/XGrammar-LICENSE.txt
+
+Qwen2.5-1.5B-Instruct
+バージョン等: MLC形式 q4f16_1
+配布元: https://huggingface.co/mlc-ai/Qwen2.5-1.5B-Instruct-q4f16_1-MLC
+AIモデル。元モデル Qwen/Qwen2.5-1.5B-Instruct のLICENSEを収録。
+原文: licenses/Qwen2.5-1.5B-Instruct-LICENSE.txt
+
+MLC LLM
+バージョン等: 取得時点の上流告知
+配布元: https://github.com/mlc-ai/mlc-llm
+AIモデルの変換・実行に関係するプロジェクト。LICENSEとNOTICEを収録。
+原文: licenses/MLC-LLM-LICENSE.txt
+
+同梱コードの権利表示（Microsoft runtime helpers、OpenAI由来API定義等）: licenses/WebLLM-bundled-copyright-notices.txt
+
+追加の上流依存・補足原文（全バイナリ部品の確定一覧ではありません）
+tslib 2.8.1: licenses/tslib-LICENSE.txt（0BSD）
+SentencePiece 固定サブモジュール: licenses/SentencePiece-LICENSE.txt
+DLPack 固定サブモジュール: licenses/DLPack-LICENSE.txt
+picojson 上流内包ヘッダー: licenses/picojson-LICENSE.txt
+Hugging Face tokenizers v0.21.0: licenses/Tokenizers-Rust-LICENSE.txt（宣言版の補足。ビルド版未確定）
+詳細・未解決事項はLICENSE_AUDIT.md。

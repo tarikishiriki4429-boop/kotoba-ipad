@@ -150,6 +150,7 @@ button:disabled{opacity:.45}
   <button id="formatBtn">体裁を整える</button>
   <button id="selectAllBtn">全文を選択</button>
   <button id="aiBtn">AI誤字脱字修正</button>
+  <button id="licensesBtn">利用条件・ライセンス</button>
   <button id="privacyBtn" class="privacy-btn">秘匿モード OFF</button>
 </div>
 
@@ -189,7 +190,7 @@ button:disabled{opacity:.45}
   <span id="pageInfo">40字 × 30行</span>
   <span id="pageCount">1ページ</span>
   <span id="documentName"></span>
-  <span class="build">Kotoba Writer build 22</span>
+  <span class="build">Kotoba Writer build 26</span>
 </div>
 
 <div id="fileNamePanel" class="panel">
@@ -222,11 +223,17 @@ button:disabled{opacity:.45}
   <h3>全文選択</h3>
   <div class="row">
     <button id="reselectAll">すべて選択</button>
+    <button id="copyFullText">コピー</button>
+    <button id="cutFullText">切り取り</button>
+    <button id="pasteFullText">貼り付け</button>
+    <button id="deleteFullText">選択範囲を削除</button>
+    <button id="undoFullText">取り消し</button>
     <button id="checkSelectedText">選択範囲の誤字・脱字を確認</button>
     <button id="closeFullText">閉じる</button>
   </div>
-  <p class="note">ページをまたいで選択・コピーできます。範囲を選び直して確認することもできます。</p>
-  <textarea id="fullText" readonly aria-label="全文（選択・コピー用）"></textarea>
+  <p class="note">全ページをまとめて編集できます。変更は本文に反映・端末内に保存されます。</p>
+  <p id="fullTextStatus" class="note" role="status"></p>
+  <textarea id="fullText" aria-label="全文（編集・選択・コピー用）"></textarea>
 </div>
 <div id="aiPanel" class="panel">
   <h3>AI誤字脱字修正（精度優先）</h3>
@@ -247,11 +254,12 @@ button:disabled{opacity:.45}
   <div id="aiResult" class="result">候補はここに表示されます。</div>
 </div>
 
+<div id="licensesPanel" class="panel" role="dialog" aria-label="利用条件・ライセンス"><button id="closeLicenses">閉じる</button><iframe src="./licenses.html" title="利用条件・ライセンス" style="width:100%;height:65vh;border:0"></iframe></div>
 <input id="fileInput" type="file" accept=".txt,text/plain">
 <div id="printArea"></div>
 
 <script type="module">
-const BUILD=22;
+const BUILD=26;
 const $=id=>document.getElementById(id);
 const STORAGE='kotoba-writer-draft-v1';
 const SETTINGS='kotoba-writer-settings-v1';
@@ -607,14 +615,27 @@ function bindEditor(ta){
   if(ta.dataset.bound)return;
   ta.dataset.bound='1';
 
+  ta.addEventListener('pointerdown',()=>{ta._commitCaret=null;ta._beforeComposition=null;});
   ta.addEventListener('compositionstart',()=>{
     ta._commitCaret=null;captureInputScroll();compositionScroll={...inputScroll};
     const c=chunks[+ta.dataset.index];
     // Some IMEs have already inserted preedit text when compositionstart fires.
     // Use the committed manuscript as the baseline, never the provisional DOM.
     const changed=ta.value!==c.text;
-    ta._compositionStart=changed?Math.max(0,globalCaret-c.start):ta.selectionStart;
-    ta._compositionEnd=changed?Math.max(ta._compositionStart,globalSelEnd-c.start):ta.selectionEnd;
+    if(changed){
+      // A tap and native preedit can precede selectionchange. Locate the actual
+      // replacement in the committed text instead of trusting a stale caret.
+      const before=c.text,after=ta.value,hint=ta._beforeComposition;
+      if(hint && hint.text===before && after.startsWith(before.slice(0,hint.start)) && after.endsWith(before.slice(hint.end))){
+        ta._compositionStart=hint.start;ta._compositionEnd=hint.end;
+      }else{
+        let start=0,end=before.length,tail=after.length;
+        while(start<end && start<tail && before[start]===after[start])start++;
+        while(end>start && tail>start && before[end-1]===after[tail-1]){end--;tail--;}
+        ta._compositionStart=start;ta._compositionEnd=end;
+      }
+    }else{ta._compositionStart=ta.selectionStart;ta._compositionEnd=ta.selectionEnd;}
+    ta._beforeComposition=null;
     ta._compositionOriginal=c.text;ta._compositionData='';
     isComposing=true;remember();ta.classList.add('is-composing');paintComposition(ta);
   });
@@ -630,10 +651,18 @@ function bindEditor(ta){
     ta._layoutKey=null;syncFromPage(ta,true);
     const active=document.activeElement;active._commitCaret={position:globalCaret,text:docText};
   });
-  for(const type of ['focus','click','select','keyup'])ta.addEventListener(type,()=>{if(!rendering && document.activeElement===ta)syncCaret(ta)});
+  for(const type of ['focus','click','select','keyup'])ta.addEventListener(type,()=>{if(!rendering && !isComposing && document.activeElement===ta)syncCaret(ta)});
   ta.addEventListener('beforeinput',e=>{
     if(e.inputType==='selectAll'){e.preventDefault();$('selectAllBtn').click();return;}
-    if(!isComposing && !/Composition/.test(e.inputType))ta._commitCaret=null;
+    if(!isComposing && e.isComposing && ta.value===chunks[+ta.dataset.index]?.text){
+      ta._beforeComposition={text:ta.value,start:ta.selectionStart,end:ta.selectionEnd};
+    }
+    if(!isComposing && !/Composition/.test(e.inputType)){
+      const committed=ta._commitCaret,c=chunks[+ta.dataset.index];
+      if(committed && committed.text===docText && ta.value===c.text)
+        ta.setSelectionRange(committed.position-c.start,committed.position-c.start);
+      ta._commitCaret=null;
+    }
     captureInputScroll();arrowGoal=null;arrowAnchor=null;
     if(isComposing||e.isComposing)return;
     if(handleEdit(e,ta,e.inputType))return;
@@ -657,6 +686,7 @@ function bindEditor(ta){
   ta.addEventListener('keydown',e=>{
     if((e.metaKey||e.ctrlKey) && e.key.toLowerCase()==='a' && !isComposing){e.preventDefault();$('selectAllBtn').click();return;}
     if(isComposing||e.isComposing||e.keyCode===229)return;
+    if(/^(Arrow|Home|End|Page)/.test(e.key))ta._commitCaret=null;
     const type={Enter:'insertLineBreak',Backspace:'deleteContentBackward',Delete:'deleteContentForward'}[e.key];
     if(type && !e.metaKey && !e.ctrlKey && !e.altKey){
       captureInputScroll();
@@ -966,16 +996,82 @@ $('replaceAllBtn').onclick=()=>{
 
 /* AI誤字脱字修正 */
 let aiRequestedRange=null,aiCancelled=false,aiJob=null,aiRunning=false;
+let fullTextComposing=false;
 function selectEntireText(){
+  if(fullTextComposing)return;
   const field=$('fullText');field.focus({preventScroll:true});field.setSelectionRange(0,field.value.length);
 }
+function syncFullText(){
+  const field=$('fullText');
+  docText=field.value.replace(/\r\n?/g,'\n');
+  globalCaret=field.selectionStart;globalSelEnd=field.selectionEnd;
+  save();renderPages(globalCaret,globalSelEnd,false,false);
+}
+function replaceFullSelection(text){
+  if(fullTextComposing)return;
+  const field=$('fullText');remember();
+  field.setRangeText(text.replace(/\r\n?/g,'\n'),field.selectionStart,field.selectionEnd,'end');
+  syncFullText();field.focus({preventScroll:true});
+}
 $('selectAllBtn').onclick=()=>{
+  if(isComposing)return;
   $('aiPanel').classList.remove('show');$('findPanel').classList.remove('show');
-  $('fullText').value=docText;$('fullTextPanel').classList.add('show');selectEntireText();
+  $('fullText').value=docText;$('fullTextStatus').textContent='';
+  $('fullTextPanel').classList.add('show');selectEntireText();
 };
 $('reselectAll').onclick=selectEntireText;
-$('closeFullText').onclick=()=>$('fullTextPanel').classList.remove('show');
+$('fullText').addEventListener('beforeinput',e=>{
+  if(e.inputType==='historyUndo' && !fullTextComposing){e.preventDefault();$('undoFullText').click();return;}
+  if(!fullTextComposing)remember();
+});
+$('fullText').addEventListener('compositionstart',()=>{remember();fullTextComposing=true;});
+$('fullText').addEventListener('compositionend',()=>{fullTextComposing=false;syncFullText();});
+$('fullText').addEventListener('input',syncFullText);
+$('fullText').addEventListener('keydown',e=>{
+  if(!fullTextComposing && (e.metaKey||e.ctrlKey) && e.key.toLowerCase()==='z' && !e.shiftKey){e.preventDefault();$('undoFullText').click();}
+});
+$('closeFullText').onclick=()=>{
+  if(fullTextComposing)return;
+  const field=$('fullText');syncFullText();$('fullTextPanel').classList.remove('show');
+  renderPages(field.selectionStart,field.selectionEnd,true,true);
+};
+$('deleteFullText').onclick=()=>replaceFullSelection('');
+$('undoFullText').onclick=()=>{
+  if(fullTextComposing || !history.length)return;
+  const field=$('fullText'),pos=field.selectionStart;
+  field.value=history.pop();field.setSelectionRange(Math.min(pos,field.value.length),Math.min(pos,field.value.length));
+  syncFullText();field.focus({preventScroll:true});$('undoBtn').disabled=!history.length;
+};
+async function copyFullSelection(cut=false){
+  if(fullTextComposing)return;
+  const field=$('fullText'),start=field.selectionStart,end=field.selectionEnd,snapshot=field.value;
+  if(end<=start){$('fullTextStatus').textContent='コピーする範囲を選択してください。';return;}
+  let copied=false;
+  try{await navigator.clipboard.writeText(snapshot.slice(start,end));copied=true;}catch{
+    field.focus({preventScroll:true});field.setSelectionRange(start,end);
+    try{copied=document.execCommand('copy');}catch{}
+  }
+  if(copied && cut && !fullTextComposing && $('fullTextPanel').classList.contains('show') && field.value===snapshot && field.selectionStart===start && field.selectionEnd===end)replaceFullSelection('');
+  $('fullTextStatus').textContent=copied?'コピーしました。':'選択部分を長押しして「コピー」を選ぶか、キーボードのコピー操作を使ってください。';
+}
+$('copyFullText').onclick=()=>copyFullSelection(false);
+$('cutFullText').onclick=()=>copyFullSelection(true);
+$('pasteFullText').onclick=async()=>{
+  if(fullTextComposing)return;
+  const field=$('fullText'),snapshot=field.value,start=field.selectionStart,end=field.selectionEnd;
+  try{
+    const text=await navigator.clipboard.readText();
+    if(fullTextComposing || field.value!==snapshot || field.selectionStart!==start || field.selectionEnd!==end || !$('fullTextPanel').classList.contains('show')){
+      $('fullTextStatus').textContent='編集位置が変わりました。貼り付け先を選び直してください。';return;
+    }
+    replaceFullSelection(text);$('fullTextStatus').textContent='貼り付けました。';
+  }catch{
+    field.focus({preventScroll:true});
+    $('fullTextStatus').textContent='入力欄を長押しして「ペースト」を選ぶか、キーボードの貼り付け操作を使ってください。';
+  }
+};
 $('checkSelectedText').onclick=()=>{
+  if(fullTextComposing)return;
   const field=$('fullText'),start=field.selectionStart,end=field.selectionEnd;
   if(end<=start)return;
   aiRequestedRange={start,end,text:field.value.slice(start,end),snapshot:docText};$('aiScope').value='selection';
@@ -1205,6 +1301,8 @@ async function tellSW(enabled){
   const reg=await navigator.serviceWorker.ready,target=navigator.serviceWorker.controller||reg.active;
   if(target)target.postMessage({type:'SET_OFFLINE_ONLY',enabled});
 }
+$('licensesBtn').onclick=()=>$('licensesPanel').classList.add('show');
+$('closeLicenses').onclick=()=>$('licensesPanel').classList.remove('show');
 $('privacyBtn').onclick=async()=>{
   if(!privacyMode){
     if(localStorage.getItem('kotoba-writer-ai-ready')!=='1'&&!confirm('AI準備前です。それでも秘匿モードをONにしますか？'))return;
