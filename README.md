@@ -155,3 +155,13 @@ iPad Safari実機のソフトキーボード・日本語変換・選択ハンド
 `npx playwright install chromium` 後、`npm run test:browser` と `npm run test:hanging-browser` で表示を検証できます。既存のChromiumは `KOTOBA_BROWSER_EXECUTABLE` で指定できます。
 
 `npm run test:file-save` と `npm run test:file-save-browser` でファイル保存・名前変更を検証できます。
+
+
+## build27: 取り消し・やり直し
+
+- ⌘Z / Ctrl+Z：取り消し
+- ⌘Shift+Z / Ctrl+Shift+Z / Ctrl+Y：やり直し
+- 画面上の「取り消し」「やり直す」ボタンも利用できます。
+- 本文ページと「全文選択」編集画面で同じ履歴を利用します。
+- 100段階まで保持。履歴はページを再読み込みすると消えます（本文は従来どおり保存）。
+- iPadのIME変換途中は履歴操作を行いません。
