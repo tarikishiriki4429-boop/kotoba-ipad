@@ -79,6 +79,12 @@ button:disabled{opacity:.45}
 .page-editor.is-composing .editor-line{display:inline;white-space:pre-wrap}
 .page-editor.is-composing .editor-char{display:inline;white-space:pre-wrap;inline-size:auto}
 .page-editor.is-composing .editor-line > br{display:initial}
+/* iPadOS repeat and IME input must use an unwrapped native text node.
+   Never let WebKit type directly into fixed-width .editor-char spans: a single
+   character span can receive many characters, visibly overflowing the sheet.
+   When blurred, return to 40x30 fixed cells for manuscript preview. */
+.page-editor.live-editor{white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-all;line-break:anywhere;overflow:hidden}
+.page-editor.live-editor .editor-line,.page-editor.live-editor .editor-char{display:initial;white-space:inherit;inline-size:auto}
 /* Hide native WebKit IME decorations too; keep its input DOM intact. */
 .page-editor.is-composing{opacity:0;color:transparent;caret-color:transparent;-webkit-text-fill-color:transparent}
 .page-editor.is-composing *{text-decoration-color:transparent!important}
@@ -190,7 +196,7 @@ button:disabled{opacity:.45}
   <span id="pageInfo">40字 × 30行</span>
   <span id="pageCount">1ページ</span>
   <span id="documentName"></span>
-  <span class="build">Kotoba Writer build 31</span>
+  <span class="build">Kotoba Writer build 32</span>
 </div>
 
 <div id="fileNamePanel" class="panel">
@@ -260,7 +266,7 @@ button:disabled{opacity:.45}
 <div id="printArea"></div>
 
 <script type="module">
-const BUILD=31;
+const BUILD=32;
 const $=id=>document.getElementById(id);
 const STORAGE='kotoba-writer-draft-v1';
 const SETTINGS='kotoba-writer-settings-v1';
@@ -589,6 +595,22 @@ function editableMap(root){
     return node.nodeType===Node.TEXT_NODE?b.start+b.rawToText[Math.min(index,b.rawToText.length-1)]:b.children[Math.min(index,b.children.length-1)];
   }};
 }
+// Toggle between a stable, native IME text node and the read-only-looking
+// fixed-width character cells. Only the text-node view receives keyboard input.
+function enterLiveEditor(el){
+  if(el.dataset.live==='1')return;
+  const start=el.selectionStart,end=el.selectionEnd;
+  const value=el.value;
+  el.dataset.live='1';el.classList.add('live-editor');
+  el.replaceChildren(document.createTextNode(value));
+  el.setSelectionRange(start,end);
+}
+function leaveLiveEditor(el){
+  if(el.dataset.live!=='1' || isComposing)return;
+  const value=el.value;
+  el.dataset.live='0';el.classList.remove('live-editor');
+  writeEditorText(el,value);
+}
 function createEditor(vertical){
   const el=document.createElement('div');
   el.className='page-editor';el.spellcheck=false;
@@ -606,7 +628,8 @@ function createEditor(vertical){
   }
   Object.defineProperties(el,{
     value:{get:()=>editableMap(el).text,set:value=>{
-      writeEditorText(el,value);
+      if(el.dataset.live==='1')el.replaceChildren(document.createTextNode(String(value)));
+      else writeEditorText(el,value);
       // A value write invalidates the browser's live selection.
       lastStart=lastEnd=-1;
     }},
@@ -662,7 +685,39 @@ function bindEditor(ta){
   if(ta.dataset.bound)return;
   ta.dataset.bound='1';
 
-  ta.addEventListener('pointerdown',()=>{ta._commitCaret=null;ta._beforeComposition=null;});
+  ta.addEventListener('focus',()=>{
+    if(!isComposing){enterLiveEditor(ta);syncCaret(ta);}
+  });
+  ta.addEventListener('pointerdown',event=>{
+    ta._commitCaret=null;ta._beforeComposition=null;
+    if(ta.dataset.live==='1'||isComposing)return;
+    // The printed page uses many atomic inline blocks. Determine the tap
+    // position BEFORE swapping them for the native text node; otherwise
+    // WebKit positions the caret at the start instead of at the tapped word.
+    const map=editableMap(ta),cell=event.target.closest?.('.editor-char');
+    let offset=null;
+    if(cell && ta.contains(cell)){
+      const piece=map.texts.find(t=>cell.contains(t.node));
+      if(piece){
+        const rect=cell.getBoundingClientRect(),vertical=getSettings().writingMode==='vertical';
+        const past=vertical?(event.clientY>rect.top+rect.height/2):(event.clientX>rect.left+rect.width/2);
+        offset=past?piece.end:piece.start;
+      }
+    }
+    if(offset===null){
+      const range=document.caretRangeFromPoint?.(event.clientX,event.clientY);
+      if(range && ta.contains(range.startContainer))offset=map.offset(range.startContainer,range.startOffset);
+    }
+    if(offset===null){
+      const line=event.target.closest?.('.editor-line');
+      offset=line?map.offset(line,line.childNodes.length):ta.selectionEnd;
+    }
+    enterLiveEditor(ta);
+    event.preventDefault();
+    ta.focus({preventScroll:true});
+    ta.setSelectionRange(offset??0,offset??0);
+    syncCaret(ta);
+  });
   ta.addEventListener('compositionstart',()=>{
     ta._commitCaret=null;captureInputScroll();compositionScroll={...inputScroll};
     const c=chunks[+ta.dataset.index];
@@ -740,8 +795,12 @@ function bindEditor(ta){
     syncFromPage(ta,true,true);
   });
   ta.addEventListener('blur',()=>{
-    // Normalize after losing focus, unless an IME session is still active.
-    if(layoutIdleTimer && !isComposing){
+    // Never rewrite live IME content until it is committed.
+    if(isComposing)return;
+    // Source text is already synchronized on every input; normalize the
+    // display on blur and repaint all other pages only when necessary.
+    leaveLiveEditor(ta);
+    if(layoutIdleTimer){
       clearTimeout(layoutIdleTimer);layoutIdleTimer=0;
       renderPages(globalCaret,globalSelEnd,false,false);
     }
@@ -909,6 +968,8 @@ function renderPages(caret=globalCaret,selEnd=globalSelEnd,focus=false,scroll=fa
     const start=Math.min(globalCaret-c.start,ta.value.length);
     const end=Math.min(globalSelEnd-c.start,ta.value.length);
     if(document.activeElement!==ta)ta.focus({preventScroll:true});
+    // Native keyboard input must *never* target fixed-size character spans.
+    enterLiveEditor(ta);
     // Preserve native selection on ordinary keystrokes. No delayed caret reset.
     if(ta._valueChanged||ta.selectionStart!==start||ta.selectionEnd!==end)ta.setSelectionRange(start,end);
     ta.scrollTop=0;ta.scrollLeft=0;
