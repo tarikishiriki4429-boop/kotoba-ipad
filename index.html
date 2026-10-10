@@ -178,6 +178,7 @@ button:disabled{opacity:.45}
   <label><span id="linesLabel">行数</span><input id="lineCount" type="number" min="10" max="50" value="30"></label>
   <label><input id="manuscript" type="checkbox"> マス目</label>
   <label><input id="indent" type="checkbox" checked> 段落頭を一字下げ</label>
+  <label title="同じ仮名を3文字以上連続入力した部分に紛れた半角空白だけを補正します。普通の文章の空白は残します。"><input id="repeatSpaceGuard" type="checkbox" checked> 連続かなの誤空白を補正</label>
   <div class="presetbar">
     <span style="font-size:12px;color:#666">プリセット</span>
     <button data-preset="40,30">40×30</button>
@@ -195,8 +196,9 @@ button:disabled{opacity:.45}
   <span id="cursor">1ページ 1行 1列</span>
   <span id="pageInfo">40字 × 30行</span>
   <span id="pageCount">1ページ</span>
+  <span id="textIntegrity" title="入力した本文に含まれる明示改行と半角スペースの数（テスト版の診断表示）">改行0 / 半角空白0</span>
   <span id="documentName"></span>
-  <span class="build">Kotoba Writer build 32</span>
+  <span class="build">Kotoba Writer build 33</span>
 </div>
 
 <div id="fileNamePanel" class="panel">
@@ -266,7 +268,7 @@ button:disabled{opacity:.45}
 <div id="printArea"></div>
 
 <script type="module">
-const BUILD=32;
+const BUILD=33;
 const $=id=>document.getElementById(id);
 const STORAGE='kotoba-writer-draft-v1';
 const SETTINGS='kotoba-writer-settings-v1';
@@ -419,6 +421,7 @@ function getSettings(){
     lineCount:clamp($('lineCount').value,10,50,30),
     manuscript:$('manuscript').checked,
     indent:$('indent').checked,
+    repeatSpaceGuard:$('repeatSpaceGuard').checked,
     politeMode:$('politeMode').checked
   };
 }
@@ -433,6 +436,7 @@ function loadSettings(){
     if(s.lineCount)$('lineCount').value=s.lineCount;
     $('manuscript').checked=!!s.manuscript;
     $('indent').checked=s.indent!==false;
+    $('repeatSpaceGuard').checked=s.repeatSpaceGuard!==false;
     $('politeMode').checked=!!s.politeMode;
   }catch{}
 }
@@ -446,6 +450,20 @@ function remember(){
   $('undoBtn').disabled=!history.length;
 }
 function applySettings(){
+  // Composing text should be committed by the native IME before rebuilding
+  // page DOM. Moving layout controls while composition is active must not
+  // destroy its provisional text or create phantom paragraphs.
+  if(isComposing){
+    const active=document.activeElement;
+    if(active?.classList?.contains('page-editor')){
+      active.blur();
+      if(isComposing){
+        // Apply on compositionend once Safari has finished committing.
+        active.addEventListener('compositionend',()=>setTimeout(applySettings,0),{once:true});
+        return;
+      }
+    }
+  }
   const s=getSettings();
   $('charCount').value=s.charCount;$('lineCount').value=s.lineCount;
   document.documentElement.style.setProperty('--font-size',s.fontSize+'px');
@@ -527,6 +545,7 @@ function updateStatus(){
     ?`${p+1}ページ ${lc.row}列 ${lc.col}字`
     :`${p+1}ページ ${lc.row}行 ${lc.col}列`;
   $('pageCount').textContent=chunks.length+'ページ';
+  $('textIntegrity').textContent='改行'+(docText.match(/\n/g)||[]).length+' / 半角空白'+(docText.match(/[ \u00a0]/gu)||[]).length;
 }
 function pageClass(){
   const s=getSettings();
@@ -583,11 +602,12 @@ function editableMap(root){
     }
     if(node.nodeType!==Node.ELEMENT_NODE)return;
     if(node.tagName==='BR'){bounds.set(node,{start:text.length,children:[text.length]});text+='\n';return;}
-    const block=node!==root && /^(DIV|P)$/.test(node.tagName);
-    if(block && text && !text.endsWith('\n'))text+='\n';
+    // iPadOS may insert DIV/P wrapper nodes while composing or repeating a key.
+    // They are not manuscript newlines. Only explicit BR nodes and true text
+    // newlines count as source newlines (Enter is intercepted separately).
     const entry={start:text.length,children:[text.length]};bounds.set(node,entry);
     for(const child of node.childNodes){walk(child);entry.children.push(text.length);}
-    if(block && node.nextSibling && !text.endsWith('\n'))text+='\n';
+    // No inferred newline at element boundaries: prevents phantom blank pages.
   }
   walk(root);
   return {text,texts,offset(node,index){
@@ -616,6 +636,8 @@ function createEditor(vertical){
   el.className='page-editor';el.spellcheck=false;
   el.setAttribute('aria-label',vertical?'縦書き本文':'横書き本文');
   el.setAttribute('contenteditable','plaintext-only');el.setAttribute('role','textbox');
+  el.setAttribute('autocorrect','off');el.setAttribute('autocapitalize','off');
+  el.setAttribute('autocomplete','off');
   el.setAttribute('aria-multiline','true');el.tabIndex=0;
   let lastStart=0,lastEnd=0;
   function selection(){
@@ -906,6 +928,16 @@ function handleEdit(event,ta,type){
   return true;
 }
 
+// Safari Japanese auto-repeat can intermittently commit ASCII/NBSP spaces
+// between two long groups of the SAME kana. Limit repair to repeat runs of
+// at least 3 matching kana on each side. Other whitespace is preserved.
+const REPEAT_KANA_GAP=/([ぁ-ゖァ-ヺ])\1{2,}[ \u00a0]+\1{2,}/gu;
+function fixRepeatedKanaGaps(text){
+  if(!$('repeatSpaceGuard').checked)return text;
+  let previous;
+  do{previous=text;text=text.replace(REPEAT_KANA_GAP,match=>match.replace(/[ \u00a0]/gu,''));}while(text!==previous);
+  return text;
+}
 function syncCaret(ta){
   const i=+ta.dataset.index,c=chunks[i];if(!c)return;
   globalCaret=c.start+ta.selectionStart;
@@ -915,8 +947,23 @@ function syncCaret(ta){
 function syncFromPage(ta,focus,deferLayout=false){
   const i=+ta.dataset.index,c=chunks[i];if(!c)return;
   // Capture the native selection before any visual normalization.
-  const localStart=ta.selectionStart,localEnd=ta.selectionEnd;
-  const newText=ta.value;
+  let localStart=ta.selectionStart,localEnd=ta.selectionEnd;
+  let newText=ta.value;
+  // Correct newly inserted accidental gaps, but never while composition is active.
+  if(!isComposing){
+    const clean=fixRepeatedKanaGaps(newText);
+    if(clean!==newText){
+      const adjustedStart=fixRepeatedKanaGaps(newText.slice(0,localStart)).length;
+      const adjustedEnd=fixRepeatedKanaGaps(newText.slice(0,localEnd)).length;
+      newText=clean;
+      // Perform this very narrow correction once, then return to Safari's
+      // native editing selection without a full page redraw.
+      ta.value=clean;
+      localStart=Math.min(adjustedStart,clean.length);
+      localEnd=Math.min(adjustedEnd,clean.length);
+      ta.setSelectionRange(localStart,localEnd);
+    }
+  }
   const oldLength=c.end-c.start;
   docText=docText.slice(0,c.start)+newText+docText.slice(c.end);
   globalCaret=c.start+localStart;
@@ -1538,7 +1585,7 @@ $('privacyBtn').onclick=async()=>{
   try{await tellSW(privacyMode)}catch{}
 };
 
-['fontSize','lineHeight','writingMode','manuscript','indent','charCount','lineCount'].forEach(id=>$(id).addEventListener('change',applySettings));
+['fontSize','lineHeight','writingMode','manuscript','indent','repeatSpaceGuard','charCount','lineCount'].forEach(id=>$(id).addEventListener('change',applySettings));
 document.querySelectorAll('[data-preset]').forEach(b=>b.onclick=()=>{
   const [c,l]=b.dataset.preset.split(',');$('charCount').value=c;$('lineCount').value=l;applySettings();
 });
