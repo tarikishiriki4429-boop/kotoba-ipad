@@ -190,7 +190,7 @@ button:disabled{opacity:.45}
   <span id="pageInfo">40字 × 30行</span>
   <span id="pageCount">1ページ</span>
   <span id="documentName"></span>
-  <span class="build">Kotoba Writer build 27</span>
+  <span class="build">Kotoba Writer build 28</span>
 </div>
 
 <div id="fileNamePanel" class="panel">
@@ -239,6 +239,7 @@ button:disabled{opacity:.45}
   <h3>AI誤字脱字修正（精度優先）</h3>
   <div class="row">
     <button id="prepareAI" class="primary">AIを準備</button>
+    <button id="cancelAISetup" disabled>準備を中止</button>
     <button id="runAI" disabled>誤字・脱字を確認</button>
     <button id="stopAI" disabled>中止</button>
     <button id="resumeAI" disabled>続きから再開</button>
@@ -259,7 +260,7 @@ button:disabled{opacity:.45}
 <div id="printArea"></div>
 
 <script type="module">
-const BUILD=27;
+const BUILD=28;
 const $=id=>document.getElementById(id);
 const STORAGE='kotoba-writer-draft-v1';
 const SETTINGS='kotoba-writer-settings-v1';
@@ -363,7 +364,21 @@ function editorCaretRect(ta){
     width:vertical?rect.width:2,height:vertical?2:rect.height};
 }
 let searchPos=0,currentMatch=null,lastSearchQuery='';
-let aiEngine=null,webllm=null,aiRange=null,aiSnapshot=null;
+let aiEngine=null,aiRange=null,aiSnapshot=null;
+let aiWorker=null,aiPreparing=false,aiRequestId=0,aiSetupEpoch=0;
+const aiPending=new Map();
+function disposeAIWorker(message='AIの準備を中止しました。'){
+  aiWorker?.terminate();aiWorker=null;aiEngine=null;
+  for(const pending of aiPending.values())pending.reject(new Error(message));
+  aiPending.clear();$('runAI').disabled=true;
+}
+function aiWorkerRequest(type,payload){
+  return new Promise((resolve,reject)=>{
+    if(!aiWorker){reject(new Error('AIを準備してください。'));return;}
+    const id=++aiRequestId;aiPending.set(id,{resolve,reject});
+    try{aiWorker.postMessage({id,type,payload});}catch(e){aiPending.delete(id);reject(e);}
+  });
+}
 let privacyMode=localStorage.getItem('kotoba-writer-privacy')==='1';
 
 function clamp(n,a,b,f){n=parseInt(n,10);return Number.isNaN(n)?f:Math.max(a,Math.min(b,n))}
@@ -1006,16 +1021,39 @@ $('replaceAllBtn').onclick=()=>{
 
 /* AI誤字脱字修正 */
 let aiRequestedRange=null,aiCancelled=false,aiJob=null,aiRunning=false;
-let fullTextComposing=false;
+let fullTextComposing=false,fullTextPagesDirty=false;
+let fullTextSession=0,fullTextRevision=0,clipboardBusy=false;
+function setClipboardBusy(busy){
+  clipboardBusy=busy;
+  for(const id of ['copyFullText','cutFullText','pasteFullText'])$(id).disabled=busy;
+}
+function fullTextSnapshot(){
+  const field=$('fullText');
+  return {session:fullTextSession,revision:fullTextRevision,text:field.value,start:field.selectionStart,end:field.selectionEnd};
+}
+function fullTextSnapshotValid(snapshot){
+  const field=$('fullText');
+  return !fullTextComposing && $('fullTextPanel').classList.contains('show') &&
+    snapshot.session===fullTextSession && snapshot.revision===fullTextRevision &&
+    snapshot.text===field.value && snapshot.start===field.selectionStart && snapshot.end===field.selectionEnd;
+}
+// Keep focus and native selection in the textarea when using the toolbar.
+for(const id of ['reselectAll','copyFullText','cutFullText','pasteFullText','deleteFullText','undoFullText'])
+  $(id).addEventListener('pointerdown',e=>{if(document.activeElement===$('fullText'))e.preventDefault();});
 function selectEntireText(){
   if(fullTextComposing)return;
   const field=$('fullText');field.focus({preventScroll:true});field.setSelectionRange(0,field.value.length);
 }
 function syncFullText(){
   const field=$('fullText');
-  docText=field.value.replace(/\r\n?/g,'\n');
+  const next=field.value.replace(/\r\n?/g,'\n');
   globalCaret=field.selectionStart;globalSelEnd=field.selectionEnd;
-  save();renderPages(globalCaret,globalSelEnd,false,false);
+  if(next!==docText){
+    docText=next;fullTextRevision++;fullTextPagesDirty=true;save();
+  }
+  // The textarea is the visible editor. Rebuilding thousands of hidden page
+  // cells on every cut, paste and IME input blocks subsequent user actions.
+
 }
 function replaceFullSelection(text){
   if(fullTextComposing)return;
@@ -1026,7 +1064,8 @@ function replaceFullSelection(text){
 $('selectAllBtn').onclick=()=>{
   if(isComposing)return;
   $('aiPanel').classList.remove('show');$('findPanel').classList.remove('show');
-  $('fullText').value=docText;$('fullTextStatus').textContent='';
+  fullTextSession++;
+  $('fullText').value=docText;$('fullTextStatus').textContent=clipboardBusy?'クリップボードの応答待ちです。長押し操作も使えます。':'';
   $('fullTextPanel').classList.add('show');selectEntireText();
 };
 $('reselectAll').onclick=selectEntireText;
@@ -1042,8 +1081,8 @@ $('fullText').addEventListener('keydown',e=>{
 });
 $('closeFullText').onclick=()=>{
   if(fullTextComposing)return;
-  const field=$('fullText');syncFullText();$('fullTextPanel').classList.remove('show');
-  renderPages(field.selectionStart,field.selectionEnd,true,true);
+  const field=$('fullText');syncFullText();fullTextSession++;$('fullTextPanel').classList.remove('show');
+  renderPages(field.selectionStart,field.selectionEnd,true,true);fullTextPagesDirty=false;
 };
 $('deleteFullText').onclick=()=>replaceFullSelection('');
 $('undoFullText').onclick=()=>{
@@ -1053,39 +1092,50 @@ $('undoFullText').onclick=()=>{
   syncFullText();field.focus({preventScroll:true});$('undoBtn').disabled=!history.length;
 };
 async function copyFullSelection(cut=false){
-  if(fullTextComposing)return;
-  const field=$('fullText'),start=field.selectionStart,end=field.selectionEnd,snapshot=field.value;
-  if(end<=start){$('fullTextStatus').textContent='コピーする範囲を選択してください。';return;}
-  let copied=false;
-  try{await navigator.clipboard.writeText(snapshot.slice(start,end));copied=true;}catch{
-    field.focus({preventScroll:true});field.setSelectionRange(start,end);
-    try{copied=document.execCommand('copy');}catch{}
-  }
-  if(copied && cut && !fullTextComposing && $('fullTextPanel').classList.contains('show') && field.value===snapshot && field.selectionStart===start && field.selectionEnd===end)replaceFullSelection('');
-  $('fullTextStatus').textContent=copied?'コピーしました。':'選択部分を長押しして「コピー」を選ぶか、キーボードのコピー操作を使ってください。';
+  if(fullTextComposing || clipboardBusy)return;
+  const field=$('fullText'),snapshot=fullTextSnapshot();
+  if(snapshot.end<=snapshot.start){$('fullTextStatus').textContent='コピーする範囲を選択してください。';return;}
+  setClipboardBusy(true);$('fullTextStatus').textContent='コピー中…';
+  try{
+    let copied=false;
+    try{await navigator.clipboard.writeText(snapshot.text.slice(snapshot.start,snapshot.end));copied=true;}catch{
+      if(!fullTextSnapshotValid(snapshot))return;
+      field.focus({preventScroll:true});field.setSelectionRange(snapshot.start,snapshot.end);
+      try{copied=document.execCommand('copy');}catch{}
+    }
+    if(!fullTextSnapshotValid(snapshot))return;
+    if(copied && cut)replaceFullSelection('');
+    $('fullTextStatus').textContent=copied?'コピーしました。':'選択部分を長押しして「コピー」を選ぶか、キーボードのコピー操作を使ってください。';
+  }finally{setClipboardBusy(false);}
 }
 $('copyFullText').onclick=()=>copyFullSelection(false);
 $('cutFullText').onclick=()=>copyFullSelection(true);
 $('pasteFullText').onclick=async()=>{
-  if(fullTextComposing)return;
-  const field=$('fullText'),snapshot=field.value,start=field.selectionStart,end=field.selectionEnd;
+  if(fullTextComposing || clipboardBusy)return;
+  const field=$('fullText'),snapshot=fullTextSnapshot();
+  setClipboardBusy(true);$('fullTextStatus').textContent='貼り付けの許可・応答を待っています。';
   try{
     const text=await navigator.clipboard.readText();
-    if(fullTextComposing || field.value!==snapshot || field.selectionStart!==start || field.selectionEnd!==end || !$('fullTextPanel').classList.contains('show')){
-      $('fullTextStatus').textContent='編集位置が変わりました。貼り付け先を選び直してください。';return;
+    if(!fullTextSnapshotValid(snapshot)){
+      if(snapshot.session===fullTextSession && $('fullTextPanel').classList.contains('show'))
+        $('fullTextStatus').textContent='編集位置が変わりました。貼り付け先を選び直してください。';
+      return;
     }
     replaceFullSelection(text);$('fullTextStatus').textContent='貼り付けました。';
   }catch{
+    if(!fullTextSnapshotValid(snapshot))return;
     field.focus({preventScroll:true});
     $('fullTextStatus').textContent='入力欄を長押しして「ペースト」を選ぶか、キーボードの貼り付け操作を使ってください。';
-  }
+  }finally{setClipboardBusy(false);}
 };
 $('checkSelectedText').onclick=()=>{
   if(fullTextComposing)return;
   const field=$('fullText'),start=field.selectionStart,end=field.selectionEnd;
   if(end<=start)return;
   aiRequestedRange={start,end,text:field.value.slice(start,end),snapshot:docText};$('aiScope').value='selection';
-  $('fullTextPanel').classList.remove('show');$('aiPanel').classList.add('show');
+  fullTextSession++;$('fullTextPanel').classList.remove('show');
+  if(fullTextPagesDirty){renderPages(globalCaret,globalSelEnd,false,false);fullTextPagesDirty=false;}
+  $('aiPanel').classList.add('show');
   $('aiStatus').textContent=`選択した${end-start}文字を確認します。長文は分割して処理するため時間がかかります。`;
 };
 $('aiBtn').onclick=()=>{aiRequestedRange=null;$('aiPanel').classList.add('show')};
@@ -1227,18 +1277,50 @@ function proofreadingParts(text){
   if(part)parts.push(part);
   return parts;
 }
+$('cancelAISetup').onclick=()=>{
+  if(!aiPreparing)return;
+  aiSetupEpoch++;aiPreparing=false;disposeAIWorker();
+  $('prepareAI').disabled=false;$('cancelAISetup').disabled=true;
+  $('prepareAI').textContent='AIを準備';$('aiStatus').textContent='AIの準備を中止しました。本文は保存されています。';
+};
 $('prepareAI').onclick=async()=>{
-  $('prepareAI').disabled=true;$('aiStatus').textContent=privacyMode?'保存済みAIを読み込み中…':'AIを準備中…';
+  if(aiPreparing || aiEngine)return;
+  save();aiPreparing=true;const epoch=++aiSetupEpoch;
+  $('prepareAI').disabled=true;$('cancelAISetup').disabled=false;
+  $('aiStatus').textContent=privacyMode?'保存済みAIを読み込み中…':'AIを準備中…初回はダウンロードに時間がかかります。';
   try{
-    webllm ||= await import(CDN);
-    const appConfig=makeAIConfig(webllm.prebuiltAppConfig);
-    aiEngine=await webllm.CreateMLCEngine(MODEL,{appConfig,initProgressCallback:p=>$('aiStatus').textContent=p.text||'AIを準備中…'});
+    disposeAIWorker();
+    if(!window.Worker)throw new Error('このブラウザではAIのバックグラウンド処理を利用できません。');
+    const worker=new Worker('./ai-worker.js?v='+BUILD,{type:'module'});aiWorker=worker;
+    worker.onmessage=({data})=>{
+      if(aiWorker!==worker)return;
+      if(data.type==='progress'){
+        if(aiPreparing)$('aiStatus').textContent=data.text;
+        return;
+      }
+      const pending=aiPending.get(data.id);if(!pending)return;
+      aiPending.delete(data.id);data.error?pending.reject(new Error(data.error)):pending.resolve(data.result);
+    };
+    const failed=()=>{
+      if(aiWorker!==worker)return;
+      disposeAIWorker('AIの読み込みまたは実行が停止しました。本文は保持されています。');
+      $('prepareAI').disabled=false;$('prepareAI').textContent='AIを準備';
+      $('aiStatus').textContent='AIが停止しました。AIを準備し直してください。';
+    };
+    worker.onerror=failed;worker.onmessageerror=failed;
+    await aiWorkerRequest('init',{cdn:CDN,model:MODEL,revision:AI_MODEL_REVISION,wasm:AI_WASM_URL});
+    if(epoch!==aiSetupEpoch)return;
+    aiEngine={chat:{completions:{create:payload=>aiWorkerRequest('complete',payload)}}};
     $('aiStatus').textContent=privacyMode?'AI誤字脱字修正 使用可能（秘匿モード）':'AI誤字脱字修正 使用可能';
     $('runAI').disabled=false;$('prepareAI').textContent='AI準備済み';
-    localStorage.setItem('kotoba-writer-ai-ready','1');
+    try{localStorage.setItem('kotoba-writer-ai-ready','1')}catch{}
   }catch(e){
-    $('aiStatus').textContent=privacyMode?'保存済みAIが不足しています。一度秘匿モードをOFFにして準備してください。':'AI準備エラー: '+((e&&e.message)||String(e));
+    if(epoch!==aiSetupEpoch)return;
+    disposeAIWorker();
+    $('aiStatus').textContent=privacyMode?'保存済みAIが不足しているか、この環境で読み込めません。一度秘匿モードをOFFにして準備してください。':'AI準備エラー: '+((e&&e.message)||String(e));
     $('prepareAI').disabled=false;
+  }finally{
+    if(epoch===aiSetupEpoch){aiPreparing=false;$('cancelAISetup').disabled=true;}
   }
 };
 $('runAI').onclick=()=>runProofreading(false);
