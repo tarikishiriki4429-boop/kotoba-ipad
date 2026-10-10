@@ -1,8 +1,8 @@
-// Kotoba Writer build36: 保存済みのアプリ本体を優先し、毎回の再取得を減らす。
+// Kotoba Writer build37: 保存済みのアプリ本体を優先し、毎回の再取得を減らす。
 // 更新時はCACHEとindex.htmlのBUILDとai-workerのURLを同時に変更する。
-const CACHE='kotoba-writer-shell-v36';
+const CACHE='kotoba-writer-shell-v37';
 const PRIVACY_FLAG='kotoba-writer-privacy-lock-v1';
-const SHELL=['./','./index.html','./manifest.webmanifest','./licenses.html','./ai-worker.js?v=36'];
+const SHELL=['./','./index.html','./manifest.webmanifest','./licenses.html','./ai-worker.js?v=37'];
 
 self.addEventListener('install',event=>{
   self.skipWaiting();
