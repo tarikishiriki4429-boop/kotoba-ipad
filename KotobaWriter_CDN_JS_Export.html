@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kotoba Writer：CDN配信JSの保存（監査用）</title>
+<style>
+body{margin:0;background:#f3f5f8;color:#18222e;font:16px/1.65 -apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN",sans-serif;padding:18px}
+main{max-width:760px;margin:0 auto;padding:22px;background:white;border-radius:18px;box-shadow:0 1px 12px #0001}
+h1{font-size:1.3rem;margin-top:0} p,li{font-size:.95rem}
+button{border:0;border-radius:10px;background:#1662bd;color:white;padding:14px 18px;font-size:1rem;cursor:pointer;margin:4px 0 12px}
+button[disabled]{background:#9ca7b5} pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#edf1f5;padding:12px;font-size:12px;border-radius:10px}
+small{color:#566473}
+</style>
+</head>
+<body><main>
+<h1>WebLLM：CDN配信JS保存ツール</h1>
+<p>Kotoba Writer build30が使用するWebLLM 0.2.82のJavaScriptファイルをブラウザで取得して保存します。<strong>ファイルは監査用で、販売記事へ添付するものではありません。</strong></p>
+<p>保存後、そのJavaScriptファイルをChatGPTに添付すれば、著作権表示・ライセンスに関する追加調査ができます。第三者が配信している公開コードを取得するだけで、あなたの原稿は取得・送信しません。</p>
+<button id="download">配信JSを取得して保存する</button>
+<pre id="out">未実行。取得先：https://esm.run/@mlc-ai/web-llm@0.2.82</pre><p id="manual"></p>
+<small>ダウンロードが始まらないときはSafariでこのページを開き直して試してください。約6MBの通信が発生します。JavaScriptの保存と権利関係の完全確認は別の作業です。</small>
+</main>
+<script>
+const btn=document.getElementById('download'),out=document.getElementById('out');
+btn.addEventListener('click',async()=>{
+  btn.disabled=true;out.textContent='CDNから取得しています…';
+  try{
+    const res=await fetch('https://esm.run/@mlc-ai/web-llm@0.2.82',{redirect:'follow',mode:'cors',cache:'no-store'});
+    if(!res.ok)throw Error('HTTP '+res.status+' '+res.statusText);
+    const bytes=await res.arrayBuffer();
+    let hash='取得不可';
+    if(crypto.subtle){const digest=await crypto.subtle.digest('SHA-256',bytes);hash=[...new Uint8Array(digest)].map(x=>x.toString(16).padStart(2,'0')).join('')}
+    out.textContent=JSON.stringify({url:res.url,status:res.status,bytes:bytes.byteLength,sha256:hash,expected_from_previous_test:'ced0f3e8ee9991087cba5d5892f3c4fd1b223a040552ee1fce5e5a66a5fa6d96',match_previous_hash:hash==='ced0f3e8ee9991087cba5d5892f3c4fd1b223a040552ee1fce5e5a66a5fa6d96'},null,2);
+    const blob=new Blob([bytes],{type:'application/javascript'});const a=document.createElement('a');
+    const objectUrl=URL.createObjectURL(blob);a.href=objectUrl;a.download='WebLLM-0.2.82-CDN-audit.js';
+    a.textContent='保存が始まらない場合はこちらを押す';a.style.cssText='display:inline-block;font-weight:bold;padding:8px 0;';document.getElementById('manual').replaceChildren(a);a.click();
+    setTimeout(()=>URL.revokeObjectURL(objectUrl),300000);
+  }catch(e){out.textContent='エラー: '+(e.message||String(e))+'。HTTPS・通信・CDNのCORS設定をご確認ください。'}
+  finally{btn.disabled=false}
+});
+</script>
+</body></html>
