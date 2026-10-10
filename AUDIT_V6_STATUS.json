@@ -1,0 +1,15 @@
+{
+  "version": "build30 sale-candidate v6",
+  "date": "2026-10-10",
+  "original_zip_sha256": "adcd4130391e5630f3ab66e9a560b8d221c4ff62e6cbcece22ade273064c78f1",
+  "webllm_js_sha256": "ced0f3e8ee9991087cba5d5892f3c4fd1b223a040552ee1fce5e5a66a5fa6d96",
+  "detected_crates": 23,
+  "license_family_catalogued": 23,
+  "complete_license_obligations_verified": false,
+  "not_verified": [
+    "unobserved wasm dependencies",
+    "bundled JS polyfills",
+    "GPU-model wasm complete SBOM",
+    "license notices for all exact crate artifacts"
+  ]
+}

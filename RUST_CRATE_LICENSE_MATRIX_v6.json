@@ -1,0 +1,258 @@
+{
+  "purpose": "Non-exhaustive WASM-path-observed crate license crosswalk. NOT a complete SBOM.",
+  "entries": [
+    {
+      "crate": "aho-corasick",
+      "version": "1.1.3",
+      "path_occurrences": 43,
+      "license_expression_upstream": "MIT OR Unlicense",
+      "distribution_option_documented": "MIT",
+      "source": "https://github.com/BurntSushi/aho-corasick",
+      "version_docs": "https://docs.rs/crate/aho-corasick/1.1.3",
+      "license_evidence_level": "upstream_and_version_docs",
+      "notes": "MIT notice: Copyright (c) 2015 Andrew Gallant"
+    },
+    {
+      "crate": "base64",
+      "version": "0.13.1",
+      "path_occurrences": 2,
+      "license_expression_upstream": "MIT OR Apache-2.0",
+      "distribution_option_documented": "Apache-2.0",
+      "source": "https://github.com/marshallpierce/rust-base64",
+      "version_docs": "https://docs.rs/crate/base64/0.13.1",
+      "license_evidence_level": "upstream_and_version_docs",
+      "notes": ""
+    },
+    {
+      "crate": "crossbeam-deque",
+      "version": "0.8.5",
+      "path_occurrences": 1,
+      "license_expression_upstream": "MIT OR Apache-2.0",
+      "distribution_option_documented": "Apache-2.0",
+      "source": "https://github.com/crossbeam-rs/crossbeam/tree/master/crossbeam-deque",
+      "version_docs": "https://docs.rs/crate/crossbeam-deque/0.8.5",
+      "license_evidence_level": "upstream_repo_not_exact_release",
+      "notes": ""
+    },
+    {
+      "crate": "crossbeam-epoch",
+      "version": "0.9.18",
+      "path_occurrences": 7,
+      "license_expression_upstream": "MIT OR Apache-2.0",
+      "distribution_option_documented": "Apache-2.0",
+      "source": "https://github.com/crossbeam-rs/crossbeam/tree/master/crossbeam-epoch",
+      "version_docs": "https://docs.rs/crate/crossbeam-epoch/0.9.18",
+      "license_evidence_level": "upstream_repo_not_exact_release",
+      "notes": ""
+    },
+    {
+      "crate": "lazy_static",
+      "version": "1.5.0",
+      "path_occurrences": 3,
+      "license_expression_upstream": "MIT OR Apache-2.0",
+      "distribution_option_documented": "Apache-2.0",
+      "source": "https://github.com/rust-lang-nursery/lazy-static.rs",
+      "version_docs": "https://docs.rs/crate/lazy_static/1.5.0",
+      "license_evidence_level": "upstream_and_version_docs",
+      "notes": ""
+    },
+    {
+      "crate": "log",
+      "version": "0.4.22",
+      "path_occurrences": 1,
+      "license_expression_upstream": "MIT OR Apache-2.0",
+      "distribution_option_documented": "Apache-2.0",
+      "source": "https://github.com/rust-lang/log",
+      "version_docs": "https://docs.rs/crate/log/0.4.22",
+      "license_evidence_level": "upstream_repo_not_exact_release",
+      "notes": ""
+    },
+    {
+      "crate": "memchr",
+      "version": "2.7.4",
+      "path_occurrences": 6,
+      "license_expression_upstream": "MIT OR Unlicense",
+      "distribution_option_documented": "MIT",
+      "source": "https://github.com/BurntSushi/memchr",
+      "version_docs": "https://docs.rs/crate/memchr/2.7.4",
+      "license_evidence_level": "upstream_and_version_docs",
+      "notes": "MIT notice: Copyright (c) 2015 Andrew Gallant"
+    },
+    {
+      "crate": "once_cell",
+      "version": "1.19.0",
+      "path_occurrences": 2,
+      "license_expression_upstream": "MIT OR Apache-2.0",
+      "distribution_option_documented": "Apache-2.0",
+      "source": "https://github.com/matklad/once_cell",
+      "version_docs": "https://docs.rs/crate/once_cell/1.19.0",
+      "license_evidence_level": "upstream_repo_not_exact_release",
+      "notes": ""
+    },
+    {
+      "crate": "onig",
+      "version": "6.4.0",
+      "path_occurrences": 2,
+      "license_expression_upstream": "MIT",
+      "distribution_option_documented": "MIT",
+      "source": "https://github.com/rust-onig/rust-onig",
+      "version_docs": "https://docs.rs/crate/onig/6.4.0",
+      "license_evidence_level": "upstream_and_version_docs",
+      "notes": "Oniguruma Cライブラリは別ライセンス。既にv5に収録"
+    },
+    {
+      "crate": "rand",
+      "version": "0.8.5",
+      "path_occurrences": 1,
+      "license_expression_upstream": "MIT OR Apache-2.0",
+      "distribution_option_documented": "Apache-2.0",
+      "source": "https://github.com/rust-random/rand",
+      "version_docs": "https://docs.rs/crate/rand/0.8.5",
+      "license_evidence_level": "upstream_and_version_docs",
+      "notes": ""
+    },
+    {
+      "crate": "rand_chacha",
+      "version": "0.3.1",
+      "path_occurrences": 1,
+      "license_expression_upstream": "MIT OR Apache-2.0",
+      "distribution_option_documented": "Apache-2.0",
+      "source": "https://github.com/rust-random/rand/tree/master/rand_chacha",
+      "version_docs": "https://docs.rs/crate/rand_chacha/0.3.1",
+      "license_evidence_level": "upstream_and_version_docs",
+      "notes": ""
+    },
+    {
+      "crate": "rayon",
+      "version": "1.10.0",
+      "path_occurrences": 4,
+      "license_expression_upstream": "MIT OR Apache-2.0",
+      "distribution_option_documented": "Apache-2.0",
+      "source": "https://github.com/rayon-rs/rayon",
+      "version_docs": "https://docs.rs/crate/rayon/1.10.0",
+      "license_evidence_level": "upstream_and_version_docs",
+      "notes": ""
+    },
+    {
+      "crate": "rayon-core",
+      "version": "1.12.1",
+      "path_occurrences": 13,
+      "license_expression_upstream": "MIT OR Apache-2.0",
+      "distribution_option_documented": "Apache-2.0",
+      "source": "https://github.com/rayon-rs/rayon/tree/master/rayon-core",
+      "version_docs": "https://docs.rs/crate/rayon-core/1.12.1",
+      "license_evidence_level": "upstream_and_version_docs",
+      "notes": ""
+    },
+    {
+      "crate": "regex",
+      "version": "1.10.5",
+      "path_occurrences": 1,
+      "license_expression_upstream": "MIT OR Apache-2.0",
+      "distribution_option_documented": "Apache-2.0",
+      "source": "https://github.com/rust-lang/regex",
+      "version_docs": "https://docs.rs/crate/regex/1.10.5",
+      "license_evidence_level": "upstream_and_version_docs",
+      "notes": ""
+    },
+    {
+      "crate": "regex-automata",
+      "version": "0.4.7",
+      "path_occurrences": 65,
+      "license_expression_upstream": "MIT OR Apache-2.0",
+      "distribution_option_documented": "Apache-2.0",
+      "source": "https://github.com/rust-lang/regex/tree/master/regex-automata",
+      "version_docs": "https://docs.rs/crate/regex-automata/0.4.7",
+      "license_evidence_level": "upstream_repo_not_exact_release",
+      "notes": ""
+    },
+    {
+      "crate": "regex-syntax",
+      "version": "0.8.4",
+      "path_occurrences": 20,
+      "license_expression_upstream": "MIT OR Apache-2.0",
+      "distribution_option_documented": "Apache-2.0",
+      "source": "https://github.com/rust-lang/regex/tree/master/regex-syntax",
+      "version_docs": "https://docs.rs/crate/regex-syntax/0.8.4",
+      "license_evidence_level": "upstream_repo_not_exact_release",
+      "notes": "Unicodeデータは別途Unicodeライセンスが適用され得る"
+    },
+    {
+      "crate": "serde",
+      "version": "1.0.204",
+      "path_occurrences": 4,
+      "license_expression_upstream": "MIT OR Apache-2.0",
+      "distribution_option_documented": "Apache-2.0",
+      "source": "https://github.com/serde-rs/serde",
+      "version_docs": "https://docs.rs/crate/serde/1.0.204",
+      "license_evidence_level": "upstream_repo_not_exact_release",
+      "notes": ""
+    },
+    {
+      "crate": "serde_json",
+      "version": "1.0.121",
+      "path_occurrences": 9,
+      "license_expression_upstream": "MIT OR Apache-2.0",
+      "distribution_option_documented": "Apache-2.0",
+      "source": "https://github.com/serde-rs/json",
+      "version_docs": "https://docs.rs/crate/serde_json/1.0.121",
+      "license_evidence_level": "upstream_and_version_docs",
+      "notes": ""
+    },
+    {
+      "crate": "smallvec",
+      "version": "1.13.2",
+      "path_occurrences": 1,
+      "license_expression_upstream": "MIT OR Apache-2.0",
+      "distribution_option_documented": "Apache-2.0",
+      "source": "https://github.com/servo/rust-smallvec",
+      "version_docs": "https://docs.rs/crate/smallvec/1.13.2",
+      "license_evidence_level": "upstream_and_version_docs",
+      "notes": ""
+    },
+    {
+      "crate": "spm_precompiled",
+      "version": "0.1.4",
+      "path_occurrences": 1,
+      "license_expression_upstream": "Apache-2.0",
+      "distribution_option_documented": "Apache-2.0",
+      "source": "https://github.com/huggingface/spm_precompiled",
+      "version_docs": "https://docs.rs/crate/spm_precompiled/0.1.4",
+      "license_evidence_level": "upstream_and_version_docs",
+      "notes": ""
+    },
+    {
+      "crate": "tokenizers",
+      "version": "0.21.1",
+      "path_occurrences": 69,
+      "license_expression_upstream": "Apache-2.0",
+      "distribution_option_documented": "Apache-2.0",
+      "source": "https://github.com/huggingface/tokenizers",
+      "version_docs": "https://docs.rs/crate/tokenizers/0.21.1",
+      "license_evidence_level": "upstream_and_version_docs",
+      "notes": ""
+    },
+    {
+      "crate": "unicode-normalization-alignments",
+      "version": "0.1.12",
+      "path_occurrences": 1,
+      "license_expression_upstream": "MIT OR Apache-2.0",
+      "distribution_option_documented": "Apache-2.0",
+      "source": "https://github.com/n1t0/unicode-normalization",
+      "version_docs": "https://docs.rs/crate/unicode-normalization-alignments/0.1.12",
+      "license_evidence_level": "upstream_and_version_docs",
+      "notes": ""
+    },
+    {
+      "crate": "unicode-segmentation",
+      "version": "1.11.0",
+      "path_occurrences": 2,
+      "license_expression_upstream": "MIT OR Apache-2.0",
+      "distribution_option_documented": "Apache-2.0",
+      "source": "https://github.com/unicode-rs/unicode-segmentation",
+      "version_docs": "https://docs.rs/crate/unicode-segmentation/1.11.0",
+      "license_evidence_level": "upstream_repo_not_exact_release",
+      "notes": ""
+    }
+  ]
+}

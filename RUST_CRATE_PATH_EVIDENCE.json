@@ -1,0 +1,123 @@
+{
+  "evidence_scope": "Extracted by matching .cargo/registry/src paths from the JavaScript-bundled tokenizer WASM. These are observed build paths, NOT a full Cargo.lock or authoritative complete SBOM.",
+  "source_url": "https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@0.2.82/+esm",
+  "source_js_sha256": "ced0f3e8ee9991087cba5d5892f3c4fd1b223a040552ee1fce5e5a66a5fa6d96",
+  "tokenizer_wasm_sha256": "f261cfa549b857d50c67d052be66814beefce2ec17fdc96370a051a03ad66665",
+  "crate_versions": [
+    {
+      "crate": "aho-corasick",
+      "version": "1.1.3",
+      "path_occurrences": 43
+    },
+    {
+      "crate": "base64",
+      "version": "0.13.1",
+      "path_occurrences": 2
+    },
+    {
+      "crate": "crossbeam-deque",
+      "version": "0.8.5",
+      "path_occurrences": 1
+    },
+    {
+      "crate": "crossbeam-epoch",
+      "version": "0.9.18",
+      "path_occurrences": 7
+    },
+    {
+      "crate": "lazy_static",
+      "version": "1.5.0",
+      "path_occurrences": 3
+    },
+    {
+      "crate": "log",
+      "version": "0.4.22",
+      "path_occurrences": 1
+    },
+    {
+      "crate": "memchr",
+      "version": "2.7.4",
+      "path_occurrences": 6
+    },
+    {
+      "crate": "once_cell",
+      "version": "1.19.0",
+      "path_occurrences": 2
+    },
+    {
+      "crate": "onig",
+      "version": "6.4.0",
+      "path_occurrences": 2
+    },
+    {
+      "crate": "rand",
+      "version": "0.8.5",
+      "path_occurrences": 1
+    },
+    {
+      "crate": "rand_chacha",
+      "version": "0.3.1",
+      "path_occurrences": 1
+    },
+    {
+      "crate": "rayon",
+      "version": "1.10.0",
+      "path_occurrences": 4
+    },
+    {
+      "crate": "rayon-core",
+      "version": "1.12.1",
+      "path_occurrences": 13
+    },
+    {
+      "crate": "regex",
+      "version": "1.10.5",
+      "path_occurrences": 1
+    },
+    {
+      "crate": "regex-automata",
+      "version": "0.4.7",
+      "path_occurrences": 65
+    },
+    {
+      "crate": "regex-syntax",
+      "version": "0.8.4",
+      "path_occurrences": 20
+    },
+    {
+      "crate": "serde",
+      "version": "1.0.204",
+      "path_occurrences": 4
+    },
+    {
+      "crate": "serde_json",
+      "version": "1.0.121",
+      "path_occurrences": 9
+    },
+    {
+      "crate": "smallvec",
+      "version": "1.13.2",
+      "path_occurrences": 1
+    },
+    {
+      "crate": "spm_precompiled",
+      "version": "0.1.4",
+      "path_occurrences": 1
+    },
+    {
+      "crate": "tokenizers",
+      "version": "0.21.1",
+      "path_occurrences": 69
+    },
+    {
+      "crate": "unicode-normalization-alignments",
+      "version": "0.1.12",
+      "path_occurrences": 1
+    },
+    {
+      "crate": "unicode-segmentation",
+      "version": "1.11.0",
+      "path_occurrences": 2
+    }
+  ]
+}

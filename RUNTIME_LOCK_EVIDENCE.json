@@ -1,0 +1,51 @@
+{
+  "date": "2026-10-10",
+  "webllm_source_commit": "fa6ead5156d096c00f0543cc98b7841cb82f573f",
+  "webllm_lockfile_url": "https://github.com/mlc-ai/web-llm/blob/fa6ead5156d096c00f0543cc98b7841cb82f573f/package-lock.json",
+  "packages": {
+    "@mlc-ai/web-runtime": {
+      "version": "0.24.0-dev1",
+      "license": "Apache-2.0",
+      "lockfile_dev": true,
+      "npm_integrity": "sha512-68tTqqBDt7xNDgopj2pO0Prrlo/1r8/kcpUJkczt8lx6rvmJmgS/dO7yjVBIq/8/2ymiIUhcn7S8GoZjEbUymA=="
+    },
+    "@mlc-ai/web-tokenizers": {
+      "version": "0.1.6",
+      "license": "Apache-2.0",
+      "lockfile_dev": true,
+      "npm_integrity": "sha512-A5GSqUSnMjDkPoXBFFtbbW3F/qygCixuwbi7/EUMzcpgwFOAhD9vSZZBchK3IpC0c6TKlcDqAYDYp8vpb8/4vA=="
+    },
+    "@mlc-ai/web-xgrammar": {
+      "version": "0.1.27",
+      "license": "Apache-2.0",
+      "lockfile_dev": true,
+      "npm_integrity": "sha512-0WJvW3mjotHA2NeAfaWFE2pQkOgXH9xC2U4IQOJNcioLac0k6VjSbj14jBRprt89frnPzxLo280riaEb+ZQqbg=="
+    },
+    "loglevel": {
+      "version": "1.9.2",
+      "license": "MIT",
+      "lockfile_dev": false,
+      "npm_integrity": "sha512-HgMmCqIJSAKqo68l0rS2AanEWfkxaZ5wNiEFb5ggm08lDs9Xl2KxBlX3PTcaD2chBM1gXAYf491/M2Rv8Jwayg=="
+    },
+    "tslib": {
+      "version": "2.8.1",
+      "license": "0BSD",
+      "lockfile_dev": true,
+      "npm_integrity": "sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w=="
+    }
+  },
+  "disclaimer": "上流package-lock.jsonに記録されたnpm tarballのSRI。現在esm.runが配布するJS、そこから読み込まれるWASMやモデルのSRIではない。上流lockfileのdev区分は実際のバンドル採用有無を意味しない。",
+  "cdn_entry": "https://esm.run/@mlc-ai/web-llm@0.2.82",
+  "cdn_bytes_and_hash_verified": false,
+  "model_provenance": {
+    "converted_model": "mlc-ai/Qwen2.5-1.5B-Instruct-q4f16_1-MLC",
+    "revision": "9bd564b064631febf14deadcac492efb761d60c3",
+    "model_card": "https://huggingface.co/mlc-ai/Qwen2.5-1.5B-Instruct-q4f16_1-MLC/blob/9bd564b064631febf14deadcac492efb761d60c3/README.md",
+    "model_card_base_model": "Qwen/Qwen2.5-1.5B-Instruct",
+    "converted_readme_declares_license": false,
+    "converted_revision_tree_contains_separate_LICENSE": false,
+    "base_license": "Apache-2.0",
+    "base_license_url": "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct/blob/main/LICENSE",
+    "license_conclusion": "元モデルのApache-2.0を確認。変換版の独立したLICENSEや追加条項はモデルカード・固定tree上では確認できず。独立の許諾保証ではない。"
+  }
+}

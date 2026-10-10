@@ -1,0 +1,18 @@
+{
+  "version": "build31-input-repeat-test",
+  "base_audit": "build30-sale-candidate-v7",
+  "date": "2026-10-10",
+  "browser_test_chromium": {
+    "100-char-repeat": "pass",
+    "1250-character-two-page": "pass",
+    "mid-page-insertion": "pass",
+    "vertical-mode": "pass",
+    "composition-synthetic": "no-errors"
+  },
+  "ipad_safari_repeat_test": "pending",
+  "license_final_audit": "pending",
+  "modified_runtime_files": [
+    "index.html",
+    "sw.js"
+  ]
+}

@@ -60,3 +60,54 @@ DLPack 固定サブモジュール: licenses/DLPack-LICENSE.txt
 picojson 上流内包ヘッダー: licenses/picojson-LICENSE.txt
 Hugging Face tokenizers v0.21.0: licenses/Tokenizers-Rust-LICENSE.txt（宣言版の補足。ビルド版未確定）
 詳細・未解決事項はLICENSE_AUDIT.md。
+
+
+msgpack-c (MessagePack C/C++) — 追加調査で確認した上流依存
+固定ソース: https://github.com/msgpack/msgpack-c/tree/8c602e8579c7e7d65d6f9c6703c9699db3fb0488
+tokenizers-cppの固定コミットのCMakeLists.txtでmsgpackサブモジュールのビルドとリンク指定を確認。Boost Software License 1.0。
+原文: licenses/msgpack-c-COPYING.txt, licenses/msgpack-c-LICENSE_1_0.txt, licenses/msgpack-c-NOTICE.txt
+※上流ビルドに使われる依存の確認であり、今回の配信実行バイナリに実際に含まれたことを証明するものではありません。
+
+
+SentencePiece上流ソースに含まれる追加の第三者部品（固定コミット f2219b53e24ff5deee4cacdc2d0ca3074e529a07）
+- Abseil: Apache License 2.0。標準ライセンス全文は licenses/SentencePiece-LICENSE.txt に収録。上流 third_party/absl/LICENSE を参照。
+- darts_clone: BSD系3条項（著作権表記あり）。licenses/SentencePiece-darts_clone-LICENSE.txt
+- esaxx: MIT系（著作権表記あり）。licenses/SentencePiece-esaxx-LICENSE.txt
+- protobuf-lite: BSD系3条項（著作権表記あり）。licenses/SentencePiece-protobuf-lite-LICENSE.txt
+上記は上流固定ソースで見つかったライブラリです。実際に配信されたWASM内へどのコードが組み込まれたかは未確定です。
+
+
+AIモデルの出典追加（2026-10-10）
+元モデル Qwen/Qwen2.5-1.5B-Instruct / Copyright 2024 Alibaba Cloud / Apache License 2.0。
+MLC形式の変換モデル mlc-ai/Qwen2.5-1.5B-Instruct-q4f16_1-MLC をブラウザで取得して利用します。詳細 MODEL_ATTRIBUTION.md。
+WebLLM上流のnpmロックファイルに基づくバージョン証拠：RUNTIME_LOCK_EVIDENCE.json。
+
+
+Oniguruma (Rust onig 6.4.0 が利用する C 正規表現エンジン)
+ソース: https://github.com/kkos/oniguruma
+配信JS内蔵WASMの文字列に Oniguruma と onig 6.4.0 の痕跡を確認。BSD系2条項（再配布時の著作権表示・免責条項の維持）。
+原文: licenses/Oniguruma-COPYING.txt
+
+本項目を追加しても全Rust依存のライセンス完全照合は終了しない。CDN_JS_WASM_AUDIT.mdとRUST_CRATE_PATH_EVIDENCE.jsonを参照。
+
+Rust-Onig (onig 6.4.0): Rustのバインディング部分にMIT条件。原文参照: licenses/Rust-Onig-MIT-LICENSE.txt。Oniguruma本体は別ライセンス。
+
+
+# build30 販売候補v6 — Rustクレート追補（2026-10-10）
+
+Tokenizer WASMから検出された23種類のRustクレートの名称・バージョン・ライセンス種別は RUST_CRATE_LICENSE_MATRIX_v6.json を参照。
+- aho-corasick 1.1.3 (MIT OR Unlicense, MIT選択): licenses/Rust-aho-corasick-MIT.txt
+- memchr 2.7.4 (MIT OR Unlicense, MIT選択): licenses/Rust-memchr-MIT.txt
+- regex-syntax Unicodeデータ: licenses/Regex-Unicode-data-LICENSE-UNICODE.txt に原文を照合して全文収録。
+- Apache 2.0 または MIT の選択許諾の部品ではApache 2.0を資料上の選択肢として整理したが、著作権告知・他の適用条件の完全照合は継続中。
+- 23種は完全な依存一覧ではなく、最終的な法令適合を保証しない。
+
+
+# JavaScriptバンドルの補足表示（v7）
+
+以下はBuffer/process/base64-js/IEEE754と思われる内包処理の権利表示を補強するための上流資料（版と完全ソース一致は未確定）。
+- buffer: licenses/Bundled-buffer-MIT-LICENSE.txt
+- process: licenses/Bundled-process-MIT-LICENSE.txt
+- base64-js: licenses/Bundled-base64-js-MIT-LICENSE.txt
+- ieee754: licenses/Bundled-ieee754-BSD-LICENSE.txt
+- 詳細: JS_BUNDLE_POLYFILL_AUDIT_v7.md

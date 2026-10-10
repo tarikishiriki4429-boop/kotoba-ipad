@@ -1,4 +1,4 @@
-const CACHE='kotoba-writer-shell-v30';
+const CACHE='kotoba-writer-shell-v31';
 const PRIVACY_FLAG='kotoba-writer-privacy-lock-v1';
 const SHELL=['./','./index.html','./manifest.webmanifest','./licenses.html','./ai-worker.js?v=30'];
 

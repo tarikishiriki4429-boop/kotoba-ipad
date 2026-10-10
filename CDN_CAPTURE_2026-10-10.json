@@ -1,0 +1,12 @@
+{
+  "recorded_from": "User-provided output from KotobaWriter_CDN確認ツール.html run in Safari / GitHub Pages",
+  "observed_utc": "2026-10-10T03:41:10.833Z",
+  "requested_url": "https://esm.run/@mlc-ai/web-llm@0.2.82",
+  "final_response_url": "https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@0.2.82/+esm",
+  "http_status": 200,
+  "content_type": "application/javascript; charset=utf-8",
+  "bytes": 6038155,
+  "sha256": "ced0f3e8ee9991087cba5d5892f3c4fd1b223a040552ee1fce5e5a66a5fa6d96",
+  "import_specifiers": [],
+  "audit_qualification": "SHA256 was computed in user's browser. No independent download or bytewise reproduction was performed here. An empty imports list is not evidence that dependencies or WASM are absent. No stable SRI check is enforced by the running app."
+}

@@ -1,0 +1,42 @@
+{
+  "checked_at": "2026-10-10",
+  "reference_js_url": "https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@0.2.82/+esm",
+  "observed_by_user_iPad": true,
+  "js_sha256_recomputed_locally": "ced0f3e8ee9991087cba5d5892f3c4fd1b223a040552ee1fce5e5a66a5fa6d96",
+  "js_length_bytes": 6038155,
+  "source_map_reference": "/sm/fb4cd13ee14ac87897b577780e682157386a105ad2c856914d6131030a949d96.map",
+  "embedded_wasm_count": 2,
+  "embedded_wasm": [
+    {
+      "number": 1,
+      "length_bytes": 727906,
+      "sha256": "80eb86a9e61e8148a45d60973ec29ffb85077a3e42cee8f042e1452fffd63774",
+      "likely_component": "XGrammar",
+      "evidence_strings": {
+        "xgrammar": 75,
+        "picojson": 6
+      }
+    },
+    {
+      "number": 2,
+      "length_bytes": 3479304,
+      "sha256": "f261cfa549b857d50c67d052be66814beefce2ec17fdc96370a051a03ad66665",
+      "likely_component": "Tokenizers / SentencePiece / Oniguruma",
+      "evidence_strings": {
+        "tokenizers-": 69,
+        "onig-": 2,
+        "Oniguruma": 1,
+        "sentencepiece": 65,
+        "absl": 11,
+        "protobuf": 30
+      }
+    }
+  ],
+  "crate_paths_count": 23,
+  "js_copyright_notice_word_count": {
+    "Copyright": 0,
+    "SPDX": 0,
+    "@license": 0
+  },
+  "methodology": "Binary scan for complete WASM base64 literals. SHA256 on extracted binary. No dynamic execution of uploaded script. Source map and all runtime network resources not audited."
+}

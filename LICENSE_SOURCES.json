@@ -2,104 +2,264 @@
   {
     "file": "WebLLM-LICENSE.txt",
     "url": "https://raw.githubusercontent.com/mlc-ai/web-llm/fa6ead5156d096c00f0543cc98b7841cb82f573f/LICENSE",
-    "sha256": "d412ab9d5ac17e6931705aac01e5a0d323da5acd2e89a2c19aa8fc05becc59ad"
+    "sha256": "d412ab9d5ac17e6931705aac01e5a0d323da5acd2e89a2c19aa8fc05becc59ad",
+    "packaged": true,
+    "packaged_path": "licenses/WebLLM-LICENSE.txt",
+    "packaged_sha256": "d412ab9d5ac17e6931705aac01e5a0d323da5acd2e89a2c19aa8fc05becc59ad",
+    "source_sha256_matches_packaged": true
   },
   {
     "name": "WebLLM",
     "upstream_file": "NOTICE",
     "url": "https://raw.githubusercontent.com/mlc-ai/web-llm/fa6ead5156d096c00f0543cc98b7841cb82f573f/NOTICE",
-    "error": "HTTP Error 404: Not Found"
+    "error": "HTTP Error 404: Not Found",
+    "packaged": false
   },
   {
     "file": "TVM-LICENSE.txt",
     "url": "https://raw.githubusercontent.com/apache/tvm/e08a3f94db86134f487367e10f34763a04f52710/LICENSE",
-    "sha256": "f58a0b778d1a658149b0486b347b2e4cc60a819e9c02998088971c11f41c9d9f"
+    "sha256": "f58a0b778d1a658149b0486b347b2e4cc60a819e9c02998088971c11f41c9d9f",
+    "packaged": true,
+    "packaged_path": "licenses/TVM-LICENSE.txt",
+    "packaged_sha256": "f58a0b778d1a658149b0486b347b2e4cc60a819e9c02998088971c11f41c9d9f",
+    "source_sha256_matches_packaged": true
   },
   {
     "file": "TVM-NOTICE.txt",
     "url": "https://raw.githubusercontent.com/apache/tvm/e08a3f94db86134f487367e10f34763a04f52710/NOTICE",
-    "sha256": "967cd2fb97712c43271e2b1c4f636c4d8823898869f0f76f65bf8a3232584f0f"
+    "sha256": "967cd2fb97712c43271e2b1c4f636c4d8823898869f0f76f65bf8a3232584f0f",
+    "packaged": true,
+    "packaged_path": "licenses/TVM-NOTICE.txt",
+    "packaged_sha256": "967cd2fb97712c43271e2b1c4f636c4d8823898869f0f76f65bf8a3232584f0f",
+    "source_sha256_matches_packaged": true
   },
   {
     "file": "Tokenizers-cpp-LICENSE.txt",
     "url": "https://raw.githubusercontent.com/mlc-ai/tokenizers-cpp/d54e3683dc44d37163cf8e77c243b505e12a1616/LICENSE",
-    "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+    "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+    "packaged": true,
+    "packaged_path": "licenses/Tokenizers-cpp-LICENSE.txt",
+    "packaged_sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+    "source_sha256_matches_packaged": true
   },
   {
     "name": "Tokenizers-cpp",
     "upstream_file": "NOTICE",
     "url": "https://raw.githubusercontent.com/mlc-ai/tokenizers-cpp/d54e3683dc44d37163cf8e77c243b505e12a1616/NOTICE",
-    "error": "HTTP Error 404: Not Found"
+    "error": "HTTP Error 404: Not Found",
+    "packaged": false
   },
   {
     "file": "XGrammar-LICENSE.txt",
     "url": "https://raw.githubusercontent.com/mlc-ai/xgrammar/ace2321a29471130f3f64fb1882741a5547c6f36/LICENSE",
-    "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+    "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+    "packaged": true,
+    "packaged_path": "licenses/XGrammar-LICENSE.txt",
+    "packaged_sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+    "source_sha256_matches_packaged": true
   },
   {
     "file": "XGrammar-NOTICE.txt",
     "url": "https://raw.githubusercontent.com/mlc-ai/xgrammar/ace2321a29471130f3f64fb1882741a5547c6f36/NOTICE",
-    "sha256": "769c6907073c65801bfcfe3ce1c0e80bf0ae4e124e2769d4f026c038ad583c0f"
+    "sha256": "769c6907073c65801bfcfe3ce1c0e80bf0ae4e124e2769d4f026c038ad583c0f",
+    "packaged": true,
+    "packaged_path": "licenses/XGrammar-NOTICE.txt",
+    "packaged_sha256": "769c6907073c65801bfcfe3ce1c0e80bf0ae4e124e2769d4f026c038ad583c0f",
+    "source_sha256_matches_packaged": true
   },
   {
     "file": "Qwen2.5-1.5B-Instruct-LICENSE.txt",
     "url": "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct/resolve/main/LICENSE",
-    "sha256": "832dd9e00a68dd83b3c3fb9f5588dad7dcf337a0db50f7d9483f310cd292e92e"
+    "sha256": "832dd9e00a68dd83b3c3fb9f5588dad7dcf337a0db50f7d9483f310cd292e92e",
+    "packaged": true,
+    "packaged_path": "licenses/Qwen2.5-1.5B-Instruct-LICENSE.txt",
+    "packaged_sha256": "832dd9e00a68dd83b3c3fb9f5588dad7dcf337a0db50f7d9483f310cd292e92e",
+    "source_sha256_matches_packaged": true
   },
   {
     "file": "MLC-LLM-LICENSE.txt",
     "url": "https://raw.githubusercontent.com/mlc-ai/mlc-llm/main/LICENSE",
-    "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+    "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+    "packaged": true,
+    "packaged_path": "licenses/MLC-LLM-LICENSE.txt",
+    "packaged_sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+    "source_sha256_matches_packaged": true
   },
   {
     "file": "MLC-LLM-NOTICE.txt",
     "url": "https://raw.githubusercontent.com/mlc-ai/mlc-llm/main/NOTICE",
-    "sha256": "3a7dfb37bb96ce6f5a1cc0d6d4c8da3b8a35e6ec4692647ba0a37f6155c7e694"
+    "sha256": "3a7dfb37bb96ce6f5a1cc0d6d4c8da3b8a35e6ec4692647ba0a37f6155c7e694",
+    "packaged": true,
+    "packaged_path": "licenses/MLC-LLM-NOTICE.txt",
+    "packaged_sha256": "3a7dfb37bb96ce6f5a1cc0d6d4c8da3b8a35e6ec4692647ba0a37f6155c7e694",
+    "source_sha256_matches_packaged": true
   },
   {
     "file": "loglevel-LICENSE-MIT.txt",
     "url": "https://registry.npmjs.org/loglevel/-/loglevel-1.9.2.tgz",
-    "sha256": "18e8cf5f0dbaf13d9562e93b9bef79aff2acff18fab698c2d589d2159375a1f9"
+    "sha256": "18e8cf5f0dbaf13d9562e93b9bef79aff2acff18fab698c2d589d2159375a1f9",
+    "packaged": true,
+    "packaged_path": "licenses/loglevel-LICENSE-MIT.txt",
+    "packaged_sha256": "18e8cf5f0dbaf13d9562e93b9bef79aff2acff18fab698c2d589d2159375a1f9",
+    "source_sha256_matches_packaged": true
   },
   {
     "file": "source/licenses/SentencePiece-LICENSE.txt",
     "url": "https://raw.githubusercontent.com/google/sentencepiece/f2219b53e24ff5deee4cacdc2d0ca3074e529a07/LICENSE",
-    "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+    "packaged": true,
+    "packaged_path": "licenses/SentencePiece-LICENSE.txt",
+    "packaged_sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+    "source_sha256_matches_packaged": true
   },
   {
     "file": "SentencePiece-NOTICE.txt",
     "url": "https://raw.githubusercontent.com/google/sentencepiece/f2219b53e24ff5deee4cacdc2d0ca3074e529a07/NOTICE",
-    "error": "HTTP Error 404: Not Found"
+    "error": "HTTP Error 404: Not Found",
+    "packaged": false,
+    "packaged_path": null,
+    "note": "/ 上流調査用参照ファイル。販売用ZIPにはこの参照ファイルを同梱していません。"
   },
   {
     "file": "source/licenses/DLPack-LICENSE.txt",
     "url": "https://raw.githubusercontent.com/dmlc/dlpack/bbd2f4d32427e548797929af08cfe2a9cbb3cf12/LICENSE",
-    "sha256": "3e8f6bc39276a586d60c8c5aaece2ff989262181cf2b3d2a128db58f97a9300c"
+    "sha256": "3e8f6bc39276a586d60c8c5aaece2ff989262181cf2b3d2a128db58f97a9300c",
+    "packaged": true,
+    "packaged_path": "licenses/DLPack-LICENSE.txt",
+    "packaged_sha256": "3e8f6bc39276a586d60c8c5aaece2ff989262181cf2b3d2a128db58f97a9300c",
+    "source_sha256_matches_packaged": true
   },
   {
     "file": "release-review/XGrammar-picojson.h",
     "url": "https://raw.githubusercontent.com/mlc-ai/xgrammar/ace2321a29471130f3f64fb1882741a5547c6f36/3rdparty/picojson/picojson.h",
-    "sha256": "969b0587433ae0f28b1a0b8f7c82fe42c673358aa4d6460697649b57a62cc533"
+    "sha256": "969b0587433ae0f28b1a0b8f7c82fe42c673358aa4d6460697649b57a62cc533",
+    "packaged": false,
+    "packaged_path": null,
+    "note": "/ 上流調査用参照ファイル。販売用ZIPにはこの参照ファイルを同梱していません。"
   },
   {
     "file": "source/licenses/Tokenizers-Rust-LICENSE.txt",
     "url": "https://raw.githubusercontent.com/huggingface/tokenizers/v0.21.0/LICENSE",
-    "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+    "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+    "packaged": true,
+    "packaged_path": "licenses/Tokenizers-Rust-LICENSE.txt",
+    "packaged_sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+    "source_sha256_matches_packaged": true
   },
   {
     "file": "release-review/Tokenizers-CMakeLists.txt",
     "url": "https://raw.githubusercontent.com/mlc-ai/tokenizers-cpp/d54e3683dc44d37163cf8e77c243b505e12a1616/CMakeLists.txt",
-    "sha256": "7920485031a16a61f541db0dc44c840206597d6758c47aec2443d592e17ff9ca"
+    "sha256": "7920485031a16a61f541db0dc44c840206597d6758c47aec2443d592e17ff9ca",
+    "packaged": false,
+    "packaged_path": null,
+    "note": "/ 上流調査用参照ファイル。販売用ZIPにはこの参照ファイルを同梱していません。"
   },
   {
     "file": "tslib-LICENSE.txt",
     "url": "https://raw.githubusercontent.com/microsoft/tslib/v2.8.1/LICENSE.txt",
-    "sha256": "210b19e543130388c68654b7497e967119ce17145f66ab7d85688fbd70f08751"
+    "sha256": "210b19e543130388c68654b7497e967119ce17145f66ab7d85688fbd70f08751",
+    "packaged": true,
+    "packaged_path": "licenses/tslib-LICENSE.txt",
+    "packaged_sha256": "210b19e543130388c68654b7497e967119ce17145f66ab7d85688fbd70f08751",
+    "source_sha256_matches_packaged": true
   },
   {
     "file": "picojson-LICENSE.txt",
     "url": "https://raw.githubusercontent.com/mlc-ai/xgrammar/ace2321a29471130f3f64fb1882741a5547c6f36/3rdparty/picojson/picojson.h",
     "extraction": "Leading block comment, unchanged",
-    "sha256": "52a7da16781b4b899382c9ddfcf059235cdee73e2f45cfd7402c2ae9a2e9d28d"
+    "sha256": "52a7da16781b4b899382c9ddfcf059235cdee73e2f45cfd7402c2ae9a2e9d28d",
+    "packaged": true,
+    "packaged_path": "licenses/picojson-LICENSE.txt",
+    "packaged_sha256": "52a7da16781b4b899382c9ddfcf059235cdee73e2f45cfd7402c2ae9a2e9d28d",
+    "source_sha256_matches_packaged": true
+  },
+  {
+    "file": "licenses/msgpack-c-COPYING.txt",
+    "url": "https://raw.githubusercontent.com/msgpack/msgpack-c/8c602e8579c7e7d65d6f9c6703c9699db3fb0488/COPYING",
+    "sha256": "664550b43996452a5a2c7471bb0ff77185a58c69ccafa60f983dc4c162e1ee22",
+    "verification": "Upstream fixed git source, authenticated file sha via GitHub connector (2026-10-10)",
+    "packaged": true,
+    "packaged_path": "licenses/msgpack-c-COPYING.txt",
+    "packaged_sha256": "664550b43996452a5a2c7471bb0ff77185a58c69ccafa60f983dc4c162e1ee22",
+    "source_sha256_matches_packaged": true
+  },
+  {
+    "file": "licenses/msgpack-c-LICENSE_1_0.txt",
+    "url": "https://raw.githubusercontent.com/msgpack/msgpack-c/8c602e8579c7e7d65d6f9c6703c9699db3fb0488/LICENSE_1_0.txt",
+    "sha256": "c9bff75738922193e67fa726fa225535870d2aa1059f91452c411736284ad566",
+    "verification": "Upstream fixed git source, authenticated file sha via GitHub connector (2026-10-10)",
+    "packaged": true,
+    "packaged_path": "licenses/msgpack-c-LICENSE_1_0.txt",
+    "packaged_sha256": "c9bff75738922193e67fa726fa225535870d2aa1059f91452c411736284ad566",
+    "source_sha256_matches_packaged": true
+  },
+  {
+    "file": "licenses/msgpack-c-NOTICE.txt",
+    "url": "https://raw.githubusercontent.com/msgpack/msgpack-c/8c602e8579c7e7d65d6f9c6703c9699db3fb0488/NOTICE",
+    "sha256": "10514de451bfef1eee4885ce1da8d0e3fdfe36f58357d9199ed0201cdae0334e",
+    "verification": "Upstream fixed git source, authenticated file sha via GitHub connector (2026-10-10)",
+    "packaged": true,
+    "packaged_path": "licenses/msgpack-c-NOTICE.txt",
+    "packaged_sha256": "10514de451bfef1eee4885ce1da8d0e3fdfe36f58357d9199ed0201cdae0334e",
+    "source_sha256_matches_packaged": true
+  },
+  {
+    "file": "licenses/SentencePiece-darts_clone-LICENSE.txt",
+    "url": "https://github.com/google/sentencepiece/blob/f2219b53e24ff5deee4cacdc2d0ca3074e529a07/third_party/darts_clone/LICENSE",
+    "sha256": "155f59997298ee336602c49f9c1110f268ac394ca2197eb02647a3555935ad52",
+    "upstream_git_blob_sha1": "28203b3b2d937ad240a79425d6ffe15001d2a298",
+    "exact_git_blob_verified": true,
+    "packaged": true,
+    "packaged_path": "licenses/SentencePiece-darts_clone-LICENSE.txt",
+    "packaged_sha256": "155f59997298ee336602c49f9c1110f268ac394ca2197eb02647a3555935ad52",
+    "source_sha256_matches_packaged": true
+  },
+  {
+    "file": "licenses/SentencePiece-esaxx-LICENSE.txt",
+    "url": "https://github.com/google/sentencepiece/blob/f2219b53e24ff5deee4cacdc2d0ca3074e529a07/third_party/esaxx/LICENSE",
+    "sha256": "7c28553d1d3312d65fe309f76a22ebaf33a3d76c8c1e3b98a88ee4654ecb53db",
+    "upstream_git_blob_sha1": "07394df7c3732d308872d5c64e337c8739e4c017",
+    "exact_git_blob_verified": true,
+    "packaged": true,
+    "packaged_path": "licenses/SentencePiece-esaxx-LICENSE.txt",
+    "packaged_sha256": "7c28553d1d3312d65fe309f76a22ebaf33a3d76c8c1e3b98a88ee4654ecb53db",
+    "source_sha256_matches_packaged": true
+  },
+  {
+    "file": "licenses/SentencePiece-protobuf-lite-LICENSE.txt",
+    "url": "https://github.com/google/sentencepiece/blob/f2219b53e24ff5deee4cacdc2d0ca3074e529a07/third_party/protobuf-lite/LICENSE",
+    "sha256": "6e5e117324afd944dcf67f36cf329843bc1a92229a8cd9bb573d7a83130fea7d",
+    "upstream_git_blob_sha1": "19b305b00060a774a9180fb916c14b49edb2008f",
+    "exact_git_blob_verified": true,
+    "packaged": true,
+    "packaged_path": "licenses/SentencePiece-protobuf-lite-LICENSE.txt",
+    "packaged_sha256": "6e5e117324afd944dcf67f36cf329843bc1a92229a8cd9bb573d7a83130fea7d",
+    "source_sha256_matches_packaged": true
+  },
+  {
+    "file": "licenses/SentencePiece-LICENSE.txt",
+    "url": "https://github.com/google/sentencepiece/blob/f2219b53e24ff5deee4cacdc2d0ca3074e529a07/third_party/absl/LICENSE",
+    "note": "同じApache-2.0の標準本文を参照。Abseilの固定版原文とのバイト一致は別未検証。",
+    "packaged": true,
+    "packaged_path": "licenses/SentencePiece-LICENSE.txt",
+    "packaged_sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+  },
+  {
+    "file": "Oniguruma-COPYING.txt",
+    "url": "https://raw.githubusercontent.com/kkos/oniguruma/master/COPYING",
+    "packaged": true,
+    "packaged_path": "licenses/Oniguruma-COPYING.txt",
+    "packaged_sha256": "70ba5469ea0bab6e18a32d7009068f996503168d27be57747e08da34337ff26f",
+    "upstream_bytes_verified_identical": false,
+    "comment": "Reference content reproduced from upstream; exact binary equality not established."
+  },
+  {
+    "file": "Rust-Onig-MIT-LICENSE.txt",
+    "url": "https://github.com/rust-onig/rust-onig/blob/main/LICENSE.md",
+    "packaged": true,
+    "packaged_path": "licenses/Rust-Onig-MIT-LICENSE.txt",
+    "packaged_sha256": "34bd71d4a35002ae55809d610a2b4e5fe9dfcc11ef96d9f6ab2140f65b5a47f1",
+    "upstream_bytes_verified_identical": false,
+    "comment": "MIT clause reproduced with copyright attribution; see upstream for complete original language."
   }
 ]

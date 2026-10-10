@@ -190,7 +190,7 @@ button:disabled{opacity:.45}
   <span id="pageInfo">40字 × 30行</span>
   <span id="pageCount">1ページ</span>
   <span id="documentName"></span>
-  <span class="build">Kotoba Writer build 30</span>
+  <span class="build">Kotoba Writer build 31</span>
 </div>
 
 <div id="fileNamePanel" class="panel">
@@ -260,7 +260,7 @@ button:disabled{opacity:.45}
 <div id="printArea"></div>
 
 <script type="module">
-const BUILD=30;
+const BUILD=31;
 const $=id=>document.getElementById(id);
 const STORAGE='kotoba-writer-draft-v1';
 const SETTINGS='kotoba-writer-settings-v1';
@@ -291,6 +291,28 @@ function units(text){return Array.from(graphemes.segment(text));}
 function previousOffset(pos){const a=units(docText.slice(0,pos));return a.length?a[a.length-1].index:0;}
 function nextOffset(pos){const a=units(docText.slice(pos));return pos+(a[0]?.segment.length||0);}
 let rendering=false;
+// iPad Safari may drop auto-repeat keystrokes if every native insertion
+// immediately rebuilds the contenteditable cells and replaces the caret.
+// Keep the browser's live editing DOM while characters arrive, and normalize
+// layout only after the burst of input stops. This timer never owns the text;
+// docText/localStorage are synchronized on every non-composing input.
+const LAYOUT_IDLE_MS=260;
+let layoutIdleTimer=0;
+function scheduleIdleLayout(ta){
+  clearTimeout(layoutIdleTimer);
+  layoutIdleTimer=setTimeout(()=>{
+    layoutIdleTimer=0;
+    if(isComposing)return;  // compositionend schedules a new normalization
+    renderPages(globalCaret,globalSelEnd,document.activeElement===ta,true);
+  },LAYOUT_IDLE_MS);
+}
+function scheduleCompositionPreview(ta){
+  if(ta._previewFrame)return;
+  ta._previewFrame=requestAnimationFrame(()=>{
+    ta._previewFrame=0;
+    if(isComposing && ta.isConnected)paintComposition(ta);
+  });
+}
 let revealFrame=0;
 let inputScroll=null,restoreFrame=0,compositionScroll=null;
 function captureInputScroll(){
@@ -629,7 +651,7 @@ function replaceSelection(el,text){
 }
 document.addEventListener('selectionchange',()=>{
   const el=document.activeElement;
-  if(!rendering && !isComposing && el?.classList.contains('page-editor')){
+  if(!rendering && !isComposing && !layoutIdleTimer && el?.classList.contains('page-editor')){
     syncCaret(el);
     if(chunks.length>1 && el.value.length>0 && el.selectionStart===0 && el.selectionEnd===el.value.length){
       $('selectAllBtn').click();
@@ -666,6 +688,7 @@ function bindEditor(ta){
   });
   ta.addEventListener('compositionupdate',e=>{ta._compositionData=e.data||''});
   ta.addEventListener('compositionend',()=>{
+    if(ta._previewFrame){cancelAnimationFrame(ta._previewFrame);ta._previewFrame=0;}
     inputScroll=compositionScroll || inputScroll;compositionScroll=null;
     isComposing=false;ta.classList.remove('is-composing');
     ta._compositionPreview?.remove();ta._compositionPreview=null;
@@ -673,8 +696,11 @@ function bindEditor(ta){
     // Restore the insertion endpoint from the original replacement range.
     const inserted=ta.value.length-(ta._compositionOriginal.length-(ta._compositionEnd-ta._compositionStart));
     ta.setSelectionRange(ta._compositionStart+Math.max(0,inserted),ta._compositionStart+Math.max(0,inserted));
-    ta._layoutKey=null;syncFromPage(ta,true);
-    const active=document.activeElement;active._commitCaret={position:globalCaret,text:docText};
+    // Keep native IME selection alive across immediate follow-up input.
+    // A full cell rebuild here can swallow Japanese key auto-repeat events.
+    syncFromPage(ta,true,true);
+    const active=document.activeElement;
+    if(active===ta)active._commitCaret={position:globalCaret,text:docText};
   });
   for(const type of ['focus','click','select','keyup'])ta.addEventListener(type,()=>{if(!rendering && !isComposing && document.activeElement===ta)syncCaret(ta)});
   ta.addEventListener('beforeinput',e=>{
@@ -691,22 +717,34 @@ function bindEditor(ta){
     captureInputScroll();arrowGoal=null;arrowAnchor=null;
     if(isComposing||e.isComposing)return;
     if(handleEdit(e,ta,e.inputType))return;
-    if(e.cancelable && e.inputType==='insertText' && e.data!==null){
-      e.preventDefault();replaceSelection(ta,e.data);return;
-    }
+    // Let Safari commit ordinary text to its own live contenteditable DOM.
+    // The input event will synchronize docText immediately; repeated letters
+    // must not cause replaceChildren() and setSelectionRange() every key.
     remember();
   });
   ta.addEventListener('input',e=>{
     if(document.activeElement!==ta)return;
     if(isComposing){
       if(e.data!==null)ta._compositionData=e.data;
-      paintComposition(ta);saveComposition(ta);restoreInputScroll();return;
+      scheduleCompositionPreview(ta);
+      saveComposition(ta);restoreInputScroll();return;
     }
     const committed=ta._commitCaret,c=chunks[+ta.dataset.index];
     if(committed && committed.text===docText && ta.value===c.text){
-      ta._commitCaret=null;renderPages(committed.position,committed.position,true,true);return;
+      // Safari can fire an input event *after* compositionend without any
+      // additional text change. Do not rebuild the editable DOM on that event.
+      ta._commitCaret=null;
+      globalCaret=globalSelEnd=committed.position;
+      scheduleIdleLayout(ta);return;
     }
-    syncFromPage(ta,true);
+    syncFromPage(ta,true,true);
+  });
+  ta.addEventListener('blur',()=>{
+    // Normalize after losing focus, unless an IME session is still active.
+    if(layoutIdleTimer && !isComposing){
+      clearTimeout(layoutIdleTimer);layoutIdleTimer=0;
+      renderPages(globalCaret,globalSelEnd,false,false);
+    }
   });
   ta.addEventListener('keydown',e=>{
     if((e.metaKey||e.ctrlKey) && e.key.toLowerCase()==='a' && !isComposing){e.preventDefault();$('selectAllBtn').click();return;}
@@ -815,16 +853,31 @@ function syncCaret(ta){
   globalSelEnd=c.start+ta.selectionEnd;
   updateStatus();
 }
-function syncFromPage(ta,focus){
+function syncFromPage(ta,focus,deferLayout=false){
   const i=+ta.dataset.index,c=chunks[i];if(!c)return;
+  // Capture the native selection before any visual normalization.
   const localStart=ta.selectionStart,localEnd=ta.selectionEnd;
-  docText=docText.slice(0,c.start)+ta.value+docText.slice(c.end);
+  const newText=ta.value;
+  const oldLength=c.end-c.start;
+  docText=docText.slice(0,c.start)+newText+docText.slice(c.end);
   globalCaret=c.start+localStart;
   globalSelEnd=c.start+localEnd;
   save();
-  renderPages(globalCaret,globalSelEnd,focus,true);
+  if(deferLayout){
+    // Update page text boundaries without touching Safari's active DOM.
+    // Otherwise the next compositionstart would compare against an obsolete
+    // page, and later edits could duplicate or lose previous keystrokes.
+    const delta=newText.length-oldLength;
+    c.text=newText;c.end+=delta;
+    if(delta)for(let j=i+1;j<chunks.length;j++){
+      chunks[j].start+=delta;chunks[j].end+=delta;
+    }
+    updateStatus();
+    scheduleIdleLayout(ta);
+  }else renderPages(globalCaret,globalSelEnd,focus,true);
 }
 function renderPages(caret=globalCaret,selEnd=globalSelEnd,focus=false,scroll=false){
+  clearTimeout(layoutIdleTimer);layoutIdleTimer=0;
   rendering=true;
   chunks=paginate(docText);
   const container=$('pages');
