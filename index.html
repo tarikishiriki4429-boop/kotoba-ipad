@@ -140,8 +140,7 @@ button:disabled{opacity:.45}
 <div class="topbar">
   <div class="title">Kotoba Writer</div>
   <button id="newBtn">新規</button>
-  <button id="undoBtn" disabled title="⌘Z / Ctrl+Z">取り消し</button>
-  <button id="redoBtn" disabled title="⌘⇧Z / Ctrl+Y">やり直す</button>
+  <button id="undoBtn" disabled>取り消し</button>
   <button id="openBtn">TXTを開く</button>
   <button id="saveBtn">TXT保存</button>
   <button id="fileNameBtn">名前変更</button>
@@ -191,7 +190,7 @@ button:disabled{opacity:.45}
   <span id="pageInfo">40字 × 30行</span>
   <span id="pageCount">1ページ</span>
   <span id="documentName"></span>
-  <span class="build">Kotoba Writer build 26</span>
+  <span class="build">Kotoba Writer build 27</span>
 </div>
 
 <div id="fileNamePanel" class="panel">
@@ -229,7 +228,6 @@ button:disabled{opacity:.45}
     <button id="pasteFullText">貼り付け</button>
     <button id="deleteFullText">選択範囲を削除</button>
     <button id="undoFullText">取り消し</button>
-    <button id="redoFullText">やり直す</button>
     <button id="checkSelectedText">選択範囲の誤字・脱字を確認</button>
     <button id="closeFullText">閉じる</button>
   </div>
@@ -261,7 +259,7 @@ button:disabled{opacity:.45}
 <div id="printArea"></div>
 
 <script type="module">
-const BUILD=26;
+const BUILD=27;
 const $=id=>document.getElementById(id);
 const STORAGE='kotoba-writer-draft-v1';
 const SETTINGS='kotoba-writer-settings-v1';
@@ -271,12 +269,21 @@ let documentFileName=localStorage.getItem(FILE_NAME_KEY)||defaultFileName();
 let documentFileHandle=null,fileOperationBusy=false;
 const MODEL='Qwen2.5-1.5B-Instruct-q4f16_1-MLC';
 const CDN='https://esm.run/@mlc-ai/web-llm@0.2.82';
+const AI_MODEL_REVISION='9bd564b064631febf14deadcac492efb761d60c3';
+const AI_WASM_URL='https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/025bcaf3780fa8254f5e5efd3bfea0a5397248f4/web-llm-models/v0_2_80/Qwen2-1.5B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm';
+function makeAIConfig(base){
+  const record=base.model_list.find(r=>r.model_id===MODEL);
+  if(!record)throw new Error('指定されたAIモデルの設定が見つかりません。');
+  return {...base,cacheBackend:'cache',model_list:[{...record,
+    model:'https://huggingface.co/mlc-ai/'+MODEL+'/resolve/'+AI_MODEL_REVISION+'/',
+    model_lib:AI_WASM_URL
+  }]};
+}
 
 let docText=localStorage.getItem(STORAGE)||'';
 let chunks=[];
 let globalCaret=0, globalSelEnd=0;
 let history=[];
-let redoHistory=[];
 let isComposing=false;
 const graphemes=new Intl.Segmenter('ja',{granularity:'grapheme'});
 function units(text){return Array.from(graphemes.segment(text));}
@@ -390,39 +397,11 @@ function save(){
   try{localStorage.setItem(STORAGE,docText);$('saveStatus').textContent='端末内に保存済み'}
   catch{$('saveStatus').textContent='保存エラー'}
 }
-function snapshot(){return {text:docText,caret:globalCaret,end:globalSelEnd};}
-function updateHistoryButtons(){
-  $('undoBtn').disabled=!history.length;
-  $('redoBtn').disabled=!redoHistory.length;
-  $('undoFullText').disabled=!history.length;
-  $('redoFullText').disabled=!redoHistory.length;
-}
 function remember(){
-  if(!history.length || history[history.length-1].text!==docText){
-    history.push(snapshot());if(history.length>100)history.shift();
-  }
-  redoHistory=[];updateHistoryButtons();
+  if(history.length && history[history.length-1]===docText)return;
+  history.push(docText); if(history.length>20)history.shift();
+  $('undoBtn').disabled=!history.length;
 }
-function restoreHistory(direction){
-  if(isComposing||fullTextComposing)return;
-  const source=direction==='undo'?history:redoHistory;
-  const dest=direction==='undo'?redoHistory:history;
-  if(!source.length)return;
-  dest.push(snapshot());if(dest.length>100)dest.shift();
-  const previous=source.pop();
-  docText=previous.text;
-  globalCaret=Math.min(previous.caret,docText.length);
-  globalSelEnd=Math.min(Math.max(globalCaret,previous.end),docText.length);
-  save();
-  if($('fullTextPanel').classList.contains('show')){
-    const field=$('fullText');field.value=docText;
-    field.focus({preventScroll:true});field.setSelectionRange(globalCaret,globalSelEnd);
-    renderPages(globalCaret,globalSelEnd,false,false);
-  }else renderPages(globalCaret,globalSelEnd,true,true);
-  updateHistoryButtons();
-}
-function undo(){restoreHistory('undo');}
-function redo(){restoreHistory('redo');}
 function applySettings(){
   const s=getSettings();
   $('charCount').value=s.charCount;$('lineCount').value=s.lineCount;
@@ -684,7 +663,6 @@ function bindEditor(ta){
   });
   for(const type of ['focus','click','select','keyup'])ta.addEventListener(type,()=>{if(!rendering && !isComposing && document.activeElement===ta)syncCaret(ta)});
   ta.addEventListener('beforeinput',e=>{
-    if(e.inputType==='historyUndo'||e.inputType==='historyRedo'){e.preventDefault();if(!isComposing)(e.inputType==='historyUndo'?undo:redo)();return;}
     if(e.inputType==='selectAll'){e.preventDefault();$('selectAllBtn').click();return;}
     if(!isComposing && e.isComposing && ta.value===chunks[+ta.dataset.index]?.text){
       ta._beforeComposition={text:ta.value,start:ta.selectionStart,end:ta.selectionEnd};
@@ -716,7 +694,6 @@ function bindEditor(ta){
     syncFromPage(ta,true);
   });
   ta.addEventListener('keydown',e=>{
-    if(handleHistoryShortcut(e))return;
     if((e.metaKey||e.ctrlKey) && e.key.toLowerCase()==='a' && !isComposing){e.preventDefault();$('selectAllBtn').click();return;}
     if(isComposing||e.isComposing||e.keyCode===229)return;
     if(/^(Arrow|Home|End|Page)/.test(e.key))ta._commitCaret=null;
@@ -883,16 +860,13 @@ function setDoc(text,caret=0,end=caret,rememberIt=true,focus=true){
   save();renderPages(globalCaret,globalSelEnd,focus,true);
 }
 
-function handleHistoryShortcut(e){
-  if(isComposing||fullTextComposing||e.isComposing||e.keyCode===229)return false;
-  if(!(e.metaKey||e.ctrlKey)||e.altKey)return false;
-  const key=e.key.toLowerCase();
-  if(key==='z'){e.preventDefault();(e.shiftKey?redo:undo)();return true;}
-  if(key==='y'&&!e.shiftKey){e.preventDefault();redo();return true;}
-  return false;
-}
-$('undoBtn').onclick=undo;
-$('redoBtn').onclick=redo;
+$('undoBtn').onclick=()=>{
+  if(!history.length)return;
+  docText=history.pop();
+  globalCaret=globalSelEnd=Math.min(globalCaret,docText.length);
+  save();renderPages(globalCaret,globalSelEnd,true,true);
+  $('undoBtn').disabled=!history.length;
+};
 function cleanFileName(name){
   name=String(name||'').trim().replace(/[\\/\u0000-\u001f\u007f]/g,'_');
   if(!name || /^\.+$/.test(name))return defaultFileName();
@@ -1057,14 +1031,14 @@ $('selectAllBtn').onclick=()=>{
 };
 $('reselectAll').onclick=selectEntireText;
 $('fullText').addEventListener('beforeinput',e=>{
-  if((e.inputType==='historyUndo'||e.inputType==='historyRedo') && !fullTextComposing){e.preventDefault();(e.inputType==='historyUndo'?undo:redo)();return;}
+  if(e.inputType==='historyUndo' && !fullTextComposing){e.preventDefault();$('undoFullText').click();return;}
   if(!fullTextComposing)remember();
 });
 $('fullText').addEventListener('compositionstart',()=>{remember();fullTextComposing=true;});
 $('fullText').addEventListener('compositionend',()=>{fullTextComposing=false;syncFullText();});
 $('fullText').addEventListener('input',syncFullText);
 $('fullText').addEventListener('keydown',e=>{
-  if(!fullTextComposing)handleHistoryShortcut(e);
+  if(!fullTextComposing && (e.metaKey||e.ctrlKey) && e.key.toLowerCase()==='z' && !e.shiftKey){e.preventDefault();$('undoFullText').click();}
 });
 $('closeFullText').onclick=()=>{
   if(fullTextComposing)return;
@@ -1072,8 +1046,12 @@ $('closeFullText').onclick=()=>{
   renderPages(field.selectionStart,field.selectionEnd,true,true);
 };
 $('deleteFullText').onclick=()=>replaceFullSelection('');
-$('undoFullText').onclick=undo;
-$('redoFullText').onclick=redo;
+$('undoFullText').onclick=()=>{
+  if(fullTextComposing || !history.length)return;
+  const field=$('fullText'),pos=field.selectionStart;
+  field.value=history.pop();field.setSelectionRange(Math.min(pos,field.value.length),Math.min(pos,field.value.length));
+  syncFullText();field.focus({preventScroll:true});$('undoBtn').disabled=!history.length;
+};
 async function copyFullSelection(cut=false){
   if(fullTextComposing)return;
   const field=$('fullText'),start=field.selectionStart,end=field.selectionEnd,snapshot=field.value;
@@ -1253,7 +1231,7 @@ $('prepareAI').onclick=async()=>{
   $('prepareAI').disabled=true;$('aiStatus').textContent=privacyMode?'保存済みAIを読み込み中…':'AIを準備中…';
   try{
     webllm ||= await import(CDN);
-    const appConfig={...webllm.prebuiltAppConfig,cacheBackend:'cache'};
+    const appConfig=makeAIConfig(webllm.prebuiltAppConfig);
     aiEngine=await webllm.CreateMLCEngine(MODEL,{appConfig,initProgressCallback:p=>$('aiStatus').textContent=p.text||'AIを準備中…'});
     $('aiStatus').textContent=privacyMode?'AI誤字脱字修正 使用可能（秘匿モード）':'AI誤字脱字修正 使用可能';
     $('runAI').disabled=false;$('prepareAI').textContent='AI準備済み';

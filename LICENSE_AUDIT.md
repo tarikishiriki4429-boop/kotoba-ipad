@@ -9,7 +9,7 @@ CDN実体: https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@0.2.82/+esm
 ## 未解決
 - tokenizers-cppの固定ソースにCargo.lockがなく、Rust推移的依存の確定版一覧は取得できませんでした。onig・serde等の宣言から全バイナリの条件充足は断定できません。
 - モデル実行WASMの元ソースコミット・全ビルドオプション・SBOMが未確定です。binary-mlc-llm-libsの確認時ツリーは025bcaf3780fa8254f5e5efd3bfea0a5397248f4、対象パスはweb-llm-models/v0_2_80/Qwen2-1.5B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasmです。READMEだけでは内包部品を確定できません。
-- アプリのモデル/WASM参照は上流mainを使用しており、将来同じ内容が配信される保証はありません。販売版では検証済み配信物の固定と再照合が必要です。
+- build26まではモデル/WASMがmain参照でした。build27で固定コミット／リビジョンへの参照に変更しました。固定は全内部部品の義務履行を証明するものではありません。
 - QwenのMLC形式モデルについては、モデルカードが示す元モデルのApache 2.0を収録。変換配布物の追加告知の網羅は未確認です。
 
 WebLLM、tokenizers-cpp、SentencePieceの調査対象ルートNOTICEは404でした。存在を創作していません。MLC LLMのLICENSE/NOTICEは上流main時点の補足で、実行WASMとの同一性の証明ではありません。
@@ -20,3 +20,8 @@ WebLLM、tokenizers-cpp、SentencePieceの調査対象ルートNOTICEは404で�
 
 ## build26での継続確認
 公開ツリー内の対象モデルWASMはGit blob 049e31c6496bd22e7555f6f5f85057d8907b332d、5,383,844 bytesとして特定しました。これは対象ファイルの識別情報であり、全内部部品のSBOMやCargo.lockの代わりにはなりません。先の未解決事項は解消していません。上流への照会案は未送信です。
+
+## build27で進めた照合（2026-10-10）
+実行WASMを固定コミットから実際に取得してSHA256を記録しました。モデルはHugging Face APIでリビジョンを特定し、その版の設定と重み一覧を取得しました。AI_ARTIFACTS.json参照。WebLLM 0.2.82の実配布コードを読み、固定resolve URLを保持する処理と、元モデルのコンテキスト長等を維持できる設定構造を確認しました。重み本体の全ダウンロード・GPU実行はしていません。
+上流のMissing Cargo.lock報告: https://github.com/mlc-ai/tokenizers-cpp/issues/96 （確認時Open）。この報告は欠落問題の補足根拠であり、該当npmバイナリの確定部品一覧ではありません。公開ページで解決資料は取得できませんでした。
+参照の固定により、AI準備時に旧URLのキャッシュが再利用されず、再ダウンロードが必要になる場合があります。

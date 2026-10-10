@@ -1,0 +1,31 @@
+{
+  "date": "2026-10-10",
+  "webllm": "0.2.82",
+  "model_id": "Qwen2.5-1.5B-Instruct-q4f16_1-MLC",
+  "model_revision": "9bd564b064631febf14deadcac492efb761d60c3",
+  "model_base_url": "https://huggingface.co/mlc-ai/Qwen2.5-1.5B-Instruct-q4f16_1-MLC/resolve/9bd564b064631febf14deadcac492efb761d60c3/",
+  "model_wasm": {
+    "file": "model.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/025bcaf3780fa8254f5e5efd3bfea0a5397248f4/web-llm-models/v0_2_80/Qwen2-1.5B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "size": 5383844,
+    "sha256": "6cd9f132ad258d2017291bb62e955e337f8ae4af74650f4b1ea5a803a7cec538"
+  },
+  "configuration_files": [
+    {
+      "file": "mlc-chat-config.json",
+      "url": "https://huggingface.co/mlc-ai/Qwen2.5-1.5B-Instruct-q4f16_1-MLC/resolve/9bd564b064631febf14deadcac492efb761d60c3/mlc-chat-config.json",
+      "sha256": "7da4954212d3f21a91cc3e693d179f63213fd57356796847f65d7f95478a1f9e"
+    },
+    {
+      "file": "ndarray-cache.json",
+      "url": "https://huggingface.co/mlc-ai/Qwen2.5-1.5B-Instruct-q4f16_1-MLC/resolve/9bd564b064631febf14deadcac492efb761d60c3/ndarray-cache.json",
+      "sha256": "6d16a8936b1c9f372305064c4688eae17a609b62693f6782454d4fa2055c6e94"
+    },
+    {
+      "file": "README.md",
+      "url": "https://huggingface.co/mlc-ai/Qwen2.5-1.5B-Instruct-q4f16_1-MLC/resolve/9bd564b064631febf14deadcac492efb761d60c3/README.md",
+      "sha256": "8fab5556a1eaddc8425b104b7a595a81007cad87d37e25a026889e7c538efc70"
+    }
+  ],
+  "verification_scope": "WASM downloaded and hashed; model config and shard index fetched at pinned revision. Model weight shards and GPU inference not tested. SHA256 is audit evidence, not runtime integrity enforcement."
+}
