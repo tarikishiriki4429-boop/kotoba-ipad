@@ -1,7 +1,7 @@
 // AI library parsing, WASM initialization and generation stay off the UI thread.
 let engine=null,busy=false;
 self.onmessage=async({data})=>{
-  const {id,type,payload}=data||{};
+  const {id,type,payload}=data||{};let phase='準備';
   if(busy){self.postMessage({id,error:'AI処理中です。完了してから再実行してください。'});return;}
   busy=true;
   try{
@@ -13,6 +13,7 @@ self.onmessage=async({data})=>{
       const record=lib.prebuiltAppConfig.model_list.find(r=>r.model_id===payload.model);
       if(!record)throw new Error('AIモデル設定が見つかりません。');
       const appConfig={...lib.prebuiltAppConfig,cacheBackend:'cache',model_list:[{...record,
+        overrides:{...record.overrides,context_window_size:2048},
         model:'https://huggingface.co/mlc-ai/'+payload.model+'/resolve/'+payload.revision+'/',model_lib:payload.wasm
       }]};
       let last=0;
@@ -23,14 +24,16 @@ self.onmessage=async({data})=>{
     }else if(type==='complete'){
       if(!engine)throw new Error('AIを準備してください。');
       // Each proofreading segment is independent; do not retain earlier conversations.
+      phase='会話状態のリセット';
       await engine.resetChat();
+      phase='文章の解析・生成';
       result=await engine.chat.completions.create(payload);
     }else throw new Error('不明なAI操作です。');
     self.postMessage({id,result});
   }catch(e){
     // A generation failure can leave TVM scopes or GPU state unusable. Never reuse
     // that engine; the main thread terminates this worker and retains the job.
-    self.postMessage({id,error:e?.message||String(e),needsReload:type==='complete'});
+    self.postMessage({id,error:(e?.message||String(e))+'（処理段階: '+phase+'）',needsReload:type==='complete'});
   }
   finally{busy=false;}
 };

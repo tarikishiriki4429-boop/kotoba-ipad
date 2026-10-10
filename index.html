@@ -190,7 +190,7 @@ button:disabled{opacity:.45}
   <span id="pageInfo">40字 × 30行</span>
   <span id="pageCount">1ページ</span>
   <span id="documentName"></span>
-  <span class="build">Kotoba Writer build 29</span>
+  <span class="build">Kotoba Writer build 30</span>
 </div>
 
 <div id="fileNamePanel" class="panel">
@@ -260,7 +260,7 @@ button:disabled{opacity:.45}
 <div id="printArea"></div>
 
 <script type="module">
-const BUILD=29;
+const BUILD=30;
 const $=id=>document.getElementById(id);
 const STORAGE='kotoba-writer-draft-v1';
 const SETTINGS='kotoba-writer-settings-v1';
@@ -1339,6 +1339,7 @@ async function runProofreading(resume){
   const r=resume?aiJob.range:aiTarget();if(r.error){$('aiStatus').textContent=r.error;return}
   if(!r.text.trim()){$('aiStatus').textContent='確認する文章がありません';return}
   if(!resume)aiJob={range:r,snapshot:docText,polite:$('politeMode').checked,parts:proofreadingParts(r.text),outputs:[],blocked:0,reasons:{},depth:0,doneChars:0};
+  $('applyAI').textContent='候補を反映';
   aiRunning=true;$('resumeAI').disabled=true;$('politeMode').disabled=true;$('aiScope').disabled=true;
   aiCancelled=false;aiRange=r;aiSnapshot=docText;$('runAI').disabled=true;$('stopAI').disabled=false;$('applyAI').disabled=true;$('aiResult').textContent='精度優先で誤字・脱字を確認中…';
   const messages=[
@@ -1353,7 +1354,7 @@ async function runProofreading(resume){
       const beginsInDialogue=dialogueDepth>0;
       if(!parts[i].trim()){outputs.push(parts[i]);dialogueDepth=nextDialogueDepth(parts[i],dialogueDepth);job.depth=dialogueDepth;job.doneChars+=parts[i].length;continue;}
       messages[1]={role:'user',content:parts[i]};
-      const res=await aiEngine.chat.completions.create({messages,temperature:0,top_p:1,max_tokens:2048});
+      const res=await aiEngine.chat.completions.create({messages,temperature:0,top_p:1,max_tokens:1024});
       if(aiCancelled)break;
       const choice=res.choices?.[0],candidate=choice?.message?.content;
       if(choice?.finish_reason==='length')throw new Error('出力が途中で止まりました。続きから再開すると、この区間から再試行します。');
@@ -1368,6 +1369,7 @@ async function runProofreading(resume){
     // Keep indentation and trailing newlines; trim() would alter the manuscript.
     $('aiResult').textContent=out;
     $('applyAI').disabled=out===r.text;
+    $('applyAI').textContent=out===r.text?(blocked?'変更を保留':'変更なし'):'候補を反映';
     if(blocked){
       const detail=Object.entries(blockedReasons).map(([k,v])=>`${k}${v}件`).join('・');
       $('aiStatus').textContent=`怪しい変更を${blocked}区間で自動却下しました（${detail}）。`;
@@ -1375,8 +1377,10 @@ async function runProofreading(resume){
       $('aiStatus').textContent=out===r.text?'AIは修正候補を見つけませんでした':($('politeMode').checked?'誤字脱字＋地の文敬語化の候補です。会話文は保持されます。確認してから反映してください':'修正候補です。意図した表現や固有名詞が変わっていないか確認してから反映してください');
     }
     $('aiStatus').textContent=`${r.text.length.toLocaleString()}文字の確認完了（100％）。`+$('aiStatus').textContent;
+    if(out===r.text)$('aiStatus').textContent+=blocked?' 原文を守るため変更を保留したので、反映する候補はありません。':' 原文と候補が同じなので、反映操作は不要です。';
   }catch(e){
     const message=e?.message||String(e);
+    $('applyAI').textContent='推敲未完了';
     $('aiResult').textContent='生成エラー: '+message;
     if(e?.aiNeedsReload || /disposed|device.{0,20}lost|gpu.{0,20}lost/i.test(message) || !aiEngine){
       disposeAIWorker('AIの再準備が必要です。');
@@ -1392,7 +1396,7 @@ $('applyAI').onclick=()=>{
   if(docText!==aiSnapshot){$('aiStatus').textContent='生成後に本文が変わったため反映を中止しました';$('applyAI').disabled=true;return}
   const next=docText.slice(0,aiRange.start)+out+docText.slice(aiRange.end);
   setDoc(next,aiRange.start,aiRange.start+out.length,true,true);
-  $('applyAI').disabled=true;$('aiStatus').textContent='本文へ反映しました';aiRange=null;aiSnapshot=null;aiRequestedRange=null;
+  $('applyAI').disabled=true;$('applyAI').textContent='反映済み';$('aiStatus').textContent='本文へ反映しました';aiRange=null;aiSnapshot=null;aiRequestedRange=null;
 };
 
 /* 秘匿モード */

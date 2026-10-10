@@ -1,6 +1,6 @@
-const CACHE='kotoba-writer-shell-v29';
+const CACHE='kotoba-writer-shell-v30';
 const PRIVACY_FLAG='kotoba-writer-privacy-lock-v1';
-const SHELL=['./','./index.html','./manifest.webmanifest','./licenses.html','./ai-worker.js?v=29'];
+const SHELL=['./','./index.html','./manifest.webmanifest','./licenses.html','./ai-worker.js?v=30'];
 
 self.addEventListener('install',e=>{
   self.skipWaiting();
