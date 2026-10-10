@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Kotoba Writer build 37｜公開ライセンス一括検査</title>
+<style>
+:root{font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",sans-serif;color-scheme:light dark}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:#f4f5f6;color:#24262b}main{max-width:990px;margin:auto;padding:24px 14px 70px}.hero{background:#fff;border:1px solid #dddfe3;border-radius:16px;padding:24px}h1{font-size:clamp(1.35rem,4vw,2rem);margin:.4rem 0 1rem}h2{font-size:1.1rem;margin:0 0 12px}p{line-height:1.7}.muted{color:#656a75}.note{padding:12px 14px;background:#f8f9fa;border-left:3px solid #75808b;border-radius:8px}.actions{display:flex;gap:10px;flex-wrap:wrap;margin:16px 0 5px}button{font:inherit;cursor:pointer;border:1px solid #c8cdd3;background:#f8f9fa;color:#24262b;padding:12px 16px;border-radius:10px;font-weight:600}button.primary{background:#087f78;border-color:#087f78;color:white}button:disabled{cursor:wait;opacity:.6}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:15px 0}.metric{border:1px solid #e0e2e6;border-radius:10px;padding:13px}.metric strong{display:block;font-size:1.6rem;margin-top:6px}.metric span{font-size:.85rem;color:#61656d}.panel{background:#fff;border:1px solid #dddfe3;border-radius:16px;margin-top:16px;padding:20px}.entry{border-top:1px solid #e8eaed;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px;padding:11px 0}.name{font-family:ui-monospace,SFMono-Regular,monospace;overflow-wrap:anywhere;font-size:.84rem}.status{border-radius:99px;padding:5px 9px;background:#e9ebed;font-size:.8rem;font-weight:bold;white-space:nowrap}.ok{color:#166534;background:#dcfce7}.bad{color:#991b1b;background:#fee2e2}.wait{color:#555;background:#e9ebed}.small{font-size:.77rem;color:#626974;overflow-wrap:anywhere;margin-top:5px}a{color:#086f9e}#warn{color:#9b241c;font-weight:600}#report{white-space:pre-wrap;background:#f4f5f6;border-radius:10px;padding:10px;overflow-wrap:anywhere;font-size:.76rem;max-height:240px;overflow:auto}progress{width:100%;height:11px;accent-color:#087f78} @media(max-width:520px){.hero,.panel{padding:16px}.grid{gap:5px}.metric{padding:10px}.metric strong{font-size:1.3rem}}@media(prefers-color-scheme:dark){body{background:#18191b;color:#f0f1f3}.hero,.panel{background:#25272a;border-color:#41444a}.metric{border-color:#41444a}.muted,.metric span,.small{color:#b2b6bd}.note,#report{background:#303236}button{background:#393c41;color:#fff;border-color:#666}.entry{border-color:#41444a}.ok{background:#173d28;color:#bbf7d0}.bad{background:#52252a;color:#fecaca}.wait{background:#45464b;color:#eee}a{color:#93d6ff}}</style>
+</head><body><main>
+<section class="hero">
+ <div class="muted">Kotoba Writer / build 37 / 2026-10-10</div>
+ <h1>第三者ライセンス原文・公開リンク一括検査</h1>
+ <p>この画面が <b>clinquant-fudge-11ed4e.netlify.app</b> に置かれているとき、同じ公開サイトから各原文を取得し、保存済み原文の<strong>SHA-256と完全一致するか</strong>検査します。1件ずつ手動で開く必要はありません。</p>
+ <div class="note">検査対象はライセンス原文34件、関連資料2件、照合用JSON1件の計37件。原稿は読み取りません。検査実行時にはNetlifyへ37件程度の通信が発生します。<b>秘匿モードはOFF</b>にし、ネット接続して実行してください。プライベートブラウズを推奨します。</div>
+ <p id="warn"></p>
+ <div class="actions"><button id="start" class="primary">37件をまとめて検査</button><button id="copy" disabled>結果をコピー</button></div>
+ <progress id="progress" max="37" value="0"></progress>
+ <div class="grid"><div class="metric"><span>一致</span><strong id="pass">0</strong></div><div class="metric"><span>不一致・取得失敗</span><strong id="fail">0</strong></div><div class="metric"><span>未検査</span><strong id="todo">37</strong></div></div>
+ <p id="result" aria-live="polite" class="muted">開始ボタンを押すと、結果が表示されます。</p>
+</section>
+<section class="panel"><h2>検査対象の一覧</h2><div id="rows"></div></section>
+<section class="panel"><h2>レポート</h2><div id="report">まだ検査していません。</div><p class="muted">ここで合格しても、第三者バイナリ内部の依存ライブラリ全件やライセンス義務の完全な充足までは保証しません。ファイルの公開状態と内容の一致を検証するツールです。</p></section>
+</main>
+<script>
+'use strict';
+const items=[{"path":"licenses/Bundled-base64-js-MIT-LICENSE.txt","sha256":"5b37224c080cdcc97c871ada971c224e9926370fe74f11b539aa1cf9f3b1aca1","size":1081,"type":"license"},{"path":"licenses/Bundled-buffer-MIT-LICENSE.txt","sha256":"ed2e878b5cbcda860c7640ce99838e3d83d7cf5e8ad31fc57c11f313b685ae00","size":2306,"type":"license"},{"path":"licenses/Bundled-ieee754-BSD-LICENSE.txt","sha256":"18d45466ba3253deae04667e267a91ea8de8548f18c1125264d1c9db28194cc1","size":1465,"type":"license"},{"path":"licenses/Bundled-process-MIT-LICENSE.txt","sha256":"59a400d04c5078579acc27ddd6452c1bdf763f9506e01364700935fbb1a7c91b","size":1098,"type":"license"},{"path":"licenses/DLPack-LICENSE.txt","sha256":"3e8f6bc39276a586d60c8c5aaece2ff989262181cf2b3d2a128db58f97a9300c","size":11345,"type":"license"},{"path":"licenses/MLC-LLM-LICENSE.txt","sha256":"c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4","size":11357,"type":"license"},{"path":"licenses/MLC-LLM-NOTICE.txt","sha256":"3a7dfb37bb96ce6f5a1cc0d6d4c8da3b8a35e6ec4692647ba0a37f6155c7e694","size":57,"type":"license"},{"path":"licenses/Oniguruma-COPYING.txt","sha256":"70ba5469ea0bab6e18a32d7009068f996503168d27be57747e08da34337ff26f","size":1340,"type":"license"},{"path":"licenses/Qwen2.5-1.5B-Instruct-LICENSE.txt","sha256":"832dd9e00a68dd83b3c3fb9f5588dad7dcf337a0db50f7d9483f310cd292e92e","size":11343,"type":"license"},{"path":"licenses/Regex-Unicode-data-ATTRIBUTION.txt","sha256":"ff93edc17d418c152463e0cfc8627686e35dc132acc5a64dd13544e202bd0e57","size":336,"type":"license"},{"path":"licenses/Regex-Unicode-data-LICENSE-UNICODE.txt","sha256":"74db5baf44a41b1000312c673544b3374e4198af5605c7f9080a402cec42cfa3","size":2847,"type":"license"},{"path":"licenses/Rust-Onig-MIT-LICENSE.txt","sha256":"34bd71d4a35002ae55809d610a2b4e5fe9dfcc11ef96d9f6ab2140f65b5a47f1","size":1365,"type":"license"},{"path":"licenses/Rust-aho-corasick-MIT-source.txt","sha256":"a7aec2633c5e3d2957ccd0d18e53ffda5a30e958ced3c8792ef4cf90ec013e52","size":89,"type":"license"},{"path":"licenses/Rust-aho-corasick-MIT.txt","sha256":"0f96a83840e146e43c0ec96a22ec1f392e0680e6c1226e6f3ba87e0740af850f","size":1081,"type":"license"},{"path":"licenses/Rust-memchr-MIT-source.txt","sha256":"71e107580c2c076ec3980d4c3e2ed35c501fcd32db2d789bcef283c1b4b11a6a","size":83,"type":"license"},{"path":"licenses/Rust-memchr-MIT.txt","sha256":"0f96a83840e146e43c0ec96a22ec1f392e0680e6c1226e6f3ba87e0740af850f","size":1081,"type":"license"},{"path":"licenses/SentencePiece-LICENSE.txt","sha256":"cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30","size":11358,"type":"license"},{"path":"licenses/SentencePiece-darts_clone-LICENSE.txt","sha256":"155f59997298ee336602c49f9c1110f268ac394ca2197eb02647a3555935ad52","size":1481,"type":"license"},{"path":"licenses/SentencePiece-esaxx-LICENSE.txt","sha256":"7c28553d1d3312d65fe309f76a22ebaf33a3d76c8c1e3b98a88ee4654ecb53db","size":1112,"type":"license"},{"path":"licenses/SentencePiece-protobuf-lite-LICENSE.txt","sha256":"6e5e117324afd944dcf67f36cf329843bc1a92229a8cd9bb573d7a83130fea7d","size":1732,"type":"license"},{"path":"licenses/TVM-LICENSE.txt","sha256":"f58a0b778d1a658149b0486b347b2e4cc60a819e9c02998088971c11f41c9d9f","size":12437,"type":"license"},{"path":"licenses/TVM-NOTICE.txt","sha256":"967cd2fb97712c43271e2b1c4f636c4d8823898869f0f76f65bf8a3232584f0f","size":164,"type":"license"},{"path":"licenses/Tokenizers-Rust-LICENSE.txt","sha256":"c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4","size":11357,"type":"license"},{"path":"licenses/Tokenizers-cpp-LICENSE.txt","sha256":"c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4","size":11357,"type":"license"},{"path":"licenses/WebLLM-LICENSE.txt","sha256":"d412ab9d5ac17e6931705aac01e5a0d323da5acd2e89a2c19aa8fc05becc59ad","size":11737,"type":"license"},{"path":"licenses/WebLLM-bundled-copyright-notices.txt","sha256":"c5c5948c965c478a23f3b78d934e4a8caa3fe87e6c5305109aa00a326f4a7932","size":4920,"type":"license"},{"path":"licenses/XGrammar-LICENSE.txt","sha256":"c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4","size":11357,"type":"license"},{"path":"licenses/XGrammar-NOTICE.txt","sha256":"769c6907073c65801bfcfe3ce1c0e80bf0ae4e124e2769d4f026c038ad583c0f","size":54,"type":"license"},{"path":"licenses/loglevel-LICENSE-MIT.txt","sha256":"18e8cf5f0dbaf13d9562e93b9bef79aff2acff18fab698c2d589d2159375a1f9","size":1075,"type":"license"},{"path":"licenses/msgpack-c-COPYING.txt","sha256":"664550b43996452a5a2c7471bb0ff77185a58c69ccafa60f983dc4c162e1ee22","size":200,"type":"license"},{"path":"licenses/msgpack-c-LICENSE_1_0.txt","sha256":"c9bff75738922193e67fa726fa225535870d2aa1059f91452c411736284ad566","size":1338,"type":"license"},{"path":"licenses/msgpack-c-NOTICE.txt","sha256":"10514de451bfef1eee4885ce1da8d0e3fdfe36f58357d9199ed0201cdae0334e","size":419,"type":"license"},{"path":"licenses/picojson-LICENSE.txt","sha256":"52a7da16781b4b899382c9ddfcf059235cdee73e2f45cfd7402c2ae9a2e9d28d","size":1414,"type":"license"},{"path":"licenses/tslib-LICENSE.txt","sha256":"210b19e543130388c68654b7497e967119ce17145f66ab7d85688fbd70f08751","size":655,"type":"license"},{"path":"THIRD_PARTY_NOTICES.txt","sha256":"ec66d4670ddbc08d3f51b8079973f297a2f2936faf686834d5945a24017796a3","size":7132,"type":"support"},{"path":"LICENSE_AUDIT.md","sha256":"c68582cf2e542818f654ea1c140c1b966cd89cb528c62842daa9858c458d6c26","size":12025,"type":"support"},{"path":"licenses/package-evidence.json","sha256":"13b678627deae508823759ec2b8db2956bf3f73f695a78dc793a77aa20845da5","size":7640,"type":"support"}];
+const targetOrigin='https://clinquant-fudge-11ed4e.netlify.app';
+const $=id=>document.getElementById(id);
+const state=items.map(i=>({path:i.path,status:'未検査',message:'',expected:i.sha256,actual:''}));
+const mk=(tag,cls,content)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(content)e.textContent=content;return e};
+for(let i=0;i<items.length;i++){
+ const e=mk('div','entry'),left=mk('div'),name=mk('div','name',items[i].path),msg=mk('div','small','SHA-256: '+items[i].sha256),right=mk('span','status wait','未検査');
+ right.id='status-'+i;msg.id='detail-'+i;left.append(name,msg);e.append(left,right);$('rows').append(e);
+}
+const inRightOrigin=location.origin===targetOrigin;
+if(!inRightOrigin){$('start').disabled=true;$('warn').textContent='この検査画面はNetlify公開サイト上で開いてください。現在の場所: '+location.origin+' ／期待する場所: '+targetOrigin;}
+let latestReport='';
+function refresh(){const good=state.filter(s=>s.status==='一致').length,bad=state.filter(s=>s.status==='不一致'||s.status==='取得失敗').length,complete=state.filter(s=>s.status!=='未検査'&&s.status!=='検査中').length;
+ $('pass').textContent=good;$('fail').textContent=bad;$('todo').textContent=items.length-complete;$('progress').value=complete;
+ $('result').textContent=complete===items.length?(bad?'問題が見つかりました。以下を確認してください。':'全37件の公開内容が保存済み原本と一致しました。'):'検査済み '+complete+' / '+items.length+' 件';
+}
+async function checkOne(i,nonce){const item=items[i],row=state[i],badge=$('status-'+i),detail=$('detail-'+i);
+ row.status='検査中';badge.textContent='検査中';
+ try{const u=new URL(item.path,location.href);u.searchParams.set('_audit',nonce+'-'+i);
+ const r=await fetch(u.href,{cache:'no-store',credentials:'omit',redirect:'follow'});
+ if(!r.ok)throw new Error('HTTP '+r.status);
+ const b=await r.arrayBuffer();const digest=await crypto.subtle.digest('SHA-256',b);const hex=Array.from(new Uint8Array(digest),n=>n.toString(16).padStart(2,'0')).join('');
+ row.actual=hex;
+ if(hex===item.sha256){row.status='一致';row.message='HTTP '+r.status+' / '+b.byteLength+' bytes / SHA-256一致'}
+ else{row.status='不一致';row.message='HTTP '+r.status+' / '+b.byteLength+' bytes / SHA-256不一致（内容の差異、HTML置換、キャッシュ等の可能性）'}
+ }catch(e){row.status='取得失敗';row.message=(e&&e.message)||String(e)}
+ badge.textContent=row.status;badge.className='status '+(row.status==='一致'?'ok':'bad');detail.textContent=row.message;
+ refresh();
+}
+$('start').addEventListener('click',async()=>{
+ if(!inRightOrigin)return;
+ $('start').disabled=true;$('copy').disabled=true;
+ state.forEach((r,i)=>{r.status='未検査';r.message='';r.actual='';$('status-'+i).textContent='未検査';$('status-'+i).className='status wait';$('detail-'+i).textContent='SHA-256: '+r.expected});
+ refresh();const nonce=String(Date.now());
+ for(let i=0;i<items.length;i+=4)await Promise.all(items.slice(i,i+4).map((_,j)=>checkOne(i+j,nonce)));
+ const ok=state.filter(s=>s.status==='一致').length,fail=state.filter(s=>s.status!=='一致').length;
+ latestReport=[
+ 'Kotoba Writer build37 Netlify公開ライセンス検査',
+ '検査日時: '+new Date().toLocaleString('ja-JP'),
+ '公開元: '+location.origin,
+ '合計: '+items.length+' / 一致: '+ok+' / 不一致・失敗: '+fail,
+ '判定: '+(fail===0?'公開ファイル37件は保存済み原本と完全一致':'不一致または取得失敗あり'),
+ '',
+ ...state.map(s=>s.status+' | '+s.path+(s.status==='一致'?'':' | '+s.message+' | expected='+s.expected+' | actual='+s.actual)),
+ '',
+ '注意: ライセンス法令適合・WASM依存全件・変換モデルの追加条件は別途監査が必要。'
+ ].join('\n');
+ $('report').textContent=latestReport;$('start').disabled=false;$('copy').disabled=false;
+});
+$('copy').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(latestReport);$('copy').textContent='コピーしました'}catch{const t=mk('textarea');t.value=latestReport;document.body.append(t);t.select();document.execCommand('copy');t.remove();$('copy').textContent='コピーしました'}});
+</script></body></html>
