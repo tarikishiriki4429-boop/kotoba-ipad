@@ -74,7 +74,7 @@ tokenizers-cppの固定コミットのCMakeLists.txtでmsgpackサブモジュー
 
 
 SentencePiece上流ソースに含まれる追加の第三者部品（固定コミット f2219b53e24ff5deee4cacdc2d0ca3074e529a07）
-- Abseil: Apache License 2.0。標準ライセンス全文は licenses/SentencePiece-LICENSE.txt に収録。上流 third_party/absl/LICENSE を参照。
+- Abseil: Apache License 2.0。固定版の正確な原文: licenses/Abseil-LICENSE.txt（third_party/absl/LICENSE）。
 - darts_clone: BSD系3条項（著作権表記あり）。licenses/SentencePiece-darts_clone-LICENSE.txt
 - esaxx: MIT系（著作権表記あり）。licenses/SentencePiece-esaxx-LICENSE.txt
 - protobuf-lite: BSD系3条項（著作権表記あり）。licenses/SentencePiece-protobuf-lite-LICENSE.txt
@@ -115,3 +115,11 @@ Tokenizer WASMから検出された23種類のRustクレートの名称・バー
 - base64-js: licenses/Bundled-base64-js-MIT-LICENSE.txt
 - ieee754: licenses/Bundled-ieee754-BSD-LICENSE.txt
 - 詳細: JS_BUNDLE_POLYFILL_AUDIT_v7.md
+
+【2026-10-11追補】
+Rust-Onig(onig 6.4.0)のMIT原文は公式v6.4.0 tagのLICENSE.md全文と一致する版へ更新。OnigurumaのCOPYINGは公式リポジトリの公開原文と一致するが、静的リンク対象の厳密な上流コミットは別途追跡中。
+
+
+TVM-FFI（A03調査中：表示義務を最終確定する前の調査記録）
+GPU用WASMを生成した固定TVMソースの `web/emcc/wasm_runtime.cc` はTVM-FFIのC++ソースを直接includeし、解析したWASMにもTVMFFI関数が存在する。TVM-FFIの公式プロジェクトはApache-2.0で、上流NOTICEも公開されている。固定TVMに紐づく正確なTVM-FFI gitlinkコミットとライセンス原文の対応、必要なNOTICEの公開方法は引き続き確認する。暫定的な上流mainのNOTICEを当時の厳密な出荷版原文と称しない。
+関連資料: LICENSE_AUDIT.md およびA03 GPU-WASM監査報告書（配布準備資料）。

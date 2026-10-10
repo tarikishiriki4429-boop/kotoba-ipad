@@ -1,3 +1,17 @@
+# 2026-10-11 補足：A16実機合格・A03実物解析・A17原文更新候補
+
+この冒頭は2026-10-11現在の監査結果です。以降の旧監査履歴の「未確定」「未実施」は記録当時の状態を示すため、解決済みの箇所はこの冒頭の最新判定を優先します。ここに掲載された情報はライセンス全項目の法的適合を保証するものではありません。
+
+- **A16（対象版の公開配信確認）：完了。** ユーザーが2026-10-11 06:10:58（JST）にNetlify `https://clinquant-fudge-11ed4e.netlify.app` で37ファイルのブラウザ一括検査を実行し、37件一致／不一致・失敗0件という結果を受領。これは当時の公開ファイルが検査ツール登録値と一致した証拠であり、後に追加するファイルの確認や、ライセンス義務全般の充足証明ではない。
+- **A02：元ソース特定は完了。** MLC公式 [binary-mlc-llm-libs PR #158](https://github.com/mlc-ai/binary-mlc-llm-libs/pull/158) の対象WASMとアプリ固定参照版はGit blob `049e31c6496bd22e7555f6f5f85057d8907b332d` で一致。PRに記載されたコンパイル元はMLC-LLM `4084e7fe7532fb932810d8b707f2d760eefd0dea`、TVM `c8515e1ddfaf4d1afff916c484e68e1513631dd6`。すべてのリンク部品・フラグを証明するものではない（A03で継続）。
+- **A03：一部確認済み、監査継続。** 実GPU用WASM 5,383,844バイト、SHA-256 `6cd9f132ad258d2017291bb62e955e337f8ae4af74650f4b1ea5a803a7cec538` は固定参照の記録と一致。TVM-FFIの関数・参照パス、DMLC-Core、DLPack、picojson等の痕跡を解析。固定TVMの `web/emcc/wasm_runtime.cc` に `#define TVM_FFI_USE_LIBBACKTRACE 0` があるため、そのコンパイル経路ではlibbacktraceを無効にしていると判断。TVM-FFI / DMLC-Coreの正確なgitlinkリビジョン、必要NOTICE・Cランタイム由来の追加部品は引き続き照合。
+- **A17：指定版原文は取得済み、公開反映確認待ち。** `onig` 6.4.0 の `rust-onig/rust-onig` タグ `v6.4.0` の `LICENSE.md` に一致する `licenses/Rust-Onig-MIT-LICENSE.txt` と、SentencePiece固定コミット内Abseil `third_party/absl/LICENSE` に一致する `licenses/Abseil-LICENSE.txt` を追加候補として準備した。`Oniguruma-COPYING.txt` は公式公開原文とのGit blob一致を確認、変更不要。更新ファイルをGitHubへ追加した事実は公開配信で別途確認する。
+- **A18：この節で監査結果を追記。** 公開版に反映されたかはGitHub commitおよびNetlify表示で別に確認する。現行build37、Service Workerキャッシュ世代v38、AI worker v37に変更なし。
+
+**ライセンス追加・修正公開後にはA16の旧37件検査をそのまま再利用せず、更新したファイル・新しいリンクを含めて再照合する。**
+
+---
+
 # 無料公開版・ライセンス状況（2026-10-10）
 
 アプリ本体は無料で公開する方針に変更。元モデルQwen2.5-1.5B-InstructのApache-2.0、WebLLM、実行基盤・トークナイザーの一部ライセンス文とNOTICEを過去の監査により収録済みです。
