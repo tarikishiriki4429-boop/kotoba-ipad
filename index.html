@@ -73,25 +73,35 @@ button:disabled{opacity:.45}
 .editor-line > br{display:none}
 .hanging-char{position:relative;z-index:2;overflow:visible}
 .hanging-char::selection{background:Highlight;color:HighlightText}
-/* Keep the browser's live IME range intact, but allow its growing text to wrap.
-   Commit restores the explicit cell layout and hanging punctuation. */
-.page-editor.is-composing{white-space:pre-wrap;word-break:break-all;line-break:anywhere}
-.page-editor.is-composing .editor-line{display:inline;white-space:pre-wrap}
-.page-editor.is-composing .editor-char{display:inline;white-space:pre-wrap;inline-size:auto}
-.page-editor.is-composing .editor-line > br{display:initial}
-/* iPadOS repeat and IME input must use an unwrapped native text node.
-   Never let WebKit type directly into fixed-width .editor-char spans: a single
-   character span can receive many characters, visibly overflowing the sheet.
-   When blurred, return to 40x30 fixed cells for manuscript preview. */
-.page-editor.live-editor{white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-all;line-break:anywhere;overflow:hidden}
-.page-editor.live-editor .editor-line,.page-editor.live-editor .editor-char{display:initial;white-space:inherit;inline-size:auto}
-/* Hide native WebKit IME decorations too; keep its input DOM intact. */
-.page-editor.is-composing{opacity:0;color:transparent;caret-color:transparent;-webkit-text-fill-color:transparent}
-.page-editor.is-composing *{text-decoration-color:transparent!important}
-.composition-preview{position:absolute;pointer-events:none!important;user-select:none!important;-webkit-user-select:none!important;background-image:none!important}
-.composition-preview *{pointer-events:none!important;user-select:none!important;-webkit-user-select:none!important}
-.ime-preedit{text-decoration:underline;text-decoration-color:#007aff;text-decoration-thickness:1px;text-underline-offset:.18em;text-decoration-skip-ink:none}
-.ime-preview-caret{position:absolute;background:#111;pointer-events:none}
+/* Build34: Keep IME composition inside a real native textarea.  A
+   contenteditable containing one-cell spans makes WebKit introduce transient
+   DIV/BR nodes and moves the preedit line.  It must never own our manuscript. */
+.page{isolation:isolate}
+.page-editor{
+  position:relative;z-index:2;appearance:none;-webkit-appearance:none;
+  display:block;border:0!important;outline:0!important;box-shadow:none!important;
+  margin:0!important;padding:0!important;text-indent:0!important;
+  border-radius:0!important;background:transparent!important;
+  overflow:hidden;overflow-wrap:anywhere;word-break:break-all;
+  white-space:pre-wrap;resize:none;tab-size:1;
+  opacity:0;caret-color:#111;
+}
+.page.editing .page-editor{opacity:1;overflow:auto}
+.page-preview{position:absolute;z-index:1;pointer-events:none;left:58px;top:56px;
+  margin:0;padding:0;border:0;overflow:visible;
+  font-size:var(--font-size);line-height:var(--line-height);
+  font-family:"Hiragino Mincho ProN","Yu Mincho","YuMincho",serif;
+  font-kerning:none;font-variant-east-asian:full-width;
+  width:calc(var(--chars) * 1em);
+  height:calc(var(--lines) * var(--font-size) * var(--line-height));
+}
+.page.vertical .page-preview{
+  writing-mode:vertical-rl;text-orientation:mixed;
+  width:calc(var(--lines) * var(--font-size) * var(--line-height));
+  height:calc(var(--chars) * 1em);
+}
+.page.editing .page-preview{visibility:hidden}
+@media(max-width:700px){.page-preview{left:24px;top:38px}}
 .page.manuscript:not(.vertical) .page-editor{
   background-image:
     linear-gradient(to right,rgba(0,0,0,.065) 1px,transparent 1px),
@@ -154,6 +164,7 @@ button:disabled{opacity:.45}
   <div class="spacer"></div>
   <button id="findBtn">検索・置換</button>
   <button id="formatBtn">体裁を整える</button>
+  <button id="trimLeadingBtn" title="原稿先頭に残った空行だけを確認のうえ削除します">先頭空行を削除</button>
   <button id="selectAllBtn">全文を選択</button>
   <button id="aiBtn">AI誤字脱字修正</button>
   <button id="licensesBtn">利用条件・ライセンス</button>
@@ -178,7 +189,7 @@ button:disabled{opacity:.45}
   <label><span id="linesLabel">行数</span><input id="lineCount" type="number" min="10" max="50" value="30"></label>
   <label><input id="manuscript" type="checkbox"> マス目</label>
   <label><input id="indent" type="checkbox" checked> 段落頭を一字下げ</label>
-  <label title="同じ仮名を3文字以上連続入力した部分に紛れた半角空白だけを補正します。普通の文章の空白は残します。"><input id="repeatSpaceGuard" type="checkbox" checked> 連続かなの誤空白を補正</label>
+  
   <div class="presetbar">
     <span style="font-size:12px;color:#666">プリセット</span>
     <button data-preset="40,30">40×30</button>
@@ -198,7 +209,7 @@ button:disabled{opacity:.45}
   <span id="pageCount">1ページ</span>
   <span id="textIntegrity" title="入力した本文に含まれる明示改行と半角スペースの数（テスト版の診断表示）">改行0 / 半角空白0</span>
   <span id="documentName"></span>
-  <span class="build">Kotoba Writer build 33</span>
+  <span class="build">Kotoba Writer build 34</span>
 </div>
 
 <div id="fileNamePanel" class="panel">
@@ -268,7 +279,7 @@ button:disabled{opacity:.45}
 <div id="printArea"></div>
 
 <script type="module">
-const BUILD=33;
+const BUILD=34;
 const $=id=>document.getElementById(id);
 const STORAGE='kotoba-writer-draft-v1';
 const SETTINGS='kotoba-writer-settings-v1';
@@ -362,8 +373,7 @@ function scheduleReveal(){
     // Native collapsed ranges can have no rect (especially during WebKit
     // layout). Never substitute the entire editor/line's bounding box: its
     // bottom would scroll the viewport to the end of the manuscript.
-    let m=ta._compositionPreview?.querySelector('.ime-preview-caret')?.getBoundingClientRect();
-    if(!m)m=editorCaretRect(ta);
+    const m=editorCaretRect(ta);
     if(!m)return;
     const style=getComputedStyle(ta),view=workspace.getBoundingClientRect();
     const left=m.left,top=m.top;
@@ -375,23 +385,12 @@ function scheduleReveal(){
 }
 function editorCaretRect(ta){
   const c=chunks[+ta.dataset.index];if(!c)return null;
-  const map=editableMap(ta),pos=Math.max(0,Math.min(globalCaret-c.start,map.text.length));
-  let point=map.texts.find(t=>pos===t.start || (pos>t.start && pos<t.end));
-  if(!point)point=map.texts.find(t=>pos===t.end);
-  if(!point)return null;
-  const offset=point.rawOffset(pos-point.start),range=document.createRange();
-  range.setStart(point.node,offset);range.collapse(true);
-  let rect=range.getClientRects()[0];
-  if(rect && (rect.width||rect.height))return rect;
-  // Measure just the adjacent grapheme when an empty caret range has no box.
-  const data=point.node.data,segments=units(data);
-  const next=segments.find(u=>u.index>=offset),previous=segments.filter(u=>u.index<offset).at(-1);
-  const unit=next||previous;if(!unit)return null;
-  range.setStart(point.node,unit.index);range.setEnd(point.node,unit.index+unit.segment.length);
-  rect=range.getClientRects()[0];if(!rect)return null;
-  const vertical=getSettings().writingMode==='vertical',atEnd=!next;
-  return {left:vertical?rect.left:(atEnd?rect.right:rect.left),top:vertical?(atEnd?rect.bottom:rect.top):rect.top,
-    width:vertical?rect.width:2,height:vertical?2:rect.height};
+  const pos=Math.max(0,Math.min(ta.selectionStart,ta.value.length));
+  const rc=ta.getBoundingClientRect(),lc=lineCol(ta.value,pos);
+  const css=getComputedStyle(ta),fs=parseFloat(css.fontSize)||18,lh=parseFloat(css.lineHeight)||fs*1.9;
+  const vertical=getSettings().writingMode==='vertical';
+  if(vertical)return{left:rc.right-(lc.row-1)*lh-lh,top:rc.top+(lc.col-1)*fs,width:fs,height:2};
+  return {left:rc.left+(lc.col-1)*fs,top:rc.top+(lc.row-1)*lh,width:2,height:fs};
 }
 let searchPos=0,currentMatch=null,lastSearchQuery='';
 let aiEngine=null,aiRange=null,aiSnapshot=null;
@@ -421,7 +420,6 @@ function getSettings(){
     lineCount:clamp($('lineCount').value,10,50,30),
     manuscript:$('manuscript').checked,
     indent:$('indent').checked,
-    repeatSpaceGuard:$('repeatSpaceGuard').checked,
     politeMode:$('politeMode').checked
   };
 }
@@ -436,7 +434,6 @@ function loadSettings(){
     if(s.lineCount)$('lineCount').value=s.lineCount;
     $('manuscript').checked=!!s.manuscript;
     $('indent').checked=s.indent!==false;
-    $('repeatSpaceGuard').checked=s.repeatSpaceGuard!==false;
     $('politeMode').checked=!!s.politeMode;
   }catch{}
 }
@@ -583,404 +580,120 @@ function writeEditorText(el,value){
   emptyCaret();
   el.replaceChildren(fragment);
 }
-// Both writing modes use DOM selection so hanging punctuation remains real, selectable text.
-function editableMap(root){
-  let text='';const bounds=new Map();const texts=[];
-  function walk(node){
-    if(node.nodeType===Node.TEXT_NODE){
-      const start=text.length;
-      // WebKit may put IME text before OR after the empty-line sentinel, and
-      // may split its node. Exclude only sentinels in their marked subtree.
-      const marker=!!node.parentElement?.closest('[data-caret-end]');
-      let value='';const rawToText=[0],textToRaw=[0];
-      for(let i=0;i<node.data.length;i++){
-        if(!(marker && node.data[i]==='\u200b'))value+=node.data[i];
-        rawToText.push(value.length);textToRaw[value.length]=i+1;
-      }
-      text+=value;bounds.set(node,{start,rawToText});
-      texts.push({node,start,end:text.length,rawOffset:offset=>textToRaw[Math.min(offset,value.length)]});return;
-    }
-    if(node.nodeType!==Node.ELEMENT_NODE)return;
-    if(node.tagName==='BR'){bounds.set(node,{start:text.length,children:[text.length]});text+='\n';return;}
-    // iPadOS may insert DIV/P wrapper nodes while composing or repeating a key.
-    // They are not manuscript newlines. Only explicit BR nodes and true text
-    // newlines count as source newlines (Enter is intercepted separately).
-    const entry={start:text.length,children:[text.length]};bounds.set(node,entry);
-    for(const child of node.childNodes){walk(child);entry.children.push(text.length);}
-    // No inferred newline at element boundaries: prevents phantom blank pages.
-  }
-  walk(root);
-  return {text,texts,offset(node,index){
-    const b=bounds.get(node);if(!b)return null;
-    return node.nodeType===Node.TEXT_NODE?b.start+b.rawToText[Math.min(index,b.rawToText.length-1)]:b.children[Math.min(index,b.children.length-1)];
-  }};
-}
-// Toggle between a stable, native IME text node and the read-only-looking
-// fixed-width character cells. Only the text-node view receives keyboard input.
-function enterLiveEditor(el){
-  if(el.dataset.live==='1')return;
-  const start=el.selectionStart,end=el.selectionEnd;
-  const value=el.value;
-  el.dataset.live='1';el.classList.add('live-editor');
-  el.replaceChildren(document.createTextNode(value));
-  el.setSelectionRange(start,end);
-}
-function leaveLiveEditor(el){
-  if(el.dataset.live!=='1' || isComposing)return;
-  const value=el.value;
-  el.dataset.live='0';el.classList.remove('live-editor');
-  writeEditorText(el,value);
-}
+// A real textarea is used for typing. A separate page-preview shows the
+// strict grid when inactive; changing CSS while Japanese IME is active cannot
+// create invisible newlines in the source text.
 function createEditor(vertical){
-  const el=document.createElement('div');
-  el.className='page-editor';el.spellcheck=false;
-  el.setAttribute('aria-label',vertical?'縦書き本文':'横書き本文');
-  el.setAttribute('contenteditable','plaintext-only');el.setAttribute('role','textbox');
-  el.setAttribute('autocorrect','off');el.setAttribute('autocapitalize','off');
-  el.setAttribute('autocomplete','off');
-  el.setAttribute('aria-multiline','true');el.tabIndex=0;
-  let lastStart=0,lastEnd=0;
-  function selection(){
-    const sel=window.getSelection(),map=editableMap(el);
-    if(sel?.rangeCount && el.contains(sel.anchorNode) && el.contains(sel.focusNode)){
-      const a=map.offset(sel.anchorNode,sel.anchorOffset),b=map.offset(sel.focusNode,sel.focusOffset);
-      if(a!==null && b!==null){lastStart=Math.min(a,b);lastEnd=Math.max(a,b);}
-    }
-    return [Math.min(lastStart,map.text.length),Math.min(lastEnd,map.text.length)];
-  }
-  Object.defineProperties(el,{
-    value:{get:()=>editableMap(el).text,set:value=>{
-      if(el.dataset.live==='1')el.replaceChildren(document.createTextNode(String(value)));
-      else writeEditorText(el,value);
-      // A value write invalidates the browser's live selection.
-      lastStart=lastEnd=-1;
-    }},
-    selectionStart:{get:()=>selection()[0]},selectionEnd:{get:()=>selection()[1]}
-  });
-  el.setSelectionRange=(start,end)=>{
-    const map=editableMap(el),len=map.text.length;
-    start=Math.max(0,Math.min(start,len));end=Math.max(start,Math.min(end,len));
-    const point=(offset,preferPrevious=false)=>{
-      if(preferPrevious)for(const t of map.texts)if(offset>t.start && offset<=t.end)return [t.node,t.rawOffset(offset-t.start)];
-      for(const t of map.texts)if(offset===t.start || (offset>t.start && offset<t.end))return [t.node,t.rawOffset(offset-t.start)];
-      // A source newline has no text node: its preceding caret lives at the end of the prior text.
-      for(const t of map.texts)if(offset===t.end)return [t.node,t.rawOffset(t.end-t.start)];
-      const tail=map.texts.at(-1);
-      if(offset===len && tail)return [tail.node,tail.rawOffset(tail.end-tail.start)];
-      return [el,el.childNodes.length];
-    };
-    const range=document.createRange();range.setStart(...point(start));range.setEnd(...point(end,end>start));
-    const sel=window.getSelection();sel.removeAllRanges();sel.addRange(range);
-    lastStart=start;lastEnd=end;
-  };
-  for(const type of ['copy','cut'])el.addEventListener(type,event=>{
-    if(!event.clipboardData || isComposing)return;
-    const start=el.selectionStart,end=el.selectionEnd;
-    if(end<=start)return;
-    event.preventDefault();event.clipboardData.setData('text/plain',el.value.slice(start,end));
-    if(type==='cut')replaceSelection(el,'');
-  });
-  el.addEventListener('paste',event=>{
-    if(isComposing || !event.clipboardData)return;
-    event.preventDefault();
-    replaceSelection(el,event.clipboardData.getData('text/plain').replace(/\r\n?/g,'\n'));
-  });
-  el.value='';
-  return el;
+  const ta=document.createElement('textarea');
+  ta.className='page-editor';ta.spellcheck=false;
+  ta.setAttribute('aria-label',vertical?'縦書き本文':'横書き本文');
+  ta.setAttribute('autocorrect','off');ta.setAttribute('autocapitalize','off');
+  ta.setAttribute('autocomplete','off');ta.setAttribute('wrap','soft');
+  return ta;
 }
-function replaceSelection(el,text){
-  const c=chunks[+el.dataset.index];if(!c)return;
-  const start=c.start+Math.max(0,el.selectionStart),end=c.start+Math.max(0,el.selectionEnd);
+function replaceSelection(ta,text){
+  const c=chunks[+ta.dataset.index];if(!c)return;
+  const start=c.start+ta.selectionStart,end=c.start+ta.selectionEnd;
   remember();docText=docText.slice(0,start)+text+docText.slice(end);
   save();renderPages(start+text.length,start+text.length,true,true);
 }
-document.addEventListener('selectionchange',()=>{
-  const el=document.activeElement;
-  if(!rendering && !isComposing && !layoutIdleTimer && el?.classList.contains('page-editor')){
-    syncCaret(el);
-    if(chunks.length>1 && el.value.length>0 && el.selectionStart===0 && el.selectionEnd===el.value.length){
-      $('selectAllBtn').click();
-    }
-  }
-});
-function bindEditor(ta){
-  if(ta.dataset.bound)return;
-  ta.dataset.bound='1';
-
-  ta.addEventListener('focus',()=>{
-    if(!isComposing){enterLiveEditor(ta);syncCaret(ta);}
-  });
-  ta.addEventListener('pointerdown',event=>{
-    ta._commitCaret=null;ta._beforeComposition=null;
-    if(ta.dataset.live==='1'||isComposing)return;
-    // The printed page uses many atomic inline blocks. Determine the tap
-    // position BEFORE swapping them for the native text node; otherwise
-    // WebKit positions the caret at the start instead of at the tapped word.
-    const map=editableMap(ta),cell=event.target.closest?.('.editor-char');
-    let offset=null;
-    if(cell && ta.contains(cell)){
-      const piece=map.texts.find(t=>cell.contains(t.node));
-      if(piece){
-        const rect=cell.getBoundingClientRect(),vertical=getSettings().writingMode==='vertical';
-        const past=vertical?(event.clientY>rect.top+rect.height/2):(event.clientX>rect.left+rect.width/2);
-        offset=past?piece.end:piece.start;
-      }
-    }
-    if(offset===null){
-      const range=document.caretRangeFromPoint?.(event.clientX,event.clientY);
-      if(range && ta.contains(range.startContainer))offset=map.offset(range.startContainer,range.startOffset);
-    }
-    if(offset===null){
-      const line=event.target.closest?.('.editor-line');
-      offset=line?map.offset(line,line.childNodes.length):ta.selectionEnd;
-    }
-    enterLiveEditor(ta);
-    event.preventDefault();
-    ta.focus({preventScroll:true});
-    ta.setSelectionRange(offset??0,offset??0);
-    syncCaret(ta);
-  });
-  ta.addEventListener('compositionstart',()=>{
-    ta._commitCaret=null;captureInputScroll();compositionScroll={...inputScroll};
-    const c=chunks[+ta.dataset.index];
-    // Some IMEs have already inserted preedit text when compositionstart fires.
-    // Use the committed manuscript as the baseline, never the provisional DOM.
-    const changed=ta.value!==c.text;
-    if(changed){
-      // A tap and native preedit can precede selectionchange. Locate the actual
-      // replacement in the committed text instead of trusting a stale caret.
-      const before=c.text,after=ta.value,hint=ta._beforeComposition;
-      if(hint && hint.text===before && after.startsWith(before.slice(0,hint.start)) && after.endsWith(before.slice(hint.end))){
-        ta._compositionStart=hint.start;ta._compositionEnd=hint.end;
-      }else{
-        let start=0,end=before.length,tail=after.length;
-        while(start<end && start<tail && before[start]===after[start])start++;
-        while(end>start && tail>start && before[end-1]===after[tail-1]){end--;tail--;}
-        ta._compositionStart=start;ta._compositionEnd=end;
-      }
-    }else{ta._compositionStart=ta.selectionStart;ta._compositionEnd=ta.selectionEnd;}
-    ta._beforeComposition=null;
-    ta._compositionOriginal=c.text;ta._compositionData='';
-    isComposing=true;remember();ta.classList.add('is-composing');paintComposition(ta);
-  });
-  ta.addEventListener('compositionupdate',e=>{ta._compositionData=e.data||''});
-  ta.addEventListener('compositionend',()=>{
-    if(ta._previewFrame){cancelAnimationFrame(ta._previewFrame);ta._previewFrame=0;}
-    inputScroll=compositionScroll || inputScroll;compositionScroll=null;
-    isComposing=false;ta.classList.remove('is-composing');
-    ta._compositionPreview?.remove();ta._compositionPreview=null;
-    // WebKit can relocate its native selection while the IME layout changes.
-    // Restore the insertion endpoint from the original replacement range.
-    const inserted=ta.value.length-(ta._compositionOriginal.length-(ta._compositionEnd-ta._compositionStart));
-    ta.setSelectionRange(ta._compositionStart+Math.max(0,inserted),ta._compositionStart+Math.max(0,inserted));
-    // Keep native IME selection alive across immediate follow-up input.
-    // A full cell rebuild here can swallow Japanese key auto-repeat events.
-    syncFromPage(ta,true,true);
-    const active=document.activeElement;
-    if(active===ta)active._commitCaret={position:globalCaret,text:docText};
-  });
-  for(const type of ['focus','click','select','keyup'])ta.addEventListener(type,()=>{if(!rendering && !isComposing && document.activeElement===ta)syncCaret(ta)});
-  ta.addEventListener('beforeinput',e=>{
-    if(e.inputType==='selectAll'){e.preventDefault();$('selectAllBtn').click();return;}
-    if(!isComposing && e.isComposing && ta.value===chunks[+ta.dataset.index]?.text){
-      ta._beforeComposition={text:ta.value,start:ta.selectionStart,end:ta.selectionEnd};
-    }
-    if(!isComposing && !/Composition/.test(e.inputType)){
-      const committed=ta._commitCaret,c=chunks[+ta.dataset.index];
-      if(committed && committed.text===docText && ta.value===c.text)
-        ta.setSelectionRange(committed.position-c.start,committed.position-c.start);
-      ta._commitCaret=null;
-    }
-    captureInputScroll();arrowGoal=null;arrowAnchor=null;
-    if(isComposing||e.isComposing)return;
-    if(handleEdit(e,ta,e.inputType))return;
-    // Let Safari commit ordinary text to its own live contenteditable DOM.
-    // The input event will synchronize docText immediately; repeated letters
-    // must not cause replaceChildren() and setSelectionRange() every key.
-    remember();
-  });
-  ta.addEventListener('input',e=>{
-    if(document.activeElement!==ta)return;
-    if(isComposing){
-      if(e.data!==null)ta._compositionData=e.data;
-      scheduleCompositionPreview(ta);
-      saveComposition(ta);restoreInputScroll();return;
-    }
-    const committed=ta._commitCaret,c=chunks[+ta.dataset.index];
-    if(committed && committed.text===docText && ta.value===c.text){
-      // Safari can fire an input event *after* compositionend without any
-      // additional text change. Do not rebuild the editable DOM on that event.
-      ta._commitCaret=null;
-      globalCaret=globalSelEnd=committed.position;
-      scheduleIdleLayout(ta);return;
-    }
-    syncFromPage(ta,true,true);
-  });
-  ta.addEventListener('blur',()=>{
-    // Never rewrite live IME content until it is committed.
-    if(isComposing)return;
-    // Source text is already synchronized on every input; normalize the
-    // display on blur and repaint all other pages only when necessary.
-    leaveLiveEditor(ta);
-    if(layoutIdleTimer){
-      clearTimeout(layoutIdleTimer);layoutIdleTimer=0;
-      renderPages(globalCaret,globalSelEnd,false,false);
-    }
-  });
-  ta.addEventListener('keydown',e=>{
-    if((e.metaKey||e.ctrlKey) && e.key.toLowerCase()==='a' && !isComposing){e.preventDefault();$('selectAllBtn').click();return;}
-    if(isComposing||e.isComposing||e.keyCode===229)return;
-    if(/^(Arrow|Home|End|Page)/.test(e.key))ta._commitCaret=null;
-    const type={Enter:'insertLineBreak',Backspace:'deleteContentBackward',Delete:'deleteContentForward'}[e.key];
-    if(type && !e.metaKey && !e.ctrlKey && !e.altKey){
-      captureInputScroll();
-      if(handleEdit(e,ta,type))return;
-    }
-    if(/^Arrow(Left|Right|Up|Down)$/.test(e.key) && !e.metaKey && !e.ctrlKey && !e.altKey)moveArrow(ta,e);
-  });
-}
-let arrowGoal=null,arrowAnchor=null;
-function moveArrow(ta,event){
-  const c=chunks[+ta.dataset.index];if(!c)return;
-  const vertical=getSettings().writingMode==='vertical';
-  const backward=event.key===(vertical?'ArrowUp':'ArrowLeft');
-  const forward=event.key===(vertical?'ArrowDown':'ArrowRight');
-  const sel=window.getSelection(),map=editableMap(ta);
-  const focus=map.offset(sel.focusNode,sel.focusOffset);
-  const pos=c.start+(focus??ta.selectionEnd);
-  let target=pos;
-  if(backward||forward){
-    arrowGoal=null;
-    if(!event.shiftKey && ta.selectionStart!==ta.selectionEnd)target=c.start+(backward?ta.selectionStart:ta.selectionEnd);
-    else target=backward?previousOffset(pos):nextOffset(pos);
-  }else{
-    const lines=[];
-    document.querySelectorAll('#pages > .page').forEach((page,i)=>{
-      const editor=page.firstElementChild,m=editableMap(editor);
-      for(const line of editor.querySelectorAll('.editor-line')){
-        const start=m.offset(line,0),end=m.offset(line,line.childNodes.length);
-        const text=m.text.slice(start,end).replace(/\n$/,'');
-        const stops=[chunks[i].start+start];
-        for(const u of units(text))stops.push(chunks[i].start+start+u.index+u.segment.length);
-        lines.push(stops);
-      }
-    });
-    let row=lines.findIndex((stops,i)=>pos>=stops[0] && (i===lines.length-1 || pos<lines[i+1][0]));
-    if(row<0)row=lines.length-1;
-    const column=lines[row].findIndex(x=>x>=pos);
-    if(arrowGoal===null)arrowGoal=column<0?lines[row].length-1:column;
-    const delta=event.key===(vertical?'ArrowRight':'ArrowUp')?-1:1;
-    const next=lines[Math.max(0,Math.min(lines.length-1,row+delta))];
-    target=next[Math.min(arrowGoal,next.length-1)];
-  }
-  event.preventDefault();
-  if(event.shiftKey){
-    if(arrowAnchor===null)arrowAnchor=c.start+(map.offset(sel.anchorNode,sel.anchorOffset)??ta.selectionStart);
-    renderPages(Math.min(arrowAnchor,target),Math.max(arrowAnchor,target),true,true);
-    const active=document.activeElement;
-    if(target<arrowAnchor && window.getSelection().setBaseAndExtent){
-      const range=window.getSelection().getRangeAt(0);
-      window.getSelection().setBaseAndExtent(range.endContainer,range.endOffset,range.startContainer,range.startOffset);
-    }
-  }else{arrowAnchor=null;renderPages(target,target,true,true);}
-}
-// The live IME DOM is untouched. A pointer-transparent preview uses the same
-// line layout as committed text, including punctuation in the margin.
-function paintComposition(ta){
-  let preview=ta._compositionPreview;
-  if(!preview){
-    preview=document.createElement('div');preview.className='page-editor composition-preview';
-    preview.setAttribute('aria-hidden','true');ta.parentElement.append(preview);
-    ta._compositionPreview=preview;
-  }
-  preview.style.left=ta.offsetLeft+'px';preview.style.top=ta.offsetTop+'px';
-  writeEditorText(preview,ta.value);
-  const map=editableMap(preview),start=ta._compositionStart||0,end=start+(ta._compositionData||'').length;
-  for(const t of map.texts)if(t.end>start && t.start<end)t.node.parentElement.classList.add('ime-preedit');
-  const pos=Math.max(0,Math.min(ta.selectionEnd,map.text.length));
-  let point=map.texts.find(t=>pos===t.start || (pos>t.start && pos<t.end));
-  let offset=point?pos-point.start:0;
-  if(!point){point=map.texts.at(-1);offset=point?point.end-point.start:0;}
-  if(!point)return;
-  const range=document.createRange();range.setStart(point.node,point.rawOffset(offset));range.collapse(true);
-  const b=range.getClientRects?.()[0],base=preview.getBoundingClientRect();
-  if(!b)return;
-  const caret=document.createElement('span');caret.className='ime-preview-caret';
-  const vertical=getSettings().writingMode==='vertical',size=parseFloat(getComputedStyle(ta).fontSize);
-  Object.assign(caret.style,{left:(b.left-base.left)+'px',top:(b.top-base.top)+'px',width:(vertical?size:2)+'px',height:(vertical?2:size)+'px'});
-  preview.append(caret);
-}
-function saveComposition(ta){
-  const c=chunks[+ta.dataset.index];if(!c)return;
-  // Persist provisional input without changing the DOM or offsets during IME.
-  try{localStorage.setItem(STORAGE,docText.slice(0,c.start)+ta.value+docText.slice(c.end));}catch{}
-}
-function handleEdit(event,ta,type){
-  const c=chunks[+ta.dataset.index];if(!c||!event.cancelable)return false;
-  let start=c.start+ta.selectionStart,end=c.start+ta.selectionEnd,text='';
-  if(type==='insertLineBreak'||type==='insertParagraph')text='\n';
-  else if(type==='deleteContentBackward' && (ta.tagName==='DIV' || (start===end && ta.selectionStart===0 && start>0))){if(start===end)start=previousOffset(start);}
-  else if(type==='deleteContentForward' && (ta.tagName==='DIV' || (start===end && ta.selectionEnd===ta.value.length && end<docText.length))){if(start===end)end=nextOffset(end);}
-  else return false;
-  event.preventDefault();remember();
-  docText=docText.slice(0,start)+text+docText.slice(end);
-  save();renderPages(start+text.length,start+text.length,true,true);
-  return true;
-}
-
-// Safari Japanese auto-repeat can intermittently commit ASCII/NBSP spaces
-// between two long groups of the SAME kana. Limit repair to repeat runs of
-// at least 3 matching kana on each side. Other whitespace is preserved.
-const REPEAT_KANA_GAP=/([ぁ-ゖァ-ヺ])\1{2,}[ \u00a0]+\1{2,}/gu;
-function fixRepeatedKanaGaps(text){
-  if(!$('repeatSpaceGuard').checked)return text;
-  let previous;
-  do{previous=text;text=text.replace(REPEAT_KANA_GAP,match=>match.replace(/[ \u00a0]/gu,''));}while(text!==previous);
-  return text;
-}
 function syncCaret(ta){
-  const i=+ta.dataset.index,c=chunks[i];if(!c)return;
+  const c=chunks[+ta.dataset.index];if(!c)return;
   globalCaret=c.start+ta.selectionStart;
   globalSelEnd=c.start+ta.selectionEnd;
   updateStatus();
 }
 function syncFromPage(ta,focus,deferLayout=false){
   const i=+ta.dataset.index,c=chunks[i];if(!c)return;
-  // Capture the native selection before any visual normalization.
-  let localStart=ta.selectionStart,localEnd=ta.selectionEnd;
-  let newText=ta.value;
-  // Correct newly inserted accidental gaps, but never while composition is active.
-  if(!isComposing){
-    const clean=fixRepeatedKanaGaps(newText);
-    if(clean!==newText){
-      const adjustedStart=fixRepeatedKanaGaps(newText.slice(0,localStart)).length;
-      const adjustedEnd=fixRepeatedKanaGaps(newText.slice(0,localEnd)).length;
-      newText=clean;
-      // Perform this very narrow correction once, then return to Safari's
-      // native editing selection without a full page redraw.
-      ta.value=clean;
-      localStart=Math.min(adjustedStart,clean.length);
-      localEnd=Math.min(adjustedEnd,clean.length);
-      ta.setSelectionRange(localStart,localEnd);
-    }
-  }
+  const localStart=ta.selectionStart,localEnd=ta.selectionEnd;
+  const newText=ta.value.replace(/\r\n?/g,'\n');
   const oldLength=c.end-c.start;
   docText=docText.slice(0,c.start)+newText+docText.slice(c.end);
-  globalCaret=c.start+localStart;
-  globalSelEnd=c.start+localEnd;
+  globalCaret=c.start+localStart;globalSelEnd=c.start+localEnd;
   save();
   if(deferLayout){
-    // Update page text boundaries without touching Safari's active DOM.
-    // Otherwise the next compositionstart would compare against an obsolete
-    // page, and later edits could duplicate or lose previous keystrokes.
     const delta=newText.length-oldLength;
     c.text=newText;c.end+=delta;
     if(delta)for(let j=i+1;j<chunks.length;j++){
       chunks[j].start+=delta;chunks[j].end+=delta;
     }
-    updateStatus();
-    scheduleIdleLayout(ta);
+    updateStatus();scheduleIdleLayout(ta);
   }else renderPages(globalCaret,globalSelEnd,focus,true);
+}
+function bindEditor(ta){
+  if(ta.dataset.bound)return;ta.dataset.bound='1';
+  ta.addEventListener('focus',()=>{ta.closest('.page').classList.add('editing');if(!isComposing)syncCaret(ta)});
+  for(const type of ['click','select','keyup'])ta.addEventListener(type,()=>{
+    if(!rendering&&!isComposing)syncCaret(ta);
+  });
+  ta.addEventListener('compositionstart',()=>{
+    isComposing=true;remember();captureInputScroll();compositionScroll={...inputScroll};
+    clearTimeout(layoutIdleTimer);layoutIdleTimer=0;
+  });
+  ta.addEventListener('compositionend',()=>{
+    // No provisional paragraphs or temporary spaces have ever been read from
+    // contenteditable. The committed textarea string is the only source.
+    isComposing=false;compositionScroll=null;
+    syncFromPage(ta,true,true);
+  });
+  ta.addEventListener('beforeinput',e=>{
+    if(isComposing||e.isComposing)return;
+    const c=chunks[+ta.dataset.index];if(!c)return;
+    if(e.inputType==='deleteContentBackward' && ta.selectionStart===0 && ta.selectionEnd===0 && c.start>0){
+      e.preventDefault();
+      const start=previousOffset(c.start);remember();
+      docText=docText.slice(0,start)+docText.slice(c.start);save();
+      renderPages(start,start,true,true);return;
+    }
+    if(e.inputType==='deleteContentForward' && ta.selectionStart===ta.value.length && ta.selectionEnd===ta.value.length && c.end<docText.length){
+      e.preventDefault();const end=nextOffset(c.end);remember();
+      docText=docText.slice(0,c.end)+docText.slice(end);save();
+      renderPages(c.end,c.end,true,true);return;
+    }
+    remember();
+  });
+  ta.addEventListener('input',e=>{
+    if(isComposing||e.isComposing)return;
+    // The IME's last input event can be emitted after compositionend;
+    // this is safe because textarea.value is already the real text.
+    syncFromPage(ta,true,true);
+  });
+  ta.addEventListener('blur',()=>{
+    // A page-mode switch or pagination may replace the textarea while its
+    // blur event is firing. Re-entering renderPages() from here corrupts DOM.
+    if(rendering){ta.closest('.page')?.classList.remove('editing');return;}
+    if(isComposing)return;
+    // Committed text comes only from native textarea.value.
+    if(ta.isConnected)syncFromPage(ta,false,true);
+    ta.closest('.page')?.classList.remove('editing');
+    clearTimeout(layoutIdleTimer);layoutIdleTimer=0;
+    renderPages(globalCaret,globalSelEnd,false,false);
+  });
+  ta.addEventListener('keydown',e=>{
+    if((e.metaKey||e.ctrlKey) && e.key.toLowerCase()==='a'&&!isComposing){
+      e.preventDefault();$('selectAllBtn').click();return;
+    }
+    if(isComposing||e.isComposing)return;
+    if(/^Arrow/.test(e.key))moveArrow(ta,e);
+  });
+}
+let arrowGoal=null,arrowAnchor=null;
+function moveArrow(ta,e){
+  // Leave ordinary arrow movement to the native input system, except when
+  // crossing page boundaries. Textarea selection handles Shift/IME itself.
+  if(e.shiftKey||e.metaKey||e.ctrlKey||e.altKey)return;
+  const i=+ta.dataset.index,c=chunks[i];if(!c)return;
+  const vertical=getSettings().writingMode==='vertical';
+  const prev=vertical?'ArrowUp':'ArrowLeft',next=vertical?'ArrowDown':'ArrowRight';
+  if(e.key===prev&&ta.selectionStart===0&&ta.selectionEnd===0&&i>0){
+    e.preventDefault();renderPages(c.start,c.start,true,true);
+    const prevPage=$('pages').children[i-1]?.firstElementChild;
+    if(prevPage){prevPage.focus({preventScroll:true});prevPage.setSelectionRange(prevPage.value.length,prevPage.value.length);syncCaret(prevPage)}
+  }else if(e.key===next&&ta.selectionStart===ta.value.length&&ta.selectionEnd===ta.value.length&&i<chunks.length-1){
+    e.preventDefault();const nextPage=$('pages').children[i+1]?.firstElementChild;
+    nextPage?.focus({preventScroll:true});nextPage?.setSelectionRange(0,0);
+    if(nextPage)syncCaret(nextPage);
+  }
 }
 function renderPages(caret=globalCaret,selEnd=globalSelEnd,focus=false,scroll=false){
   clearTimeout(layoutIdleTimer);layoutIdleTimer=0;
@@ -993,16 +706,22 @@ function renderPages(caret=globalCaret,selEnd=globalSelEnd,focus=false,scroll=fa
   chunks.forEach((c,i)=>{
     let page=container.children[i];
     if(!page){page=document.createElement('div');container.appendChild(page);}
-    page.className=pageClass();page.dataset.page=`${i+1}`;
+    const wasEditing=page.classList.contains('editing');
+    page.className=pageClass()+(wasEditing?' editing':'');page.dataset.page=`${i+1}`;
     const vertical=getSettings().writingMode==='vertical';
     let ta=page.firstElementChild;
     if(!ta || ta.dataset.mode!==(vertical?'vertical':'horizontal')){
-      ta=createEditor(vertical);ta.dataset.mode=vertical?'vertical':'horizontal';page.replaceChildren(ta);bindEditor(ta);
+      ta=createEditor(vertical);ta.dataset.mode=vertical?'vertical':'horizontal';
+      const preview=document.createElement('div');preview.className='page-preview';
+      preview.setAttribute('aria-hidden','true');
+      page.replaceChildren(ta,preview);bindEditor(ta);
     }
     ta.dataset.index=i;
     const layoutKey=c.text+'\u0000'+getSettings().charCount+'\u0000'+(vertical?'v':'h');
     ta._valueChanged=ta._layoutKey!==layoutKey;
     if(ta._valueChanged){ta.value=c.text;ta._layoutKey=layoutKey;ta.scrollTop=0;ta.scrollLeft=0;}
+    const preview=page.querySelector('.page-preview');
+    if(preview && preview._layoutKey!==layoutKey){writeEditorText(preview,c.text);preview._layoutKey=layoutKey;}
   });
 
   globalCaret=Math.max(0,Math.min(caret,docText.length));
@@ -1015,8 +734,8 @@ function renderPages(caret=globalCaret,selEnd=globalSelEnd,focus=false,scroll=fa
     const start=Math.min(globalCaret-c.start,ta.value.length);
     const end=Math.min(globalSelEnd-c.start,ta.value.length);
     if(document.activeElement!==ta)ta.focus({preventScroll:true});
-    // Native keyboard input must *never* target fixed-size character spans.
-    enterLiveEditor(ta);
+    // The focused textarea owns IME conversion and selection.
+    ta.closest('.page').classList.add('editing');
     // Preserve native selection on ordinary keystrokes. No delayed caret reset.
     if(ta._valueChanged||ta.selectionStart!==start||ta.selectionEnd!==end)ta.setSelectionRange(start,end);
     ta.scrollTop=0;ta.scrollLeft=0;
@@ -1134,6 +853,13 @@ function formatText(){
   setDoc(t,Math.min(globalCaret,t.length),Math.min(globalSelEnd,t.length),true,true);
 }
 $('formatBtn').onclick=formatText;
+$('trimLeadingBtn').onclick=()=>{
+  const prefix=docText.match(/^(?:[ \t]*\n)+/u)?.[0]||'';
+  if(!prefix){alert('先頭に空行はありません。');return;}
+  const lines=(prefix.match(/\n/g)||[]).length;
+  if(!confirm(`原稿の先頭にある空行 ${lines} 行を削除しますか？ 意図した空行の場合はキャンセルしてください。`))return;
+  setDoc(docText.slice(prefix.length),Math.max(0,globalCaret-prefix.length),Math.max(0,globalSelEnd-prefix.length),true,true);
+};
 
 /* 検索・置換 */
 $('findBtn').onclick=()=>{$('findPanel').classList.add('show');$('findText').focus()};
@@ -1585,7 +1311,7 @@ $('privacyBtn').onclick=async()=>{
   try{await tellSW(privacyMode)}catch{}
 };
 
-['fontSize','lineHeight','writingMode','manuscript','indent','repeatSpaceGuard','charCount','lineCount'].forEach(id=>$(id).addEventListener('change',applySettings));
+['fontSize','lineHeight','writingMode','manuscript','indent','charCount','lineCount'].forEach(id=>$(id).addEventListener('change',applySettings));
 document.querySelectorAll('[data-preset]').forEach(b=>b.onclick=()=>{
   const [c,l]=b.dataset.preset.split(',');$('charCount').value=c;$('lineCount').value=l;applySettings();
 });
