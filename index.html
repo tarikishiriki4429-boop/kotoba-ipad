@@ -209,7 +209,7 @@ button:disabled{opacity:.45}
   <span id="pageCount">1ページ</span>
   <span id="textIntegrity" title="入力した本文に含まれる明示改行と半角スペースの数（テスト版の診断表示）">改行0 / 半角空白0</span>
   <span id="documentName"></span>
-  <span class="build">Kotoba Writer build 34</span>
+  <span class="build">Kotoba Writer build 35</span>
 </div>
 
 <div id="fileNamePanel" class="panel">
@@ -321,8 +321,17 @@ function scheduleIdleLayout(ta){
   clearTimeout(layoutIdleTimer);
   layoutIdleTimer=setTimeout(()=>{
     layoutIdleTimer=0;
-    if(isComposing)return;  // compositionend schedules a new normalization
-    renderPages(globalCaret,globalSelEnd,document.activeElement===ta,true);
+    if(isComposing || !ta.isConnected || ta._selecting)return;
+    const focused=document.activeElement===ta;
+    if(focused){
+      // Read native selection now, never restore the pre-long-press caret.
+      syncCaret(ta);
+      if(ta.selectionStart!==ta.selectionEnd)return;
+      const next=paginate(docText);
+      // Ordinary typing does not need any input value assignment or layout.
+      if(next.length===chunks.length && next.every((c,i)=>c.start===chunks[i].start && c.end===chunks[i].end))return;
+    }
+    renderPages(globalCaret,globalSelEnd,focused,true);
   },LAYOUT_IDLE_MS);
 }
 function scheduleCompositionPreview(ta){
@@ -622,6 +631,10 @@ function syncFromPage(ta,focus,deferLayout=false){
 }
 function bindEditor(ta){
   if(ta.dataset.bound)return;ta.dataset.bound='1';
+  ta.addEventListener('pointerdown',()=>{
+    ta._selecting=true;clearTimeout(layoutIdleTimer);layoutIdleTimer=0;
+  });
+  for(const type of ['pointerup','pointercancel'])ta.addEventListener(type,()=>{ta._selecting=false;});
   ta.addEventListener('focus',()=>{ta.closest('.page').classList.add('editing');if(!isComposing)syncCaret(ta)});
   for(const type of ['click','select','keyup'])ta.addEventListener(type,()=>{
     if(!rendering&&!isComposing)syncCaret(ta);
@@ -718,8 +731,9 @@ function renderPages(caret=globalCaret,selEnd=globalSelEnd,focus=false,scroll=fa
     }
     ta.dataset.index=i;
     const layoutKey=c.text+'\u0000'+getSettings().charCount+'\u0000'+(vertical?'v':'h');
-    ta._valueChanged=ta._layoutKey!==layoutKey;
-    if(ta._valueChanged){ta.value=c.text;ta._layoutKey=layoutKey;ta.scrollTop=0;ta.scrollLeft=0;}
+    ta._valueChanged=ta.value!==c.text;
+    if(ta._valueChanged){ta.value=c.text;ta.scrollTop=0;ta.scrollLeft=0;}
+    ta._layoutKey=layoutKey;
     const preview=page.querySelector('.page-preview');
     if(preview && preview._layoutKey!==layoutKey){writeEditorText(preview,c.text);preview._layoutKey=layoutKey;}
   });
@@ -738,7 +752,6 @@ function renderPages(caret=globalCaret,selEnd=globalSelEnd,focus=false,scroll=fa
     ta.closest('.page').classList.add('editing');
     // Preserve native selection on ordinary keystrokes. No delayed caret reset.
     if(ta._valueChanged||ta.selectionStart!==start||ta.selectionEnd!==end)ta.setSelectionRange(start,end);
-    ta.scrollTop=0;ta.scrollLeft=0;
     if(scroll){
       if(inputScroll)restoreInputScroll();
       else scheduleReveal();
