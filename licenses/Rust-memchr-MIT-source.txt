@@ -1,0 +1,2 @@
+https://github.com/BurntSushi/memchr/blob/master/LICENSE-MIT
+Release in use: 2.7.4

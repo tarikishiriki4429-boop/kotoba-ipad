@@ -1,0 +1,206 @@
+{
+  "webllm_tarball_sha256": "3d6d7a335ff3f7f3db8443960d8b9e039da97f21d6c5a9d64ff68280dbd7bb5e",
+  "packages": [
+    {
+      "name": "@mlc-ai/web-llm",
+      "version": "0.2.82",
+      "gitHead": "fa6ead5156d096c00f0543cc98b7841cb82f573f",
+      "license": "Apache-2.0",
+      "dependencies": {
+        "loglevel": "^1.9.1"
+      },
+      "devDependencies": {
+        "jest": "^30.2.0",
+        "husky": "^9.0.11",
+        "tslib": "^2.3.1",
+        "buffer": "^5.7.1",
+        "eslint": "^9.39.1",
+        "rollup": "^4.53.3",
+        "process": "^0.11.10",
+        "ts-jest": "^29.4.6",
+        "prettier": "3.6.2",
+        "@eslint/js": "^9.9.0",
+        "typescript": "^4.9.5",
+        "@types/jest": "^30.0.0",
+        "@types/chrome": "^0.0.266",
+        "@webgpu/types": "^0.1.24",
+        "@eslint/eslintrc": "^3.3.1",
+        "typescript-eslint": "^8.47.0",
+        "@mlc-ai/web-runtime": "^0.24.0-dev1",
+        "@mlc-ai/web-xgrammar": "0.1.27",
+        "@types/serviceworker": "^0.0.86",
+        "rollup-plugin-ignore": "^1.0.10",
+        "@mlc-ai/web-tokenizers": "^0.1.6",
+        "eslint-config-prettier": "^10.1.8",
+        "eslint-plugin-prettier": "^5.5.4",
+        "@rollup/plugin-commonjs": "^29.0.0",
+        "@next/eslint-plugin-next": "^16.0.0",
+        "rollup-plugin-typescript2": "^0.36.0",
+        "@rollup/plugin-node-resolve": "^16.0.3"
+      },
+      "dist": {
+        "shasum": "d41dcbf780a73044eb0a3f589993341bcf181970",
+        "tarball": "https://registry.npmjs.org/@mlc-ai/web-llm/-/web-llm-0.2.82.tgz",
+        "fileCount": 43,
+        "integrity": "sha512-ONhW+28PPVSUI1m0RkJcm7suwc47b65i5b/rTEIADq5I22p1+9uf/CBbDPRkkjj1WJB9s8oFp0ywAW0NY1G6fg==",
+        "signatures": [
+          {
+            "sig": "MEUCIQC3Dr4iYCwaMeNnYhmTUJrynY+zMhjlAPfezBQ8YLiz2gIgBz2aATT/PeAm6Fe0Mhf/SypMt84FU8aCo+kHGLMWpvI=",
+            "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+          }
+        ],
+        "unpackedSize": 14059694
+      }
+    },
+    {
+      "name": "@mlc-ai/web-tokenizers",
+      "version": "0.1.6",
+      "gitHead": "d54e3683dc44d37163cf8e77c243b505e12a1616",
+      "license": "Apache-2.0",
+      "dependencies": null,
+      "devDependencies": {
+        "tslib": "^2.3.1",
+        "eslint": "^8.41.0",
+        "rollup": "^2.56.2",
+        "typescript": "^4.9.5",
+        "@rollup/plugin-wasm": "^5.1.2",
+        "@rollup/plugin-commonjs": "^20.0.0",
+        "@typescript-eslint/parser": "^5.59.6",
+        "rollup-plugin-typescript2": "^0.34.1",
+        "@rollup/plugin-node-resolve": "^13.0.4",
+        "@typescript-eslint/eslint-plugin": "^5.59.6"
+      },
+      "dist": {
+        "shasum": "4aa14b2140e8231e0f7d74828526ccb16afec77e",
+        "tarball": "https://registry.npmjs.org/@mlc-ai/web-tokenizers/-/web-tokenizers-0.1.6.tgz",
+        "fileCount": 8,
+        "integrity": "sha512-A5GSqUSnMjDkPoXBFFtbbW3F/qygCixuwbi7/EUMzcpgwFOAhD9vSZZBchK3IpC0c6TKlcDqAYDYp8vpb8/4vA==",
+        "signatures": [
+          {
+            "sig": "MEQCHx1d5VlV+qorzsrFuv2wV3Wxv2GlVuhk55oFv6x9bRICIQCY4Ft8+xYgA1GWEY6FC06jI2v+Cdvuec4e2VzCnZ9GVQ==",
+            "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+          }
+        ],
+        "unpackedSize": 9724959
+      }
+    },
+    {
+      "name": "@mlc-ai/web-runtime",
+      "version": "0.24.0-dev1",
+      "gitHead": "e08a3f94db86134f487367e10f34763a04f52710",
+      "license": "Apache-2.0",
+      "dependencies": {
+        "fix": "^0.0.6",
+        "audit": "^0.0.6"
+      },
+      "devDependencies": {
+        "ws": "^7.2.5",
+        "jest": "^26.0.1",
+        "eslint": "^8.41.0",
+        "rollup": "^2.79.2",
+        "typedoc": "^0.24.7",
+        "typescript": "^4.9.5",
+        "@types/node": "^20.4.5",
+        "@webgpu/types": "^0.1.42",
+        "rollup-plugin-ignore": "^1.0.10",
+        "@rollup/plugin-commonjs": "^20.0.0",
+        "@typescript-eslint/parser": "^5.59.6",
+        "rollup-plugin-typescript2": "^0.34.1",
+        "@rollup/plugin-node-resolve": "^13.0.4",
+        "typedoc-plugin-missing-exports": "2.0.0",
+        "@typescript-eslint/eslint-plugin": "^5.59.6"
+      },
+      "dist": {
+        "shasum": "9668a22513bb4b848c887bddd747a85daee449f2",
+        "tarball": "https://registry.npmjs.org/@mlc-ai/web-runtime/-/web-runtime-0.24.0-dev1.tgz",
+        "fileCount": 15,
+        "integrity": "sha512-68tTqqBDt7xNDgopj2pO0Prrlo/1r8/kcpUJkczt8lx6rvmJmgS/dO7yjVBIq/8/2ymiIUhcn7S8GoZjEbUymA==",
+        "signatures": [
+          {
+            "sig": "MEUCIQDDPc2CnUun6/fIe/jF2URNNU23usHQwl4ctIWYatIruwIgc7ZgCVUE4qHRIdYhEqWc8aMu656TM0pf+alkkjMxVG4=",
+            "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+          }
+        ],
+        "unpackedSize": 333106
+      }
+    },
+    {
+      "name": "@mlc-ai/web-xgrammar",
+      "version": "0.1.27",
+      "gitHead": "ace2321a29471130f3f64fb1882741a5547c6f36",
+      "license": "Apache-2.0",
+      "dependencies": null,
+      "devDependencies": {
+        "jest": "^30.2.0",
+        "tslib": "^2.3.1",
+        "eslint": "^9.39.1",
+        "rollup": "^4.53.3",
+        "ts-jest": "^29.4.5",
+        "@eslint/js": "^9.9.0",
+        "typescript": "^5.9.3",
+        "@types/jest": "^30.0.0",
+        "@jest/globals": "^30.2.0",
+        "@eslint/eslintrc": "^3.3.1",
+        "typescript-eslint": "^8.47.0",
+        "@rollup/plugin-wasm": "^6.2.2",
+        "@mlc-ai/web-tokenizers": "^0.1.6",
+        "@rollup/plugin-commonjs": "^29.0.0",
+        "@typescript-eslint/parser": "8.48.0",
+        "rollup-plugin-typescript2": "^0.36.0",
+        "@rollup/plugin-node-resolve": "^16.0.3",
+        "@typescript-eslint/eslint-plugin": "8.48.0"
+      },
+      "dist": {
+        "shasum": "70568513d6446acb18f59359ea93ec03ab699de3",
+        "tarball": "https://registry.npmjs.org/@mlc-ai/web-xgrammar/-/web-xgrammar-0.1.27.tgz",
+        "fileCount": 10,
+        "integrity": "sha512-0WJvW3mjotHA2NeAfaWFE2pQkOgXH9xC2U4IQOJNcioLac0k6VjSbj14jBRprt89frnPzxLo280riaEb+ZQqbg==",
+        "signatures": [
+          {
+            "sig": "MEQCIAfDSkw6JhLsLhWK2xG4Rp+4F+VO92UA5vUd8Kt0VIgIAiAb8I3kW5CWZWa82husd2CJbpYjq6a/iz3HfRH7nOUtYA==",
+            "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+          }
+        ],
+        "unpackedSize": 2385163
+      }
+    },
+    {
+      "name": "loglevel",
+      "version": "1.9.2",
+      "gitHead": "40d10ef1917710afcc70b5f2115bb336ab4b0580",
+      "license": "MIT",
+      "dependencies": {},
+      "devDependencies": {
+        "grunt": "~1.5.3",
+        "jasmine": "^2.4.1",
+        "ts-node": "^10.9.2",
+        "grunt-cli": "^1.4.3",
+        "grunt-open": "~0.2.3",
+        "typescript": "^3.5.1",
+        "@types/node": "^12.0.4",
+        "@types/core-js": "2.5.0",
+        "grunt-preprocess": "^5.1.0",
+        "grunt-contrib-clean": "^1.1.0",
+        "grunt-contrib-watch": "^1.1.0",
+        "grunt-contrib-concat": "~0.5.0",
+        "grunt-contrib-jshint": "^3.2.0",
+        "grunt-contrib-uglify": "^3.4.0",
+        "grunt-contrib-connect": "^3.0.0",
+        "grunt-contrib-jasmine": "^4.0.0"
+      },
+      "dist": {
+        "shasum": "c2e028d6c757720107df4e64508530db6621ba08",
+        "tarball": "https://registry.npmjs.org/loglevel/-/loglevel-1.9.2.tgz",
+        "fileCount": 15,
+        "integrity": "sha512-HgMmCqIJSAKqo68l0rS2AanEWfkxaZ5wNiEFb5ggm08lDs9Xl2KxBlX3PTcaD2chBM1gXAYf491/M2Rv8Jwayg==",
+        "signatures": [
+          {
+            "sig": "MEQCIFzbX4cCU82jkQ05mx+SdzzBsG+o0nVO6+MpzoBQ6evDAiBmkU0YoODL3KT+ywvvbQduP3tSPNIkQbuElrxGaGVoTw==",
+            "keyid": "SHA256:jl3bwswu80PjjokCgh0o2w5c2U4LhQAE57gj9cz1kzA"
+          }
+        ],
+        "unpackedSize": 86169
+      }
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+Unicode data embedded in regex-syntax may require a separate Unicode license.
+
+Copyright © 1991-2018 Unicode, Inc. All rights reserved.
+Full authoritative license text:
+https://github.com/rust-lang/regex/blob/master/regex-syntax/src/unicode_tables/LICENSE-UNICODE
+Please consult the upstream license for complete redistribution terms.
