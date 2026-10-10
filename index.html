@@ -168,6 +168,7 @@ button:disabled{opacity:.45}
   <button id="selectAllBtn">全文を選択</button>
   <button id="aiBtn">AI誤字脱字修正</button>
   <button id="licensesBtn">利用条件・ライセンス</button>
+  <button id="checkAppUpdate" title="必要なときだけ更新確認を行います。通信が発生します">更新確認</button>
   <button id="privacyBtn" class="privacy-btn">秘匿モード OFF</button>
 </div>
 
@@ -279,7 +280,7 @@ button:disabled{opacity:.45}
 <div id="printArea"></div>
 
 <script type="module">
-const BUILD=34;
+const BUILD=36;
 const $=id=>document.getElementById(id);
 const STORAGE='kotoba-writer-draft-v1';
 const SETTINGS='kotoba-writer-settings-v1';
@@ -1310,6 +1311,39 @@ async function tellSW(enabled){
   const reg=await navigator.serviceWorker.ready,target=navigator.serviceWorker.controller||reg.active;
   if(target)target.postMessage({type:'SET_OFFLINE_ONLY',enabled});
 }
+// 更新は利用者操作時のみ明示的に確認する。Safari自体によるSWの更新確認は止められない。
+let updateRequestedByUser=false;
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{
+    if(!updateRequestedByUser)return;
+    updateRequestedByUser=false;
+    if(!isComposing)save();
+    location.reload();
+  });
+}
+$('checkAppUpdate').onclick=async()=>{
+  if(privacyMode){alert('更新確認には通信が必要です。秘匿モードをOFFにしてからお試しください。');return;}
+  if(!navigator.onLine){alert('更新確認にはインターネット接続が必要です。');return;}
+  if(!('serviceWorker' in navigator)){alert('このブラウザでは更新確認を利用できません。');return;}
+  const btn=$('checkAppUpdate');btn.disabled=true;
+  try{
+    const reg=await navigator.serviceWorker.getRegistration('./');
+    if(!reg){alert('オフライン機能を準備中です。しばらくしてからお試しください。');return;}
+    updateRequestedByUser=true;
+    await reg.update();
+    if(reg.installing){
+      reg.installing.addEventListener('statechange',()=>{
+        if(reg.installing?.state==='redundant')updateRequestedByUser=false;
+      });
+    }else if(!reg.waiting){
+      updateRequestedByUser=false;
+      alert('更新確認が完了しました。新しい版が公開された場合は、次回の起動時にも反映されます。');
+    }
+  }catch(e){
+    updateRequestedByUser=false;
+    alert('更新を確認できませんでした。ネット接続を確認してください。');
+  }finally{btn.disabled=false;}
+};
 $('licensesBtn').onclick=()=>$('licensesPanel').classList.add('show');
 $('closeLicenses').onclick=()=>$('licensesPanel').classList.remove('show');
 $('privacyBtn').onclick=async()=>{
@@ -1341,7 +1375,7 @@ renderPages(0,0,false,false);
 
 if('serviceWorker'in navigator){
   navigator.serviceWorker.register('./sw.js?v='+BUILD,{updateViaCache:'none'}).then(async r=>{
-    if(!privacyMode){try{await r.update()}catch{}}
+    // ブラウザ標準のSW更新確認は残るが、起動毎の明示的なr.update()は実行しない。
     try{await navigator.serviceWorker.ready;await tellSW(privacyMode)}catch{}
   }).catch(()=>{});
 }
