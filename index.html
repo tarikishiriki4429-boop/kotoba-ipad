@@ -190,7 +190,7 @@ button:disabled{opacity:.45}
   <span id="pageInfo">40字 × 30行</span>
   <span id="pageCount">1ページ</span>
   <span id="documentName"></span>
-  <span class="build">Kotoba Writer build 28</span>
+  <span class="build">Kotoba Writer build 29</span>
 </div>
 
 <div id="fileNamePanel" class="panel">
@@ -260,7 +260,7 @@ button:disabled{opacity:.45}
 <div id="printArea"></div>
 
 <script type="module">
-const BUILD=28;
+const BUILD=29;
 const $=id=>document.getElementById(id);
 const STORAGE='kotoba-writer-draft-v1';
 const SETTINGS='kotoba-writer-settings-v1';
@@ -370,7 +370,7 @@ const aiPending=new Map();
 function disposeAIWorker(message='AIの準備を中止しました。'){
   aiWorker?.terminate();aiWorker=null;aiEngine=null;
   for(const pending of aiPending.values())pending.reject(new Error(message));
-  aiPending.clear();$('runAI').disabled=true;
+  aiPending.clear();$('runAI').disabled=true;$('resumeAI').disabled=true;
 }
 function aiWorkerRequest(type,payload){
   return new Promise((resolve,reject)=>{
@@ -1299,7 +1299,11 @@ $('prepareAI').onclick=async()=>{
         return;
       }
       const pending=aiPending.get(data.id);if(!pending)return;
-      aiPending.delete(data.id);data.error?pending.reject(new Error(data.error)):pending.resolve(data.result);
+      aiPending.delete(data.id);
+      if(data.error){
+        const error=new Error(data.error);error.aiNeedsReload=!!data.needsReload;
+        pending.reject(error);
+      }else pending.resolve(data.result);
     };
     const failed=()=>{
       if(aiWorker!==worker)return;
@@ -1313,6 +1317,7 @@ $('prepareAI').onclick=async()=>{
     aiEngine={chat:{completions:{create:payload=>aiWorkerRequest('complete',payload)}}};
     $('aiStatus').textContent=privacyMode?'AI誤字脱字修正 使用可能（秘匿モード）':'AI誤字脱字修正 使用可能';
     $('runAI').disabled=false;$('prepareAI').textContent='AI準備済み';
+    $('resumeAI').disabled=!aiJob || aiJob.snapshot!==docText || aiJob.polite!==$('politeMode').checked || aiJob.outputs.length===aiJob.parts.length;
     try{localStorage.setItem('kotoba-writer-ai-ready','1')}catch{}
   }catch(e){
     if(epoch!==aiSetupEpoch)return;
@@ -1370,8 +1375,16 @@ async function runProofreading(resume){
       $('aiStatus').textContent=out===r.text?'AIは修正候補を見つけませんでした':($('politeMode').checked?'誤字脱字＋地の文敬語化の候補です。会話文は保持されます。確認してから反映してください':'修正候補です。意図した表現や固有名詞が変わっていないか確認してから反映してください');
     }
     $('aiStatus').textContent=`${r.text.length.toLocaleString()}文字の確認完了（100％）。`+$('aiStatus').textContent;
-  }catch(e){$('aiResult').textContent='生成エラー: '+((e&&e.message)||String(e));$('aiStatus').textContent='AI誤字脱字修正に失敗しました'}
-  finally{aiRunning=false;$('runAI').disabled=false;$('stopAI').disabled=true;$('politeMode').disabled=false;$('aiScope').disabled=false;$('resumeAI').disabled=!aiJob || aiJob.outputs.length===aiJob.parts.length}
+  }catch(e){
+    const message=e?.message||String(e);
+    $('aiResult').textContent='生成エラー: '+message;
+    if(e?.aiNeedsReload || /disposed|device.{0,20}lost|gpu.{0,20}lost/i.test(message) || !aiEngine){
+      disposeAIWorker('AIの再準備が必要です。');
+      $('prepareAI').disabled=false;$('prepareAI').textContent='AIを再準備';
+      $('aiStatus').textContent='AIの内部状態が失われました。本文は変更していません。「AIを再準備」の後、「続きから再開」を押してください。確認済み '+(aiJob?.doneChars||0).toLocaleString()+'文字を保持しています。';
+    }else $('aiStatus').textContent='AI誤字脱字修正に失敗しました。続きから再開できます。';
+  }
+  finally{aiRunning=false;$('runAI').disabled=!aiEngine;$('stopAI').disabled=true;$('politeMode').disabled=false;$('aiScope').disabled=false;$('resumeAI').disabled=!aiEngine || !aiJob || aiJob.outputs.length===aiJob.parts.length}
 }
 $('applyAI').onclick=()=>{
   if(!aiRange||$('applyAI').disabled)return;

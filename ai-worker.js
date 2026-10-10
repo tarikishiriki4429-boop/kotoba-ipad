@@ -22,9 +22,15 @@ self.onmessage=async({data})=>{
       result=true;
     }else if(type==='complete'){
       if(!engine)throw new Error('AIを準備してください。');
+      // Each proofreading segment is independent; do not retain earlier conversations.
+      await engine.resetChat();
       result=await engine.chat.completions.create(payload);
     }else throw new Error('不明なAI操作です。');
     self.postMessage({id,result});
-  }catch(e){self.postMessage({id,error:e?.message||String(e)});}
+  }catch(e){
+    // A generation failure can leave TVM scopes or GPU state unusable. Never reuse
+    // that engine; the main thread terminates this worker and retains the job.
+    self.postMessage({id,error:e?.message||String(e),needsReload:type==='complete'});
+  }
   finally{busy=false;}
 };
