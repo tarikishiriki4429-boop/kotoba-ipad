@@ -1,0 +1,220 @@
+name: Kotoba Writer Rust license audit
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Read Kotoba Writer audit matrix
+        uses: actions/checkout@v4
+      - name: Install Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Download and verify exactly 23 Rust crate releases
+        shell: bash
+        run: |
+          python - <<'PY'
+          #!/usr/bin/env python3
+          """Audits exact Rust crate release archives without building or executing them.
+          See output README: archive proof is NOT a complete SBOM or legal clearance.
+          """
+          import datetime
+          import hashlib
+          import io
+          import json
+          import pathlib
+          import re
+          import tarfile
+          import time
+          import tomllib
+          import urllib.error
+          import urllib.request
+          
+          ROOT = pathlib.Path.cwd()
+          MATRIX = ROOT / 'RUST_CRATE_LICENSE_MATRIX_v6.json'
+          OUT = ROOT / 'rust-license-audit-output'
+          OUT.mkdir(exist_ok=True)
+          (OUT / 'original-notices').mkdir(exist_ok=True)
+          UA = 'KotobaWriterRustLicenseAudit/1.0 (https://github.com/tarikishiriki4429-boop/kotoba-ipad; noncommercial compliance review)'
+          LIMIT = 25_000_000
+          NOTICE_NAMES = re.compile(r'^(LICEN[CS]E(?:[.\-_].*)?|COPYING(?:[.\-_].*)?|COPYRIGHT(?:[.\-_].*)?|NOTICE(?:[.\-_].*)?|AUTHORS(?:[.\-_].*)?|PATENTS(?:[.\-_].*)?|ATTRIBUTION(?:[.\-_].*)?)$', re.I)
+          SOURCE_MARK = re.compile(rb'(?im)^.{0,50}(?:copyright(?:\s*\(c\))?|SPDX-License-Identifier).{0,160}$')
+          
+          
+          def download(url, limit=LIMIT):
+              last = None
+              for attempt in range(3):
+                  try:
+                      req = urllib.request.Request(url, headers={'User-Agent': UA, 'Accept': 'application/json, */*'})
+                      with urllib.request.urlopen(req, timeout=35) as reply:
+                          body = reply.read(limit + 1)
+                          if len(body) > limit:
+                              raise ValueError('Download exceeded size cap')
+                          return body
+                  except Exception as exc:
+                      last = exc
+                      time.sleep(1.5 * (attempt + 1))
+              raise RuntimeError(f'{url}: {last}')
+          
+          
+          def relative_tar_path(name, crate, version):
+              bits = pathlib.PurePosixPath(name).parts
+              if not bits or bits[0] != f'{crate}-{version}' or '..' in bits:
+                  return None
+              return pathlib.PurePosixPath(*bits[1:])
+          
+          
+          def safe_slug(crate, version):
+              if not re.fullmatch(r'[a-zA-Z0-9_-]+', crate) or not re.fullmatch(r'[a-zA-Z0-9_.+-]+', version):
+                  raise ValueError('Unexpected package identifier')
+              return f'{crate}-{version}'
+          
+          
+          def audit_one(entry):
+              crate, version = entry['crate'], entry['version']
+              slug = safe_slug(crate, version)
+              url = f'https://static.crates.io/crates/{crate}/{crate}-{version}.crate'
+              result = {
+                'crate': crate, 'version': version, 'url': url,
+                'expected_license': entry.get('license_expression_upstream'),
+                'chosen_license': entry.get('distribution_option_documented'),
+                'status': 'ERROR', 'archive_sha256': None,
+                'registry_expected_sha256': None, 'verified_against_registry': False,
+                'cargo_license': None, 'cargo_authors': [], 'notice_files': [],
+                'source_copyright_candidates': [], 'warnings': [],
+              }
+              try:
+                  release_api = json.loads(download(f'https://crates.io/api/v1/crates/{crate}/{version}', 2_500_000))
+                  digest_from_registry = release_api['version']['checksum'].lower()
+                  if not re.fullmatch(r'[a-f0-9]{64}', digest_from_registry):
+                      raise ValueError('Invalid checksum in registry response')
+                  result['registry_expected_sha256'] = digest_from_registry
+                  raw = download(url)
+                  got = hashlib.sha256(raw).hexdigest()
+                  result['archive_sha256'] = got
+                  if got != digest_from_registry:
+                      result['status'] = 'CHECKSUM MISMATCH'
+                      result['warnings'].append('Archive does not match crates.io registry SHA256. Do not trust.')
+                      return result
+                  result['verified_against_registry'] = True
+                  result['archive_bytes'] = len(raw)
+                  dest = OUT / 'original-notices' / slug
+                  dest.mkdir(parents=True, exist_ok=True)
+                  source_seen = 0
+                  with tarfile.open(fileobj=io.BytesIO(raw), mode='r:gz') as archive:
+                      members = [m for m in archive.getmembers() if m.isfile()]
+                      for member in members:
+                          rel = relative_tar_path(member.name, crate, version)
+                          if rel is None or not rel.parts or member.size > 4_000_000:
+                              continue
+                          # Cargo.toml from the EXACT archive, not current upstream head.
+                          if str(rel) == 'Cargo.toml':
+                              meta = tomllib.loads(archive.extractfile(member).read().decode('utf-8'))
+                              pkg = meta.get('package', {})
+                              result['cargo_license'] = pkg.get('license')
+                              result['cargo_authors'] = pkg.get('authors', [])
+                              result['cargo_repository'] = pkg.get('repository')
+                          # Root notices and embedded third-party notices (not a full source copyright scan).
+                          is_notice = bool(NOTICE_NAMES.fullmatch(rel.name))
+                          if is_notice and member.size <= 1_000_000:
+                              content = archive.extractfile(member).read()
+                              # Preserve the archive's relative path; no arbitrary path extraction.
+                              target = dest.joinpath(*rel.parts)
+                              target.parent.mkdir(parents=True, exist_ok=True)
+                              target.write_bytes(content)
+                              result['notice_files'].append({'path': str(rel), 'bytes': len(content), 'sha256': hashlib.sha256(content).hexdigest()})
+                          if str(rel).endswith('.rs') and member.size <= 1_000_000 and source_seen < 30:
+                              content = archive.extractfile(member).read(2500)
+                              matches = SOURCE_MARK.findall(content)
+                              if matches:
+                                  source_seen += 1
+                                  result['source_copyright_candidates'].append({'path': str(rel), 'sample': [v.decode('utf-8', 'replace')[:190] for v in matches[:4]]})
+                  if not result['notice_files']:
+                      result['warnings'].append('No filename-based LICENSE/COPYING/NOTICE/etc. found. Inspect source manually.')
+                  if result['cargo_license'] != result['expected_license']:
+                      result['warnings'].append('Cargo.toml license expression differs from prior audit; review both conditions.')
+                  result['status'] = 'ARCHIVE VERIFIED' if not result['warnings'] else 'ARCHIVE VERIFIED; REVIEW'
+              except Exception as exc:
+                  result['status'] = 'ERROR'
+                  result['warnings'].append(str(exc)[:450])
+              return result
+          
+          
+          def md_escape(value):
+              return str(value).replace('|', '\\|').replace('\n', ' ')
+          
+          
+          def main():
+              matrix = json.loads(MATRIX.read_text(encoding='utf-8'))
+              entries = matrix['entries']
+              if len(entries) != 23:
+                  raise ValueError('Expected exactly 23 crates in the existing audit matrix')
+              results = []
+              for idx, entry in enumerate(entries, 1):
+                  print(f'[{idx:02d}/{len(entries)}] {entry["crate"]} {entry["version"]}', flush=True)
+                  result = audit_one(entry)
+                  results.append(result)
+                  print(f'  {result["status"]} / notices: {len(result["notice_files"])}', flush=True)
+              summary = {
+                  'generated_utc': datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                  'scope': '23 path-detected Rust crate versions, NOT complete WebLLM/WASM SBOM',
+                  'total': len(results),
+                  'verified': sum(bool(r['verified_against_registry']) for r in results),
+                  'failures': sum(not bool(r['verified_against_registry']) for r in results),
+                  'results': results,
+              }
+              (OUT/'results.json').write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding='utf-8')
+              lines = [
+                '# Kotoba Writer — Exact Rust crate license source audit',
+                '', f'Date (UTC): {summary["generated_utc"]}',
+                f'Release archives SHA-256 matched against crates.io API: **{summary["verified"]}/{summary["total"]}**',
+                '', '## Meaning and limits',
+                '- A verified archive matches the crates.io API checksum for the precise package version.',
+                '- Listed notices are filename-discovered source archive contents, not proof of complete compliance.',
+                '- A crate can have embedded copyright lines, generated data, bundled C libraries and extra obligations not captured here.',
+                '- The 23 crates were inferred from embedded WASM debug paths; they are **not** a complete SBOM.',
+                '- This report does not prove the identified versions are the only dependencies in the distributed WebLLM artifacts.',
+                '', '| Crate/version | Registry SHA | Cargo license | Notice files | Warnings |', '|---|---|---|---:|---|'
+              ]
+              for r in results:
+                  sha = 'MATCH' if r['verified_against_registry'] else r['status']
+                  lines.append(f'| {r["crate"]} {r["version"]} | {sha} | {md_escape(r["cargo_license"])} | {len(r["notice_files"])} | {md_escape("; ".join(r["warnings"]))} |')
+              lines += ['', '## Exact archive notice files and source candidates', '']
+              for r in results:
+                  lines.append(f'### {r["crate"]} {r["version"]} — {r["status"]}')
+                  lines.append(f'- Crate SHA-256: `{r["archive_sha256"]}`')
+                  lines.append(f'- Registry SHA-256: `{r["registry_expected_sha256"]}`')
+                  lines.append(f'- Declared license: `{r["cargo_license"]}`; prior audit: `{r["expected_license"]}`; chosen: `{r["chosen_license"]}`')
+                  if r['notice_files']:
+                      for n in r['notice_files']:
+                          lines.append(f'- Notice: `{n["path"]}` (SHA-256 `{n["sha256"]}`)')
+                  if r['source_copyright_candidates']:
+                      lines.append(f'- Source files with header copyright/SPDX clues: {len(r["source_copyright_candidates"])} (first 30 only; JSON contains samples)')
+                  for warning in r['warnings']:
+                      lines.append(f'- **CHECK:** {warning}')
+                  lines.append('')
+              (OUT/'report.md').write_text('\n'.join(lines), encoding='utf-8')
+              (OUT/'README.txt').write_text(
+                'This is an evidence package for human review, NOT a legal clearance.\n'
+                'Review original-notices/ and report.md before adding rights notices to a public release.\n'
+                'Do not upload the unreviewed notices automatically; license obligations differ.\n', encoding='utf-8')
+              print('DONE. Files are in rust-license-audit-output/', flush=True)
+          
+          if __name__ == '__main__':
+              main()
+          PY
+      - name: Save license audit report and original notices
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kotoba-rust23-license-evidence
+          path: rust-license-audit-output/
+          if-no-files-found: warn
+          retention-days: 30
