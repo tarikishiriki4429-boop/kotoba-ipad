@@ -155,6 +155,7 @@ button:disabled{opacity:.45}
 
 <div class="topbar">
   <div class="title">Kotoba Writer</div>
+  <span class="note" aria-label="AI非搭載版">執筆版・AI非搭載</span>
   <button id="newBtn">新規</button>
   <button id="undoBtn" disabled>取り消し</button>
   <button id="openBtn">TXTを開く</button>
@@ -166,7 +167,7 @@ button:disabled{opacity:.45}
   <button id="formatBtn">体裁を整える</button>
   <button id="trimLeadingBtn" title="原稿先頭に残った空行だけを確認のうえ削除します">先頭空行を削除</button>
   <button id="selectAllBtn">全文を選択</button>
-  <button id="aiBtn">AI誤字脱字修正</button>
+  
   <button id="licensesBtn">利用条件・ライセンス</button>
   <button id="checkAppUpdate" title="必要なときだけ更新確認を行います。通信が発生します">更新確認</button>
   <button id="privacyBtn" class="privacy-btn">秘匿モード OFF</button>
@@ -248,39 +249,19 @@ button:disabled{opacity:.45}
     <button id="pasteFullText">貼り付け</button>
     <button id="deleteFullText">選択範囲を削除</button>
     <button id="undoFullText">取り消し</button>
-    <button id="checkSelectedText">選択範囲の誤字・脱字を確認</button>
+    
     <button id="closeFullText">閉じる</button>
   </div>
   <p class="note">全ページをまとめて編集できます。変更は本文に反映・端末内に保存されます。</p>
   <p id="fullTextStatus" class="note" role="status"></p>
   <textarea id="fullText" aria-label="全文（編集・選択・コピー用）"></textarea>
 </div>
-<div id="aiPanel" class="panel">
-  <h3>AI誤字脱字修正（精度優先）</h3>
-  <div class="row">
-    <button id="prepareAI" class="primary">AIを準備</button>
-    <button id="cancelAISetup" disabled>準備を中止</button>
-    <button id="runAI" disabled>誤字・脱字を確認</button>
-    <button id="stopAI" disabled>中止</button>
-    <button id="resumeAI" disabled>続きから再開</button>
-    <button id="applyAI" disabled>候補を反映</button>
-    <button id="closeAI">閉じる</button>
-  </div>
-  <div class="row" style="margin-top:8px">
-    <label><input id="politeMode" type="checkbox"> 地の文だけ敬語化 ON</label>
-    <span class="note">OFF（初期状態）では常体・口語・会話の口調を固定します。ONでも「」『』内の会話文は変更しません。</span>
-  </div>
-  <label>確認範囲 <select id="aiScope"><option value="all">全文</option><option value="selection">選択範囲・現在の段落</option></select></label>
-  <div id="aiStatus" class="note">全文を短い区間に分けて順番に確認します。中止・エラー後は、この画面を開いている間、続きから再開できます。会話文の口調・一人称・敬語レベルは固定し、怪しい変更は自動で捨てます。</div>
-  <div id="aiResult" class="result">候補はここに表示されます。</div>
-</div>
-
 <div id="licensesPanel" class="panel" role="dialog" aria-label="利用条件・ライセンス"><button id="closeLicenses">閉じる</button><iframe src="./licenses.html?v=20261011" title="利用条件・ライセンス" style="width:100%;height:65vh;border:0"></iframe></div>
 <input id="fileInput" type="file" accept=".txt,text/plain">
 <div id="printArea"></div>
 
 <script type="module">
-const BUILD=37;
+const BUILD=38;
 const $=id=>document.getElementById(id);
 $('buildVersion').textContent='Kotoba Writer build '+BUILD;
 const STORAGE='kotoba-writer-draft-v1';
@@ -289,19 +270,6 @@ const FILE_NAME_KEY='kotoba-writer-file-name-v1';
 const defaultFileName=()=> 'kotoba-'+new Date().toISOString().slice(0,10)+'.txt';
 let documentFileName=localStorage.getItem(FILE_NAME_KEY)||defaultFileName();
 let documentFileHandle=null,fileOperationBusy=false;
-const MODEL='Qwen2.5-1.5B-Instruct-q4f16_1-MLC';
-const CDN='https://esm.run/@mlc-ai/web-llm@0.2.82';
-const AI_MODEL_REVISION='9bd564b064631febf14deadcac492efb761d60c3';
-const AI_WASM_URL='https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/025bcaf3780fa8254f5e5efd3bfea0a5397248f4/web-llm-models/v0_2_80/Qwen2-1.5B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm';
-function makeAIConfig(base){
-  const record=base.model_list.find(r=>r.model_id===MODEL);
-  if(!record)throw new Error('指定されたAIモデルの設定が見つかりません。');
-  return {...base,cacheBackend:'cache',model_list:[{...record,
-    model:'https://huggingface.co/mlc-ai/'+MODEL+'/resolve/'+AI_MODEL_REVISION+'/',
-    model_lib:AI_WASM_URL
-  }]};
-}
-
 let docText=localStorage.getItem(STORAGE)||'';
 let chunks=[];
 let globalCaret=0, globalSelEnd=0;
@@ -404,21 +372,6 @@ function editorCaretRect(ta){
   return {left:rc.left+(lc.col-1)*fs,top:rc.top+(lc.row-1)*lh,width:2,height:fs};
 }
 let searchPos=0,currentMatch=null,lastSearchQuery='';
-let aiEngine=null,aiRange=null,aiSnapshot=null;
-let aiWorker=null,aiPreparing=false,aiRequestId=0,aiSetupEpoch=0;
-const aiPending=new Map();
-function disposeAIWorker(message='AIの準備を中止しました。'){
-  aiWorker?.terminate();aiWorker=null;aiEngine=null;
-  for(const pending of aiPending.values())pending.reject(new Error(message));
-  aiPending.clear();$('runAI').disabled=true;$('resumeAI').disabled=true;
-}
-function aiWorkerRequest(type,payload){
-  return new Promise((resolve,reject)=>{
-    if(!aiWorker){reject(new Error('AIを準備してください。'));return;}
-    const id=++aiRequestId;aiPending.set(id,{resolve,reject});
-    try{aiWorker.postMessage({id,type,payload});}catch(e){aiPending.delete(id);reject(e);}
-  });
-}
 let privacyMode=localStorage.getItem('kotoba-writer-privacy')==='1';
 
 function clamp(n,a,b,f){n=parseInt(n,10);return Number.isNaN(n)?f:Math.max(a,Math.min(b,n))}
@@ -430,8 +383,7 @@ function getSettings(){
     charCount:clamp($('charCount').value,10,60,40),
     lineCount:clamp($('lineCount').value,10,50,30),
     manuscript:$('manuscript').checked,
-    indent:$('indent').checked,
-    politeMode:$('politeMode').checked
+    indent:$('indent').checked
   };
 }
 function saveSettings(){localStorage.setItem(SETTINGS,JSON.stringify(getSettings()))}
@@ -445,7 +397,6 @@ function loadSettings(){
     if(s.lineCount)$('lineCount').value=s.lineCount;
     $('manuscript').checked=!!s.manuscript;
     $('indent').checked=s.indent!==false;
-    $('politeMode').checked=!!s.politeMode;
   }catch{}
 }
 function save(){
@@ -921,8 +872,6 @@ $('replaceAllBtn').onclick=()=>{
   currentMatch=null;searchPos=0;lastSearchQuery='';$('goMatchBtn').disabled=true;
 };
 
-/* AI誤字脱字修正 */
-let aiRequestedRange=null,aiCancelled=false,aiJob=null,aiRunning=false;
 let fullTextComposing=false,fullTextPagesDirty=false;
 let fullTextSession=0,fullTextRevision=0,clipboardBusy=false;
 function setClipboardBusy(busy){
@@ -965,7 +914,7 @@ function replaceFullSelection(text){
 }
 $('selectAllBtn').onclick=()=>{
   if(isComposing)return;
-  $('aiPanel').classList.remove('show');$('findPanel').classList.remove('show');
+  $('findPanel').classList.remove('show');
   fullTextSession++;
   $('fullText').value=docText;$('fullTextStatus').textContent=clipboardBusy?'クリップボードの応答待ちです。長押し操作も使えます。':'';
   $('fullTextPanel').classList.add('show');selectEntireText();
@@ -1030,277 +979,6 @@ $('pasteFullText').onclick=async()=>{
     $('fullTextStatus').textContent='入力欄を長押しして「ペースト」を選ぶか、キーボードの貼り付け操作を使ってください。';
   }finally{setClipboardBusy(false);}
 };
-$('checkSelectedText').onclick=()=>{
-  if(fullTextComposing)return;
-  const field=$('fullText'),start=field.selectionStart,end=field.selectionEnd;
-  if(end<=start)return;
-  aiRequestedRange={start,end,text:field.value.slice(start,end),snapshot:docText};$('aiScope').value='selection';
-  fullTextSession++;$('fullTextPanel').classList.remove('show');
-  if(fullTextPagesDirty){renderPages(globalCaret,globalSelEnd,false,false);fullTextPagesDirty=false;}
-  $('aiPanel').classList.add('show');
-  $('aiStatus').textContent=`選択した${end-start}文字を確認します。長文は分割して処理するため時間がかかります。`;
-};
-$('aiBtn').onclick=()=>{aiRequestedRange=null;$('aiPanel').classList.add('show')};
-$('stopAI').onclick=()=>{aiCancelled=true;$('stopAI').disabled=true;$('aiStatus').textContent='現在の区間が終わると中止します';};
-$('closeAI').onclick=()=>$('aiPanel').classList.remove('show');
-function aiTarget(){
-  if(aiRequestedRange){
-    if(aiRequestedRange.snapshot!==docText)return {error:'本文が変わりました。範囲を選び直してください。'};
-    return aiRequestedRange;
-  }
-  if($('aiScope').value==='all')return {start:0,end:docText.length,text:docText};
-  const s=globalCaret,e=globalSelEnd;
-  if(e>s)return {start:s,end:e,text:docText.slice(s,e)};
-  const start=docText.slice(0,s).lastIndexOf('\n')+1;
-  const next=docText.indexOf('\n',s),end=next<0?docText.length:next;
-  return {start,end,text:docText.slice(start,end)};
-}
-function politeEndingSequence(text){
-  return Array.from(text.matchAll(/(?:です|でした|でしょう|ます|ました|ません|ましょう|ございます|ください)(?=[。！？!?」』）)]|\s|$)/gu),m=>m[0]);
-}
-function dialogueSpans(text){
-  const out=[];let depth=0,start=-1,open='';
-  for(let i=0;i<text.length;i++){
-    const ch=text[i];
-    if(ch==='「'||ch==='『'){
-      if(depth===0){start=i;open=ch}depth++;
-    }else if(ch==='」'||ch==='』'){
-      if(depth>0)depth--;
-      if(depth===0&&start>=0){out.push(text.slice(start,i+1));start=-1;open=''}
-    }
-  }
-  if(start>=0)out.push(text.slice(start));
-  return out;
-}
-function dialogueEndingSequence(text){
-  const endings=[];
-  for(const q of dialogueSpans(text)){
-    const body=q.replace(/^[「『]|[」』]$/gu,'');
-    for(const m of body.matchAll(/(?:です|でした|ます|ました|ません|でしょう|ください|だよ|だね|だな|だぞ|だぜ|だろ|だった|じゃない|じゃねえ|なの|なのか|のか|かな|かも|ぞ|ぜ)(?=[。！？!?…]|$)/gu))endings.push(m[0]);
-  }
-  return endings;
-}
-function identitySequence(text){
-  return Array.from(text.matchAll(/(?:俺様|俺|おれ|僕|ぼく|私|わたし|あたし|わし|自分|お前|おまえ|君|きみ|あんた|てめえ|あなた)/gu),m=>m[0]);
-}
-function dialogueTailSequence(text){
-  return dialogueSpans(text).map(q=>{
-    const body=q.replace(/^[「『]|[」』]$/gu,'').replace(/[。！？!?…]+$/gu,'');
-    return Array.from(body).slice(-4).join('');
-  });
-}
-function sameArray(a,b){return a.length===b.length&&a.every((v,i)=>v===b[i])}
-function quoteShape(text){return (text.match(/[「」『』]/gu)||[]).join('')}
-function nextDialogueDepth(text,depth=0){
-  for(const ch of text){
-    if(ch==='「'||ch==='『')depth++;
-    else if((ch==='」'||ch==='』')&&depth>0)depth--;
-  }
-  return depth;
-}
-function lineShape(text){return (text.match(/\n/gu)||[]).length}
-function diffHunks(a,b){
-  const A=Array.from(a),B=Array.from(b),n=A.length,m=B.length;
-  const dp=Array.from({length:n+1},()=>new Uint16Array(m+1));
-  for(let i=n-1;i>=0;i--)for(let j=m-1;j>=0;j--)dp[i][j]=A[i]===B[j]?dp[i+1][j+1]+1:Math.max(dp[i+1][j],dp[i][j+1]);
-  let i=0,j=0,cur=null,h=[];
-  const flush=()=>{if(cur){h.push(cur);cur=null}};
-  while(i<n||j<m){
-    if(i<n&&j<m&&A[i]===B[j]){flush();i++;j++;continue}
-    cur ||= {source:'',candidate:''};
-    if(j<m&&(i===n||dp[i][j+1]>=dp[i+1]?.[j])){cur.candidate+=B[j++]}else if(i<n){cur.source+=A[i++]}
-  }
-  flush();return h;
-}
-function changeCost(source,candidate){return diffHunks(source,candidate).reduce((n,h)=>n+Math.max(Array.from(h.source).length,Array.from(h.candidate).length),0)}
-function dialogueChangeIsConservative(source,candidate){
-  const A=dialogueSpans(source),B=dialogueSpans(candidate);if(A.length!==B.length)return false;
-  for(let i=0;i<A.length;i++){
-    const hs=diffHunks(A[i],B[i]),cost=hs.reduce((n,h)=>n+Math.max(Array.from(h.source).length,Array.from(h.candidate).length),0);
-    if(cost>2)return false;
-    for(const h of hs){
-      const S=Array.from(h.source),C=Array.from(h.candidate);
-      if(S.length>2||C.length>2)return false;
-      if(Math.max(S.length,C.length)<=1)continue;
-      // Two-character edits are accepted only as a clear transposition typo (e.g. ちに → にち).
-      if(!(S.length===2&&C.length===2&&S[0]===C[1]&&S[1]===C[0]))return false;
-    }
-  }
-  return true;
-}
-function candidateIsSafe(source,candidate,forceDialogue=false){
-  if(typeof candidate!=='string'||!candidate)return {ok:false,reason:'空の候補'};
-  if(lineShape(source)!==lineShape(candidate))return {ok:false,reason:'改行変更'};
-  if(quoteShape(source)!==quoteShape(candidate))return {ok:false,reason:'会話記号変更'};
-  if(!sameArray(identitySequence(source),identitySequence(candidate)))return {ok:false,reason:'一人称・呼称変更'};
-  if(!sameArray(dialogueTailSequence(source),dialogueTailSequence(candidate)))return {ok:false,reason:'会話の語尾周辺変更'};
-  if(!sameArray(dialogueEndingSequence(source),dialogueEndingSequence(candidate)))return {ok:false,reason:'会話の口調変更'};
-  if(!$('politeMode').checked&&!sameArray(politeEndingSequence(source),politeEndingSequence(candidate)))return {ok:false,reason:'敬語レベル変更'};
-  if(!dialogueChangeIsConservative(source,candidate))return {ok:false,reason:'会話文の書き換え過多'};
-  if(forceDialogue){
-    const hs=diffHunks(source,candidate),cost=hs.reduce((n,h)=>n+Math.max(Array.from(h.source).length,Array.from(h.candidate).length),0);
-    if(cost>2)return {ok:false,reason:'長い会話文の書き換え過多'};
-    const tail=t=>Array.from(t).slice(-4).join('');
-    if(tail(source)!==tail(candidate))return {ok:false,reason:'長い会話文の語尾周辺変更'};
-    for(const h of hs){
-      const S=Array.from(h.source),C=Array.from(h.candidate);
-      if(S.length>2||C.length>2)return {ok:false,reason:'長い会話文の書き換え過多'};
-      if(Math.max(S.length,C.length)<=1)continue;
-      if(!(S.length===2&&C.length===2&&S[0]===C[1]&&S[1]===C[0]))return {ok:false,reason:'長い会話文の言い換え'};
-    }
-  }
-  const maxCost=Math.max(3,Math.ceil(Array.from(source).length*0.035));
-  if(changeCost(source,candidate)>maxCost)return {ok:false,reason:'書き換え過多'};
-  return {ok:true,reason:''};
-}
-function proofreadingSystemPrompt(){
-  if($('politeMode').checked){
-    return 'あなたは日本語小説の保守的な校正担当です。明白な誤入力、誤変換、脱字、重複入力だけを必要最小限修正してください。「」と『』の中は会話文です。会話文は誤字脱字以外を絶対に変えず、口調、敬語レベル、一人称、語尾、方言、砕けた表現を保持してください。会話文以外の地の文だけ、必要な場合はです・ます調へ統一してください。固有名詞、造語、専門用語、設定、意味、描写、語順は推測で変更しないでください。改行、空白、引用符は原文どおり。出力は修正後の文章だけです。';
-  }
-  return 'あなたは日本語小説の誤字・脱字だけを直す非常に保守的な校正担当です。誤りと断定できる文字だけ直してください。迷ったら必ず原文を残してください。「」と『』の中は会話文です。会話文の口調、敬語レベル、一人称、呼称、語尾、方言、俗語、砕けた話し方は絶対に整えないでください。地の文も常体を敬体に、敬体を常体に変えてはいけません。「だ」「だった」「する」「した」「だよ」「だな」「だぞ」等を「です」「でした」「します」「しました」へ変えることは禁止です。人名・地名・造語・専門用語・意図的な表現は推測で直さないでください。文を追加・削除・要約・言い換えしないでください。改行、段落先頭の全角空白、句読点、引用符も原文どおり残してください。誤字脱字がなければ原文をそのまま返してください。出力は修正後の文章だけです。';
-}
-function syncPoliteMode(){
-  const on=$('politeMode').checked;
-  $('runAI').textContent=on?'誤字脱字＋地の文敬語化':'誤字・脱字を確認';
-  saveSettings();
-}
-$('politeMode').onchange=syncPoliteMode;
-
-function proofreadingParts(text){
-  const parts=[];let part='';const LIMIT=240;
-  // Tiny chunks reduce hallucination. Prefer paragraph, sentence and dialogue boundaries.
-  for(const token of text.match(/[^\n。！？「」『』]*[\n。！？「」『』]|[^\n。！？「」『』]+$/gu)||[]){
-    if(part.length+token.length>LIMIT&&part){parts.push(part);part='';}
-    for(const {segment} of units(token)){
-      if(part.length+segment.length>LIMIT&&part){parts.push(part);part='';}
-      part+=segment;
-    }
-  }
-  if(part)parts.push(part);
-  return parts;
-}
-$('cancelAISetup').onclick=()=>{
-  if(!aiPreparing)return;
-  aiSetupEpoch++;aiPreparing=false;disposeAIWorker();
-  $('prepareAI').disabled=false;$('cancelAISetup').disabled=true;
-  $('prepareAI').textContent='AIを準備';$('aiStatus').textContent='AIの準備を中止しました。本文は保存されています。';
-};
-$('prepareAI').onclick=async()=>{
-  if(aiPreparing || aiEngine)return;
-  save();aiPreparing=true;const epoch=++aiSetupEpoch;
-  $('prepareAI').disabled=true;$('cancelAISetup').disabled=false;
-  $('aiStatus').textContent=privacyMode?'保存済みAIを読み込み中…':'AIを準備中…初回はダウンロードに時間がかかります。';
-  try{
-    disposeAIWorker();
-    if(!window.Worker)throw new Error('このブラウザではAIのバックグラウンド処理を利用できません。');
-    const worker=new Worker('./ai-worker.js?v='+BUILD,{type:'module'});aiWorker=worker;
-    worker.onmessage=({data})=>{
-      if(aiWorker!==worker)return;
-      if(data.type==='progress'){
-        if(aiPreparing)$('aiStatus').textContent=data.text;
-        return;
-      }
-      const pending=aiPending.get(data.id);if(!pending)return;
-      aiPending.delete(data.id);
-      if(data.error){
-        const error=new Error(data.error);error.aiNeedsReload=!!data.needsReload;
-        pending.reject(error);
-      }else pending.resolve(data.result);
-    };
-    const failed=()=>{
-      if(aiWorker!==worker)return;
-      disposeAIWorker('AIの読み込みまたは実行が停止しました。本文は保持されています。');
-      $('prepareAI').disabled=false;$('prepareAI').textContent='AIを準備';
-      $('aiStatus').textContent='AIが停止しました。AIを準備し直してください。';
-    };
-    worker.onerror=failed;worker.onmessageerror=failed;
-    await aiWorkerRequest('init',{cdn:CDN,model:MODEL,revision:AI_MODEL_REVISION,wasm:AI_WASM_URL});
-    if(epoch!==aiSetupEpoch)return;
-    aiEngine={chat:{completions:{create:payload=>aiWorkerRequest('complete',payload)}}};
-    $('aiStatus').textContent=privacyMode?'AI誤字脱字修正 使用可能（秘匿モード）':'AI誤字脱字修正 使用可能';
-    $('runAI').disabled=false;$('prepareAI').textContent='AI準備済み';
-    $('resumeAI').disabled=!aiJob || aiJob.snapshot!==docText || aiJob.polite!==$('politeMode').checked || aiJob.outputs.length===aiJob.parts.length;
-    try{localStorage.setItem('kotoba-writer-ai-ready','1')}catch{}
-  }catch(e){
-    if(epoch!==aiSetupEpoch)return;
-    disposeAIWorker();
-    $('aiStatus').textContent=privacyMode?'保存済みAIが不足しているか、この環境で読み込めません。一度秘匿モードをOFFにして準備してください。':'AI準備エラー: '+((e&&e.message)||String(e));
-    $('prepareAI').disabled=false;
-  }finally{
-    if(epoch===aiSetupEpoch){aiPreparing=false;$('cancelAISetup').disabled=true;}
-  }
-};
-$('runAI').onclick=()=>runProofreading(false);
-$('resumeAI').onclick=()=>runProofreading(true);
-$('aiScope').onchange=()=>{aiRequestedRange=null};
-async function runProofreading(resume){
-  if(!aiEngine || aiRunning)return;
-  if(resume && (!aiJob || aiJob.snapshot!==docText || aiJob.polite!==$('politeMode').checked)){
-    $('aiStatus').textContent='本文または敬語化設定が変わりました。確認を最初から実行してください。';$('resumeAI').disabled=true;return;
-  }
-  const r=resume?aiJob.range:aiTarget();if(r.error){$('aiStatus').textContent=r.error;return}
-  if(!r.text.trim()){$('aiStatus').textContent='確認する文章がありません';return}
-  if(!resume)aiJob={range:r,snapshot:docText,polite:$('politeMode').checked,parts:proofreadingParts(r.text),outputs:[],blocked:0,reasons:{},depth:0,doneChars:0};
-  $('applyAI').textContent='候補を反映';
-  aiRunning=true;$('resumeAI').disabled=true;$('politeMode').disabled=true;$('aiScope').disabled=true;
-  aiCancelled=false;aiRange=r;aiSnapshot=docText;$('runAI').disabled=true;$('stopAI').disabled=false;$('applyAI').disabled=true;$('aiResult').textContent='精度優先で誤字・脱字を確認中…';
-  const messages=[
-    {role:'system',content:proofreadingSystemPrompt()},
-    {role:'user',content:r.text}
-  ];
-  try{
-    const job=aiJob,parts=job.parts,outputs=job.outputs;let blocked=job.blocked,blockedReasons=job.reasons,dialogueDepth=job.depth;
-    for(let i=outputs.length;i<parts.length;i++){
-      if(aiCancelled)break;
-      $('aiStatus').textContent=`全文確認 ${Math.floor(job.doneChars/r.text.length*100)}％（${job.doneChars.toLocaleString()} / ${r.text.length.toLocaleString()}文字）・区間 ${i+1} / ${parts.length}`;
-      const beginsInDialogue=dialogueDepth>0;
-      if(!parts[i].trim()){outputs.push(parts[i]);dialogueDepth=nextDialogueDepth(parts[i],dialogueDepth);job.depth=dialogueDepth;job.doneChars+=parts[i].length;continue;}
-      messages[1]={role:'user',content:parts[i]};
-      const res=await aiEngine.chat.completions.create({messages,temperature:0,top_p:1,max_tokens:1024});
-      if(aiCancelled)break;
-      const choice=res.choices?.[0],candidate=choice?.message?.content;
-      if(choice?.finish_reason==='length')throw new Error('出力が途中で止まりました。続きから再開すると、この区間から再試行します。');
-      if(typeof candidate!=='string'||!candidate.trim())throw new Error('修正候補を取得できませんでした');
-      const safe=candidateIsSafe(parts[i],candidate,beginsInDialogue);
-      dialogueDepth=nextDialogueDepth(parts[i],dialogueDepth);
-      if(!safe.ok){outputs.push(parts[i]);blocked++;blockedReasons[safe.reason]=(blockedReasons[safe.reason]||0)+1;}else outputs.push(candidate);
-      job.depth=dialogueDepth;job.blocked=blocked;job.doneChars+=parts[i].length;
-    }
-    if(aiCancelled){$('aiResult').textContent='確認を中止しました。確認済みの区間は保持しています。本文は変更していません。';$('aiStatus').textContent=`${aiJob.doneChars.toLocaleString()}文字まで確認済み。続きから再開できます。`;return;}
-    const out=outputs.join('');
-    // Keep indentation and trailing newlines; trim() would alter the manuscript.
-    $('aiResult').textContent=out;
-    $('applyAI').disabled=out===r.text;
-    $('applyAI').textContent=out===r.text?(blocked?'変更を保留':'変更なし'):'候補を反映';
-    if(blocked){
-      const detail=Object.entries(blockedReasons).map(([k,v])=>`${k}${v}件`).join('・');
-      $('aiStatus').textContent=`怪しい変更を${blocked}区間で自動却下しました（${detail}）。`;
-    }else{
-      $('aiStatus').textContent=out===r.text?'AIは修正候補を見つけませんでした':($('politeMode').checked?'誤字脱字＋地の文敬語化の候補です。会話文は保持されます。確認してから反映してください':'修正候補です。意図した表現や固有名詞が変わっていないか確認してから反映してください');
-    }
-    $('aiStatus').textContent=`${r.text.length.toLocaleString()}文字の確認完了（100％）。`+$('aiStatus').textContent;
-    if(out===r.text)$('aiStatus').textContent+=blocked?' 原文を守るため変更を保留したので、反映する候補はありません。':' 原文と候補が同じなので、反映操作は不要です。';
-  }catch(e){
-    const message=e?.message||String(e);
-    $('applyAI').textContent='推敲未完了';
-    $('aiResult').textContent='生成エラー: '+message;
-    if(e?.aiNeedsReload || /disposed|device.{0,20}lost|gpu.{0,20}lost/i.test(message) || !aiEngine){
-      disposeAIWorker('AIの再準備が必要です。');
-      $('prepareAI').disabled=false;$('prepareAI').textContent='AIを再準備';
-      $('aiStatus').textContent='AIの内部状態が失われました。本文は変更していません。「AIを再準備」の後、「続きから再開」を押してください。確認済み '+(aiJob?.doneChars||0).toLocaleString()+'文字を保持しています。';
-    }else $('aiStatus').textContent='AI誤字脱字修正に失敗しました。続きから再開できます。';
-  }
-  finally{aiRunning=false;$('runAI').disabled=!aiEngine;$('stopAI').disabled=true;$('politeMode').disabled=false;$('aiScope').disabled=false;$('resumeAI').disabled=!aiEngine || !aiJob || aiJob.outputs.length===aiJob.parts.length}
-}
-$('applyAI').onclick=()=>{
-  if(!aiRange||$('applyAI').disabled)return;
-  const out=$('aiResult').textContent;if(!out||out.startsWith('生成エラー'))return;
-  if(docText!==aiSnapshot){$('aiStatus').textContent='生成後に本文が変わったため反映を中止しました';$('applyAI').disabled=true;return}
-  const next=docText.slice(0,aiRange.start)+out+docText.slice(aiRange.end);
-  setDoc(next,aiRange.start,aiRange.start+out.length,true,true);
-  $('applyAI').disabled=true;$('applyAI').textContent='反映済み';$('aiStatus').textContent='本文へ反映しました';aiRange=null;aiSnapshot=null;aiRequestedRange=null;
-};
-
 /* 秘匿モード */
 function syncPrivacy(){
   $('privacyBtn').textContent=privacyMode?'秘匿モード ON':'秘匿モード OFF';
@@ -1349,7 +1027,6 @@ $('licensesBtn').onclick=()=>$('licensesPanel').classList.add('show');
 $('closeLicenses').onclick=()=>$('licensesPanel').classList.remove('show');
 $('privacyBtn').onclick=async()=>{
   if(!privacyMode){
-    if(localStorage.getItem('kotoba-writer-ai-ready')!=='1'&&!confirm('AI準備前です。それでも秘匿モードをONにしますか？'))return;
     privacyMode=true;
   }else{
     if(!confirm('秘匿モードをOFFにしますか？'))return;
@@ -1369,7 +1046,6 @@ document.addEventListener('visibilitychange',()=>{if(document.visibilityState===
 viewportChanged();
 syncFileName();
 loadSettings();
-syncPoliteMode();
 applySettings();
 syncPrivacy();
 renderPages(0,0,false,false);

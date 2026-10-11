@@ -1,3 +1,19 @@
+# Kotoba Writer build38 — AI非搭載・執筆専用版
+
+**現在の提供版**：note有料記事でWebアプリのURLと利用方法を案内する執筆専用Webアプリです。記事代以外にアプリ内課金や月額料金はありません。URLの購入者認証は行っていません。
+
+**AI推敲は搭載していません。** 権利条件とiPad実機動作を確認した場合に将来のアップデートで追加する可能性はありますが、提供時期や追加自体を保証しません。利用条件は `licenses.html`、案内は `START-HERE.md` をご覧ください。
+
+**移行**：既存の `kotoba-writer-draft-v1` と `kotoba-writer-settings-v1` の保存キーを維持しています。ブラウザのデータを消すと原稿を失うことがあります。更新前にTXT書き出しでバックアップしてください。
+
+**Web配信用構成**：`index.html`、`sw.js`、`manifest.webmanifest`、`licenses.html`、`THIRD_PARTY_NOTICES.txt`、`LICENSE_AUDIT.md` と `licenses/` のライセンス原文。`ai-worker.js` やAIモデルは配信・キャッシュの対象にしていません。Service Workerキャッシュ世代v39、画面build38。
+
+**公開前確認**：縦書き・横書きの日本語入力、改行、全文選択、検索置換、TXT保存と再読込、オフライン起動、ライセンスリンク、GitHub/Netlifyの配信ハッシュ一致をiPadと本番URLで確認すること。Netlify自動ビルドが停止中なら明示的なデプロイが必要です。
+
+---
+
+## 旧開発版の記録（AI搭載 build37以前・現在の提供条件ではありません）
+
  # Kotoba Writer iPad — build37
 
 **提供方法：** Kotoba Writerは、noteの有料記事内でWebアプリへのアクセス先と利用方法をご案内します。記事の購入には料金がかかりますが、アプリ内の追加課金や月額利用料はありません。購入者認証は設けていないため、URLを知っている方は記事の購入なしでもアクセスできます。利用条件は `licenses.html` をご確認ください。以下の旧バージョンに関する記述は開発履歴として残しています。

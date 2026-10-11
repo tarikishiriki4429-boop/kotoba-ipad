@@ -1,8 +1,8 @@
-// Kotoba Writer: cache refresh for the October 11, 2026 license update.
-// App build and AI worker remain build 37. Only the Service Worker cache generation changes.
-const CACHE='kotoba-writer-shell-v38';
+// Kotoba Writer: build38 AI-free release candidate.
+// No AI libraries, workers, models, or external AI endpoints are requested.
+const CACHE='kotoba-writer-shell-v39';
 const PRIVACY_FLAG='kotoba-writer-privacy-lock-v1';
-const SHELL=['./','./index.html','./manifest.webmanifest','./licenses.html','./ai-worker.js?v=37'];
+const SHELL=['./','./index.html','./manifest.webmanifest','./licenses.html'];
 
 self.addEventListener('install',event=>{
   self.skipWaiting();
@@ -71,7 +71,6 @@ self.addEventListener('fetch',event=>{
     if(url.origin===self.location.origin && url.pathname.endsWith('/licenses.html'))
       return licenseNetworkFirst(event.request);
     if(url.origin===self.location.origin)return cacheFirst(event.request);
-    if(url.hostname==='esm.run')return cacheFirst(event.request);
     return fetch(event.request);
   })());
 });
