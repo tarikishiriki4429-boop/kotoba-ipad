@@ -452,7 +452,7 @@ html.kw-dark .page-preview .editor-char.search-target{color:#231f1c;background:#
   <textarea id="fullText" aria-label="全文（編集・選択・コピー用）"></textarea>
 </div>
 <div id="licensesPanel" class="panel" role="dialog" aria-label="利用条件・ライセンス">
-  <div id="licensesHeader"><button id="closeLicenses">閉じる</button><a id="licensesDirectLink" href="./licenses.html?view=build53" target="_blank" rel="noopener noreferrer">利用条件を別タブで開く</a></div>
+  <div id="licensesHeader"><button id="closeLicenses">閉じる</button><a id="licensesDirectLink" href="./licenses.html?view=build55" target="_blank" rel="noopener noreferrer">利用条件を別タブで開く</a></div>
   <div id="licensesStatus" role="status" aria-live="polite"></div>
   <div id="licensesContent" role="document" aria-label="利用条件の本文" tabindex="0"></div>
 </div>
@@ -460,7 +460,7 @@ html.kw-dark .page-preview .editor-char.search-target{color:#231f1c;background:#
 <div id="printArea"></div>
 
 <script type="module">
-const BUILD=54;
+const BUILD=55;
 const $=id=>document.getElementById(id);
 $('buildVersion').textContent='Kotoba Writer build '+BUILD;
 const STORAGE='kotoba-writer-draft-v1';
@@ -586,7 +586,7 @@ function scheduleReveal(){
 }
 function editorCaretRect(ta){
   const c=chunks[+ta.dataset.index];if(!c)return null;
-  const pos=Math.max(0,Math.min(ta.selectionEnd,ta.value.length));
+  const pos=Math.max(0,Math.min(activeSelectionOffset(ta),ta.value.length));
   const rc=ta.getBoundingClientRect(),lc=lineCol(ta.value,pos);
   const css=getComputedStyle(ta),fs=parseFloat(css.fontSize)||18,lh=parseFloat(css.lineHeight)||fs*1.9;
   const vertical=getSettings().writingMode==='vertical';
@@ -634,6 +634,7 @@ function remember(){
   $('undoBtn').disabled=!history.length;
 }
 function applySettings(){
+  forgetArrowGoal();
   // Composing text should be committed by the native IME before rebuilding
   // page DOM. Moving layout controls while composition is active must not
   // destroy its provisional text or create phantom paragraphs.
@@ -879,6 +880,7 @@ function clearSelectionPointer(ta){
 }
 function bindGridPointer(ta){
   ta.addEventListener('pointerdown',e=>{
+    forgetArrowGoal();
     if(e.button!==0||isComposing)return;
     clearSelectionPointer(ta);
     ta._suppressTapClick=false; // A prior drag may have generated no click.
@@ -987,6 +989,7 @@ function replaceSelection(ta,text){
   save();renderPages(start+text.length,start+text.length,true,true);
 }
 function syncCaret(ta){
+  if(!ta.isConnected || document.activeElement!==ta)return;
   const c=chunks[+ta.dataset.index];if(!c)return;
   globalCaret=c.start+ta.selectionStart;
   globalSelEnd=c.start+ta.selectionEnd;
@@ -997,6 +1000,7 @@ function syncFromPage(ta,focus,deferLayout=false){
   const i=+ta.dataset.index,c=chunks[i];if(!c)return;
   const localStart=ta.selectionStart,localEnd=ta.selectionEnd;
   const newText=ta.value.replace(/\r\n?/g,'\n');
+  if(newText!==c.text)forgetArrowGoal();
   const oldLength=c.end-c.start;
   // Never overwrite newer data from a stale page/blur callback.
   if(docText.slice(c.start,c.end)!==c.text){
@@ -1004,6 +1008,7 @@ function syncFromPage(ta,focus,deferLayout=false){
     return;
   }
   if(newText===c.text){
+    if(document.activeElement!==ta)return;
     globalCaret=c.start+Math.min(localStart,newText.length);
     globalSelEnd=c.start+Math.min(localEnd,newText.length);
     updateStatus();paintVertical(ta);noteVerticalColumn(ta);
@@ -1104,7 +1109,7 @@ function bindEditor(ta){
   });
   ta.addEventListener('click',e=>verticalTap(ta,e));
   ta.addEventListener('compositionstart',()=>{
-    isComposing=true;ta.closest('.page')?.classList.add('composing');
+    isComposing=true;forgetArrowGoal();ta.closest('.page')?.classList.add('composing');
     remember();paintVertical(ta);scheduleReveal();
     clearTimeout(layoutIdleTimer);layoutIdleTimer=0;
   });
@@ -1121,7 +1126,7 @@ function bindEditor(ta){
   });
   // iPad context-menu pastes may report either a paste event or insertFromPaste.
   // Mark them so the page split happens immediately rather than after the idle timer.
-  ta.addEventListener('paste',()=>{ta._pastePending=true;});
+  ta.addEventListener('paste',()=>{forgetArrowGoal();ta._pastePending=true;});
   ta.addEventListener('beforeinput',e=>{
     if(isComposing||e.isComposing)return;
     if(ta._boundaryEditPending){
@@ -1186,48 +1191,122 @@ function bindEditor(ta){
     if(/^Arrow/.test(e.key))moveArrow(ta,e);
   });
 }
+// build55: one deterministic visual-cell navigation engine for ALL arrow keys.
+// Native textarea line wrapping differs from the visible grid on iPad Safari.
+// Remember the desired character column when crossing a shorter row/column.
 let arrowGoal=null,arrowAnchor=null;
+function forgetArrowGoal(){arrowGoal=null;arrowAnchor=null;}
+function activeSelectionOffset(ta){
+  return ta.selectionStart!==ta.selectionEnd && ta.selectionDirection==='backward'
+    ? ta.selectionStart : ta.selectionEnd;
+}
+function gridRows(value){
+  const lastByOffset=new Map();
+  for(const point of gridStops(value))lastByOffset.set(point.offset,point);
+  const rows=new Map();
+  // At a soft-wrap boundary the same source offset has two visual positions.
+  // Use the canonical position (the first cell in the *next* visual row).
+  for(const point of lastByOffset.values()){
+    if(point.row>=getSettings().lineCount)continue;
+    if(!rows.has(point.row))rows.set(point.row,[]);
+    rows.get(point.row).push(point);
+  }
+  return rows;
+}
+function nearestVisualOffset(points,desiredCol){
+  if(!points?.length)return null;
+  let winner=points[0],distance=Math.abs(winner.col-desiredCol);
+  for(const point of points.slice(1)){
+    const candidate=Math.abs(point.col-desiredCol);
+    // Prefer the smaller coordinate on a tie; selection never jumps past a glyph.
+    if(candidate<distance || (candidate===distance && point.col<winner.col)){
+      winner=point;distance=candidate;
+    }
+  }
+  return winner.offset;
+}
 function moveArrow(ta,e){
-  // Leave ordinary arrow movement to the native input system, except when
-  // crossing page boundaries. Textarea selection handles Shift/IME itself.
-  if(e.shiftKey||e.metaKey||e.ctrlKey||e.altKey)return;
+  if(!/^Arrow(Up|Down|Left|Right)$/.test(e.key) || e.altKey||e.metaKey||e.ctrlKey)return;
   const i=+ta.dataset.index,c=chunks[i];if(!c)return;
   const vertical=getSettings().writingMode==='vertical';
-  if(vertical && /^Arrow(Up|Down|Left|Right)$/.test(e.key)){
-    e.preventDefault();
-    const start=ta.selectionStart,stop=gridStopAt(ta,start),stops=gridStops(ta.value);
-    let target=start;
-    if(e.key==='ArrowDown')target=nextOffset(c.start+start)-c.start;
-    if(e.key==='ArrowUp')target=previousOffset(c.start+start)-c.start;
-    if(e.key==='ArrowLeft'||e.key==='ArrowRight'){
-      const row=stop.row+(e.key==='ArrowLeft'?1:-1);
-      target=gridOffsetAt(ta,row,stop.col);
-    }
-    if(target<0 || target>ta.value.length ||
-       (target===start && ((e.key==='ArrowUp'&&start===0)||(e.key==='ArrowDown'&&start===ta.value.length)))){
-      const other=e.key==='ArrowUp'?i-1:e.key==='ArrowDown'?i+1:i;
-      if(other>=0 && other<chunks.length && other!==i){
-        const absolute=e.key==='ArrowUp'?chunks[other].end:chunks[other].start;
-        renderPages(absolute,absolute,true,true);
-      }
-      return;
-    }
-    target=Math.max(0,Math.min(ta.value.length,target));
-    ta.setSelectionRange(target,target);syncCaret(ta);paintVertical(ta);
-    noteVerticalColumn(ta);scheduleReveal();
-    return;
+  const backwards=vertical?(e.key==='ArrowUp'||e.key==='ArrowRight'):
+    (e.key==='ArrowLeft'||e.key==='ArrowUp');
+  const blockDirection=vertical?
+    (e.key==='ArrowRight'?-1:e.key==='ArrowLeft'?1:0):
+    (e.key==='ArrowUp'?-1:e.key==='ArrowDown'?1:0);
+  const extend=e.shiftKey;
+  e.preventDefault();
+  const selected=ta.selectionStart!==ta.selectionEnd;
+  const absoluteStart=c.start+ta.selectionStart;
+  const absoluteEnd=c.start+ta.selectionEnd;
+  // Arrow without Shift first collapses an existing selection, like a native editor.
+  if(selected && !extend){
+    const collapse=backwards?absoluteStart:absoluteEnd;
+    forgetArrowGoal();
+    ta.setSelectionRange(collapse-c.start,collapse-c.start);
+    syncCaret(ta);paintVertical(ta);scheduleReveal();return;
   }
-  const prev=vertical?'ArrowUp':'ArrowLeft',next=vertical?'ArrowDown':'ArrowRight';
-  if(e.key===prev&&ta.selectionStart===0&&ta.selectionEnd===0&&i>0){
-    e.preventDefault();renderPages(c.start,c.start,true,true);
-    const prevPage=$('pages').children[i-1]?.firstElementChild;
-    if(prevPage){prevPage.focus({preventScroll:true});prevPage.setSelectionRange(prevPage.value.length,prevPage.value.length);syncCaret(prevPage)}
-  }else if(e.key===next&&ta.selectionStart===ta.value.length&&ta.selectionEnd===ta.value.length&&i<chunks.length-1){
-    e.preventDefault();const nextPage=$('pages').children[i+1]?.firstElementChild;
-    nextPage?.focus({preventScroll:true});nextPage?.setSelectionRange(0,0);
-    if(nextPage)syncCaret(nextPage);
+  const focus=c.start+activeSelectionOffset(ta);
+  const anchor=extend
+    ?(arrowAnchor && arrowAnchor.focus===focus ? arrowAnchor.anchor :
+      (ta.selectionDirection==='backward'?absoluteEnd:absoluteStart))
+    :focus;
+  let target=focus,desired=null;
+  if(blockDirection){
+    const stop=gridStopForText(c.text,focus-c.start);
+    // The goal survives short rows, including when the next arrow reverses.
+    desired=(arrowGoal && arrowGoal.focus===focus &&
+      arrowGoal.vertical===vertical ?arrowGoal.desired:stop.col);
+    let index=i,row=stop.row+blockDirection;
+    let candidates=gridRows(chunks[index].text);
+    const maxRow=()=>Math.max(...candidates.keys());
+    if(blockDirection<0 && row<0){
+      if(index===0){forgetArrowGoal();return;}
+      index--;candidates=gridRows(chunks[index].text);row=maxRow();
+    }else if(blockDirection>0 && row>maxRow()){
+      if(index>=chunks.length-1){forgetArrowGoal();return;}
+      index++;candidates=gridRows(chunks[index].text);row=0;
+    }
+    const local=nearestVisualOffset(candidates.get(row),desired);
+    if(local===null){forgetArrowGoal();return;}
+    target=chunks[index].start+local;
+  }else{
+    const local=focus-c.start;
+    const boundaries=[...new Set(gridStops(c.text).map(p=>p.offset))].sort((a,b)=>a-b);
+    if(backwards){
+      const prior=boundaries.filter(n=>n<local);
+      target=prior.length?c.start+prior[prior.length-1]:previousOffset(focus);
+    }else{
+      const following=boundaries.find(n=>n>local);
+      target=following!==undefined?c.start+following:nextOffset(focus);
+    }
   }
+  target=Math.max(0,Math.min(target,docText.length));
+  if(target===focus){if(!blockDirection)forgetArrowGoal();return;}
+  if(extend){
+    // Native selections cannot span separate textareas. Do not silently lose
+    // the selected text when an extended arrow reaches a page boundary.
+    if(target<c.start||target>c.end){forgetArrowGoal();return;}
+    const begin=Math.min(anchor,target)-c.start;
+    const end=Math.max(anchor,target)-c.start;
+    ta.setSelectionRange(begin,end,target<anchor?'backward':'forward');
+    arrowAnchor={anchor,focus:target};
+    syncCaret(ta);paintVertical(ta);scheduleReveal();
+  }else{
+    arrowAnchor=null;
+    const p=pageForOffset(target);
+    if(p!==i){
+      // Focus and selection must be set on the destination page, not the stale
+      // textarea. renderPages also updates status/preview atomically.
+      renderPages(target,target,true,true);
+    }else{
+      ta.setSelectionRange(target-c.start,target-c.start);
+      syncCaret(ta);paintVertical(ta);noteVerticalColumn(ta);scheduleReveal();
+    }
+  }
+  arrowGoal=blockDirection?{desired,focus:target,vertical}:null;
 }
+
 function renderPages(caret=globalCaret,selEnd=globalSelEnd,focus=false,scroll=false){
   clearTimeout(layoutIdleTimer);layoutIdleTimer=0;
   rendering=true;
@@ -1290,6 +1369,7 @@ function renderPages(caret=globalCaret,selEnd=globalSelEnd,focus=false,scroll=fa
 }
 
 function setDoc(text,caret=0,end=caret,rememberIt=true,focus=true){
+  forgetArrowGoal();
   if(rememberIt)remember();
   docText=String(text??'').replace(/\r\n?/g,'\n');
   globalCaret=Math.max(0,Math.min(caret,docText.length));
