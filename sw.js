@@ -1,6 +1,6 @@
-// Kotoba Writer: build53 staging ruby print and IME margin refinement; license view reliability.
+// Kotoba Writer: build54 staging ruby print and IME margin refinement; license view reliability.
 // No AI libraries, workers, models, or external AI endpoints are requested.
-const CACHE='kotoba-writer-shell-v54';
+const CACHE='kotoba-writer-shell-v55';
 const PRIVACY_FLAG='kotoba-writer-privacy-lock-v1';
 const SHELL=['./','./index.html','./manifest.webmanifest','./licenses.html'];
 

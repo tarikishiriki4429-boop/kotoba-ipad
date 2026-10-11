@@ -69,7 +69,7 @@ button:disabled{opacity:.45}
   height:calc(var(--chars) * 1em);
 }
 .editor-line{
-  display:block;inline-size:calc(var(--chars) * 1em);
+  position:relative;display:block;inline-size:calc(var(--chars) * 1em);
   block-size:calc(var(--font-size) * var(--line-height));
   white-space:pre;overflow:visible;
 }
@@ -78,7 +78,11 @@ button:disabled{opacity:.45}
   white-space:pre;vertical-align:baseline;
 }
 .editor-line > br{display:none}
-.hanging-char{position:relative;z-index:2;overflow:visible}
+/* A hanging mark MUST NOT participate in the browser's soft wrapping.
+   Otherwise Safari moves the preceding glyph as well, despite our grid model.
+   Logical inline-start works for both horizontal and vertical writing. */
+.hanging-char{position:absolute;inset-inline-start:calc(var(--chars) * 1em);
+  inset-block-start:0;z-index:2;overflow:visible}
 .hanging-char::selection{background:Highlight;color:HighlightText}
 /* Build34: Keep IME composition inside a real native textarea.  A
    contenteditable containing one-cell spans makes WebKit introduce transient
@@ -126,23 +130,33 @@ button:disabled{opacity:.45}
   cursor:vertical-text!important;
   -webkit-user-select:text!important;user-select:text!important;
 }
-.page.vertical.editing .page-preview{visibility:visible!important}
+/* The painted grid, rather than a second browser-native wrap algorithm,
+   is the visible text for BOTH modes, during and after editing. The native
+   textarea remains the genuine focus/IME/clipboard owner on the full sheet. */
+.page.vertical.editing .page-preview,
+.page:not(.vertical).editing .page-preview{visibility:visible!important}
+.page:not(.vertical).editing .page-editor{
+  opacity:1!important;color:transparent!important;
+  -webkit-text-fill-color:transparent!important;caret-color:transparent!important;
+  pointer-events:auto!important;touch-action:auto!important;
+  -webkit-user-select:text!important;user-select:text!important
+}
 .page .grid-caret{
   position:absolute;display:none;pointer-events:none;z-index:6;
   width:var(--font-size);height:2px;background:#183d72;border-radius:2px;
   box-shadow:0 0 0 .2px #183d72;
 }
-.page.vertical.editing .grid-caret{display:block}
-.page.vertical.editing .grid-caret.selected{display:none}
-.page.vertical.composing .grid-caret{display:none!important}
+.page.editing .grid-caret{display:block}
+.page.editing .grid-caret.selected{display:none}
+.page.composing .grid-caret{display:none!important}
 @media (prefers-reduced-motion: no-preference){
-  .page.vertical.editing .grid-caret{animation:kw-caret-blink 1.1s steps(2,start) infinite}
+  .page.editing .grid-caret{animation:kw-caret-blink 1.1s steps(2,start) infinite}
 }
 @keyframes kw-caret-blink{to{opacity:0}}
 /* Build52: visible selected text follows the same per-character grid as the
    manuscript. Native WebKit selection rectangles use different soft-wraps. */
-.page.vertical .page-editor::selection,
-.page.vertical .page-editor::-moz-selection{background:transparent!important;color:transparent!important}
+.page .page-editor::selection,
+.page .page-editor::-moz-selection{background:transparent!important;color:transparent!important}
 .page .grid-selection-layer{position:absolute;inset:0;z-index:5;pointer-events:none}
 .page .grid-selected-rect{position:absolute;background:rgba(54,120,216,.29);
   border-radius:2px;pointer-events:none}
@@ -198,7 +212,8 @@ html.kw-dark button.primary{background:#67605a;color:#f3f0eb}
 html.kw-dark .page{background:#2a2521;box-shadow:0 2px 16px rgba(0,0,0,.4);color:#c9c4bf}
 html.kw-dark .page::after{color:#99908a}
 html.kw-dark .page-editor,html.kw-dark .page-preview{color:#c9c4bf!important;caret-color:#ddd4cb!important}
-html.kw-dark .page.vertical .page-editor,html.kw-dark .page.vertical.editing .page-editor{
+html.kw-dark .page.vertical .page-editor,
+html.kw-dark .page.editing .page-editor{
   color:transparent!important;-webkit-text-fill-color:transparent!important;caret-color:transparent!important}
 html.kw-dark .grid-caret{background:#d7c4ae;box-shadow:0 0 0 .2px #d7c4ae}
 html.kw-dark .page.manuscript .page-editor{background-image:none}
@@ -445,7 +460,7 @@ html.kw-dark .page-preview .editor-char.search-target{color:#231f1c;background:#
 <div id="printArea"></div>
 
 <script type="module">
-const BUILD=53;
+const BUILD=54;
 const $=id=>document.getElementById(id);
 $('buildVersion').textContent='Kotoba Writer build '+BUILD;
 const STORAGE='kotoba-writer-draft-v1';
@@ -504,7 +519,7 @@ function scheduleIdleLayout(ta){
       if(ta.selectionStart!==ta.selectionEnd)return;
       const next=paginate(docText);
       // Ordinary typing does not need any input value assignment or layout.
-      if(next.length===chunks.length && next.every((c,i)=>c.start===chunks[i].start && c.end===chunks[i].end))return;
+      if(next.length===chunks.length && next.every((c,i)=>c.start===chunks[i].start && c.end===chunks[i].end && c.text===chunks[i].text))return;
     }
     renderPages(globalCaret,globalSelEnd,focused,true);
   },LAYOUT_IDLE_MS);
@@ -821,10 +836,17 @@ function paintGridSelection(ta){
   const fragment=document.createDocumentFragment();
   for(const [r,span] of ranges){
     const rect=document.createElement('span');rect.className='grid-selected-rect';
-    rect.style.left=(preview.offsetLeft+preview.offsetWidth-(r+1)*advance+(advance-fs)/2)+'px';
-    rect.style.top=(preview.offsetTop+span.start*fs)+'px';
-    rect.style.width=fs+'px';
-    rect.style.height=((span.end-span.start)*fs)+'px';
+    if(getSettings().writingMode==='vertical'){
+      rect.style.left=(preview.offsetLeft+preview.offsetWidth-(r+1)*advance+(advance-fs)/2)+'px';
+      rect.style.top=(preview.offsetTop+span.start*fs)+'px';
+      rect.style.width=fs+'px';
+      rect.style.height=((span.end-span.start)*fs)+'px';
+    }else{
+      rect.style.left=(preview.offsetLeft+span.start*fs)+'px';
+      rect.style.top=(preview.offsetTop+r*advance+(advance-fs)/2)+'px';
+      rect.style.width=((span.end-span.start)*fs)+'px';
+      rect.style.height=fs+'px';
+    }
     fragment.append(rect);
   }
   layer.replaceChildren(fragment);
@@ -835,8 +857,13 @@ function gridHitOffset(ta,clientX,clientY){
   if(!preview)return 0;
   const rect=preview.getBoundingClientRect(),settings=getSettings();
   const fs=Number(settings.fontSize),advance=fs*Number(settings.lineHeight);
-  const row=Math.max(0,Math.min(settings.lineCount-1,Math.floor((rect.right-clientX)/advance)));
-  const col=Math.max(0,Math.min(settings.charCount,Math.round((clientY-rect.top)/fs)));
+  const vertical=settings.writingMode==='vertical';
+  const row=vertical
+    ? Math.max(0,Math.min(settings.lineCount-1,Math.floor((rect.right-clientX)/advance)))
+    : Math.max(0,Math.min(settings.lineCount-1,Math.floor((clientY-rect.top)/advance)));
+  const col=vertical
+    ? Math.max(0,Math.min(settings.charCount,Math.round((clientY-rect.top)/fs)))
+    : Math.max(0,Math.min(settings.charCount,Math.round((clientX-rect.left)/fs)));
   return gridOffsetAt(ta,row,col);
 }
 function setGridSelection(ta,anchor,focus){
@@ -852,7 +879,7 @@ function clearSelectionPointer(ta){
 }
 function bindGridPointer(ta){
   ta.addEventListener('pointerdown',e=>{
-    if(getSettings().writingMode!=='vertical'||e.button!==0||isComposing)return;
+    if(e.button!==0||isComposing)return;
     clearSelectionPointer(ta);
     ta._suppressTapClick=false; // A prior drag may have generated no click.
     const anchor=gridHitOffset(ta,e.clientX,e.clientY);
@@ -905,7 +932,7 @@ function bindGridPointer(ta){
 }
 function paintVertical(ta,previewOnly=false){
   const page=ta.closest('.page');
-  if(!page?.classList.contains('vertical'))return;
+  if(!page)return;
   const preview=page.querySelector('.page-preview');
   if(!preview)return;
   // Rendering the preview cannot change textarea.value, selection or IME.
@@ -924,9 +951,15 @@ function paintVertical(ta,previewOnly=false){
   const font=Number(s.fontSize),advance=font*Number(s.lineHeight);
   if(pos.row>=s.lineCount){caret.style.display='none';return;}
   caret.style.display='';
-  caret.style.left=(preview.offsetLeft+preview.offsetWidth-(pos.row+1)*advance+(advance-font)/2)+'px';
-  caret.style.top=(preview.offsetTop+pos.col*font)+'px';
-  caret.style.width=font+'px';
+  if(s.writingMode==='vertical'){
+    caret.style.left=(preview.offsetLeft+preview.offsetWidth-(pos.row+1)*advance+(advance-font)/2)+'px';
+    caret.style.top=(preview.offsetTop+pos.col*font)+'px';
+    caret.style.width=font+'px';caret.style.height='2px';
+  }else{
+    caret.style.left=(preview.offsetLeft+pos.col*font)+'px';
+    caret.style.top=(preview.offsetTop+pos.row*advance+(advance-font)/2)+'px';
+    caret.style.width='2px';caret.style.height=font+'px';
+  }
 }
 function verticalTap(ta,e){
   // A finished drag must NEVER collapse its selected range on the click event
@@ -1069,7 +1102,7 @@ function bindEditor(ta){
   for(const type of ['click','select','keyup'])ta.addEventListener(type,()=>{
     if(!rendering&&!isComposing){syncCaret(ta);paintVertical(ta)}
   });
-  ta.addEventListener('click',e=>{if(getSettings().writingMode==='vertical')verticalTap(ta,e)});
+  ta.addEventListener('click',e=>verticalTap(ta,e));
   ta.addEventListener('compositionstart',()=>{
     isComposing=true;ta.closest('.page')?.classList.add('composing');
     remember();paintVertical(ta);scheduleReveal();
@@ -1199,6 +1232,12 @@ function renderPages(caret=globalCaret,selEnd=globalSelEnd,focus=false,scroll=fa
   clearTimeout(layoutIdleTimer);layoutIdleTimer=0;
   rendering=true;
   chunks=paginate(docText);
+  // The underlying manuscript is never edited by pagination. If the joined
+  // sheet slices differ from TXT, fail safely rather than display shifted text.
+  if(chunks.map(c=>c.text).join('')!==docText){
+    console.error('Kotoba Writer: page partition mismatch; manuscript preserved');
+    chunks=[{start:0,end:docText.length,text:docText}];
+  }
   const container=$('pages');
 
   while(container.children.length>chunks.length)container.lastElementChild.remove();
