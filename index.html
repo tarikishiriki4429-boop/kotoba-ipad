@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#eceae6">
+<meta name="theme-color" content="#eceae6" id="appThemeMeta">
 <link rel="manifest" href="./manifest.webmanifest">
 <title>Kotoba Writer</title>
 <style>
@@ -15,7 +15,14 @@
 *{box-sizing:border-box}
 html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#d8d7d4}
 body{position:fixed;left:0;right:0;top:var(--viewport-top,0px);height:var(--viewport-height,100dvh);display:flex;flex-direction:column}
-.topbar,.toolbar,.statusbar{flex-shrink:0}
+.topbar,.toolbar,.statusbar,.compact-controls{flex-shrink:0}
+/* The narrow strip remains visible when the main tool area is folded. */
+.compact-controls{position:relative;z-index:21;display:flex;align-items:center;justify-content:space-between;
+  gap:8px;min-height:34px;padding:3px 10px;background:#efede9;border-bottom:1px solid #ccc9c3}
+.compact-controls button{padding:3px 10px;border-radius:7px;font-size:12px;line-height:1.6}
+body.controls-collapsed .topbar,body.controls-collapsed .toolbar{display:none}
+body.controls-collapsed .compact-controls{padding-top:max(3px,env(safe-area-inset-top))}
+
 button,select,input{font:inherit}
 button{border:1px solid #c9c7c2;border-radius:9px;background:#fff;color:#222;padding:8px 11px;font-weight:600}
 button.primary{background:#222;color:#fff;border-color:#222}
@@ -173,6 +180,34 @@ button:disabled{opacity:.45}
 @media(max-width:700px){
   .toolbar{top:auto}.workspace{padding-top:16px}.page{padding:38px 24px}.pages{align-items:flex-start}
 }
+/* Cozy dark mode: warm almost-black surfaces with low-glare gray ink. */
+html.kw-dark,html.kw-dark body{background:#1d1917!important;color:#c9c4bf}
+html.kw-dark .compact-controls,html.kw-dark .toolbar{background:#26211e;border-color:#4c4440;color:#c9c4bf}
+html.kw-dark .topbar,html.kw-dark .statusbar{background:rgba(38,33,30,.97);border-color:#4c4440;color:#c9c4bf}
+html.kw-dark .toolbar label,html.kw-dark .note{color:#bab4ae}
+html.kw-dark button,html.kw-dark input,html.kw-dark select{background:#35302b;color:#d4d0cc;border-color:#554d47}
+html.kw-dark button.primary{background:#67605a;color:#f3f0eb}
+html.kw-dark .page{background:#2a2521;box-shadow:0 2px 16px rgba(0,0,0,.4);color:#c9c4bf}
+html.kw-dark .page::after{color:#99908a}
+html.kw-dark .page-editor,html.kw-dark .page-preview{color:#c9c4bf!important;caret-color:#ddd4cb!important}
+html.kw-dark .page.vertical .page-editor,html.kw-dark .page.vertical.editing .page-editor{
+  color:transparent!important;-webkit-text-fill-color:transparent!important;caret-color:transparent!important}
+html.kw-dark .grid-caret{background:#d7c4ae;box-shadow:0 0 0 .2px #d7c4ae}
+html.kw-dark .page.manuscript .page-editor{background-image:none}
+html.kw-dark .panel{background:#2a2521;color:#d0cac5;border-color:#514943}
+html.kw-dark .result,html.kw-dark #searchResults,html.kw-dark #licensesContent{background:#302a26;color:#cec9c3;border-color:#57504a}
+html.kw-dark .search-hit{background:#36302b;color:#d0cbc5;border-color:#5c514a}
+html.kw-dark .search-hit.active{background:#464039;border-color:#b8aa91}
+html.kw-dark .search-hit .search-meta{color:#cac3ba}
+html.kw-dark #licensesStatus{color:#bbb2a8}
+html.kw-dark #fullText{background:#292420;color:#d0cac5;border-color:#5c514a}
+html.kw-dark .privacy-banner{background:#243027;color:#bccab9;border-color:#405246}
+html.kw-dark .page.search-page{outline-color:#c4a876}
+html.kw-dark .page-preview .editor-char.search-target{color:#231f1c;background:#dbc38d}
+@media print{
+  html.kw-dark,html.kw-dark body{background:white!important;color:#171717!important}
+  html.kw-dark #printArea,html.kw-dark #printArea *{color:#171717!important;box-shadow:none!important}
+}
 /* Print one physical A4 sheet for each manuscript page. Pagination is shared with
    the editor rather than delegated to the browser's flowing-text layout. */
 /* iPad Safari may reserve additional room for print headers, footers and
@@ -185,7 +220,7 @@ button:disabled{opacity:.45}
   html,body{display:block!important;position:static!important;inset:auto!important;
     width:auto!important;height:auto!important;min-height:0!important;
     overflow:visible!important;background:white!important;margin:0!important;padding:0!important}
-  .topbar,.toolbar,.statusbar,.panel,.privacy-banner,.workspace{display:none!important}
+  .topbar,.toolbar,.compact-controls,.statusbar,.panel,.privacy-banner,.workspace{display:none!important}
   #printArea{display:block!important;position:static!important;width:170mm!important;
     margin:0!important;padding:0!important;background:white!important}
   #printArea .print-sheet{position:relative;display:block;box-sizing:border-box;
@@ -196,24 +231,37 @@ button:disabled{opacity:.45}
   #printArea .print-sheet + .print-sheet{
     break-before:page!important;page-break-before:always!important;
   }
-  /* Vertical text uses a landscape A4 page and a landscape manuscript grid.
-     Safari may ignore CSS @page orientation; its native dialog must then be
-     set to Landscape by the user. A shorter fixed sheet avoids blank tail pages. */
-  #printArea.vertical-print{width:260mm!important}
-  #printArea.vertical-print .print-sheet{width:260mm;height:160mm}
+  /* Vertical manuscript on A4 PORTRAIT, as requested: each logical vertical
+     column is one horizontal row and EVERY grapheme is turned -90 degrees.
+     Rotate the printed paper clockwise to read in true right-to-left columns.
+     iPad Safari now always uses the reliable A4 portrait print path. */
+  #printArea.vertical-print{width:170mm!important}
+  #printArea.vertical-print .print-sheet{width:170mm;height:220mm}
   #printArea.vertical-print .print-preview.vertical{
-    position:relative;margin-left:auto;margin-right:0;
-    writing-mode:vertical-rl;text-orientation:mixed}
-  #printArea.vertical-print .print-page-number{right:3mm;bottom:2mm}
+    position:relative;margin:0;
+    writing-mode:horizontal-tb!important;text-orientation:mixed;
+    width:calc(var(--chars) * var(--print-font-size));
+    height:calc(var(--lines) * var(--print-font-size) * var(--line-height))}
+  #printArea.vertical-print .print-preview.vertical .editor-line{
+    display:block;writing-mode:horizontal-tb!important;
+    inline-size:calc(var(--chars) * var(--print-font-size));
+    block-size:calc(var(--print-font-size) * var(--line-height))}
+  /* Turn kana/kanji (including 漢数字) -90deg. Latin letters and Arabic
+     numerals retain their original print orientation as a horizontal run. */
+  #printArea.vertical-print .print-preview.vertical .editor-char{
+    display:inline-block;transform:rotate(-90deg);transform-origin:center center}
+  #printArea.vertical-print .print-preview.vertical .editor-char.print-latin{
+    transform:none!important}
+  #printArea.vertical-print .print-page-number{right:2mm;bottom:1mm}
   #printArea .print-preview{display:block;position:relative;overflow:visible;margin:0;padding:0;border:0;
     width:calc(var(--chars) * var(--print-font-size));
     height:calc(var(--lines) * var(--print-font-size) * var(--line-height));
     font-size:var(--print-font-size);line-height:var(--line-height);
     font-family:"Hiragino Mincho ProN","Yu Mincho","YuMincho",serif;
     font-kerning:none;font-variant-east-asian:full-width;letter-spacing:0;white-space:pre-wrap}
-  #printArea .print-preview.vertical{writing-mode:vertical-rl;text-orientation:mixed;
-    width:calc(var(--lines) * var(--print-font-size) * var(--line-height));
-    height:calc(var(--chars) * var(--print-font-size))}
+  #printArea .print-preview.vertical{writing-mode:horizontal-tb;text-orientation:mixed;
+    width:calc(var(--chars) * var(--print-font-size));
+    height:calc(var(--lines) * var(--print-font-size) * var(--line-height))}
   #printArea .print-preview .editor-line{block-size:calc(var(--print-font-size) * var(--line-height));
     inline-size:calc(var(--chars) * var(--print-font-size))}
   #printArea .print-page-number{position:absolute;right:2mm;bottom:1mm;
@@ -275,7 +323,7 @@ button:disabled{opacity:.45}
   <button id="privacyBtn" class="privacy-btn">秘匿モード OFF</button>
 </div>
 
-<div class="toolbar">
+<div class="toolbar" id="writerControls">
   <label>文字サイズ
     <select id="fontSize">
       <option>14</option><option>16</option><option selected>18</option><option>20</option><option>22</option><option>24</option><option>28</option>
@@ -300,6 +348,10 @@ button:disabled{opacity:.45}
     <button data-preset="42,34">42×34</button>
     <button data-preset="20,20">20×20</button>
   </div>
+</div>
+<div class="compact-controls" role="group" aria-label="画面の表示設定">
+  <button id="toggleControls" type="button" aria-expanded="true" aria-controls="writerControls">▲ 操作ボタンをしまう</button>
+  <button id="toggleTheme" type="button" aria-pressed="false">☾ ダークモード</button>
 </div>
 
 <div id="privacyBanner" class="privacy-banner">秘匿モードON：ネット取得をキャッシュ限定にしています。</div>
@@ -370,12 +422,33 @@ button:disabled{opacity:.45}
 <div id="printArea"></div>
 
 <script type="module">
-const BUILD=49;
+const BUILD=50;
 const $=id=>document.getElementById(id);
 $('buildVersion').textContent='Kotoba Writer build '+BUILD;
 const STORAGE='kotoba-writer-draft-v1';
 const SETTINGS='kotoba-writer-settings-v1';
 const FILE_NAME_KEY='kotoba-writer-file-name-v1';
+const THEME_KEY='kotoba-writer-theme-v1';
+const CONTROLS_KEY='kotoba-writer-controls-hidden-v1';
+function setDarkMode(enabled){
+  document.documentElement.classList.toggle('kw-dark',enabled);
+  const b=$('toggleTheme');b.setAttribute('aria-pressed',String(enabled));
+  b.textContent=enabled?'☀ 明るい表示':'☾ ダークモード';
+  document.getElementById('appThemeMeta')?.setAttribute('content',enabled?'#1d1917':'#eceae6');
+  try{localStorage.setItem(THEME_KEY,enabled?'1':'0')}catch{}
+}
+function setControlsHidden(hidden){
+  document.body.classList.toggle('controls-collapsed',hidden);
+  const b=$('toggleControls');b.setAttribute('aria-expanded',String(!hidden));
+  b.textContent=hidden?'▼ 操作ボタンを開く':'▲ 操作ボタンをしまう';
+  try{localStorage.setItem(CONTROLS_KEY,hidden?'1':'0')}catch{}
+  // Folding the controls changes the viewport and may expose more of the page.
+  if(!hidden && document.querySelector('.page-editor'))scheduleReveal();
+}
+$('toggleTheme').onclick=()=>setDarkMode(!document.documentElement.classList.contains('kw-dark'));
+$('toggleControls').onclick=()=>setControlsHidden(!document.body.classList.contains('controls-collapsed'));
+setDarkMode(localStorage.getItem(THEME_KEY)==='1');
+setControlsHidden(localStorage.getItem(CONTROLS_KEY)==='1');
 const defaultFileName=()=> 'kotoba-'+new Date().toISOString().slice(0,10)+'.txt';
 let documentFileName=localStorage.getItem(FILE_NAME_KEY)||defaultFileName();
 let documentFileHandle=null,fileOperationBusy=false;
@@ -439,7 +512,8 @@ function restoreInputScroll(){
 }
 // A real touch/wheel gesture always takes precedence over automatic restoration.
 for(const type of ['touchstart','pointerdown','wheel'])document.addEventListener(type,()=>{
-  inputScroll=null;compositionScroll=null;cancelAnimationFrame(restoreFrame);cancelAnimationFrame(revealFrame);
+  inputScroll=null;compositionScroll=null;revealColumnTop=false;columnFollowUntil=0;
+  clearTimeout(columnFollowTimer);cancelAnimationFrame(restoreFrame);cancelAnimationFrame(revealFrame);
 },{passive:true});
 function viewportChanged(){
   const vv=window.visualViewport;
@@ -451,6 +525,33 @@ window.visualViewport?.addEventListener('resize',viewportResized);
 // Panning the visual viewport must not start another editor scroll.
 window.visualViewport?.addEventListener('scroll',viewportChanged);
 window.addEventListener('resize',viewportResized);
+// A new vertical column starts back near the top edge of the sheet. When
+// writing rolls from its last cell to the next column, restore that edge into
+// view rather than leaving it hidden above the Safari keyboard viewport.
+let revealColumnTop=false;
+let columnFollowUntil=0,columnFollowTimer=0;
+function noteVerticalColumn(ta){
+  if(getSettings().writingMode!=='vertical')return;
+  const page=ta.closest('.page');if(!page)return;
+  const row=gridStopAt(ta,Math.min(ta.selectionStart,ta.value.length)).row;
+  if(ta._lastVerticalRow!==undefined && row>ta._lastVerticalRow){
+    revealColumnTop=true;
+    // iPad Safari may scroll the textarea itself while committing Japanese
+    // input and when the software keyboard changes visualViewport geometry.
+    // Recheck briefly after the IME has finished; never rewrite the text.
+    columnFollowUntil=Date.now()+480;
+  }
+  ta._lastVerticalRow=row;
+}
+function repeatColumnFollow(){
+  clearTimeout(columnFollowTimer);
+  if(!columnFollowUntil || Date.now()>=columnFollowUntil)return;
+  columnFollowTimer=setTimeout(()=>{
+    if(isComposing){repeatColumnFollow();return;}
+    scheduleReveal();
+    repeatColumnFollow();
+  },90);
+}
 // Scroll only enough to expose the actual caret, never center the entire sheet.
 function scheduleReveal(){
   cancelAnimationFrame(revealFrame);
@@ -458,16 +559,24 @@ function scheduleReveal(){
     const ta=document.activeElement;
     if(isComposing || !ta?.classList.contains('page-editor'))return;
     const workspace=document.querySelector('.workspace');
-    // Native collapsed ranges can have no rect (especially during WebKit
-    // layout). Never substitute the entire editor/line's bounding box: its
-    // bottom would scroll the viewport to the end of the manuscript.
     const m=editorCaretRect(ta);
     if(!m)return;
     const style=getComputedStyle(ta),view=workspace.getBoundingClientRect();
     const left=m.left,top=m.top;
     const right=left+Math.max(2,m.width),bottom=top+Math.max(parseFloat(style.fontSize),m.height);
-    const dx=left<view.left+12?left-view.left-12:right>view.right-12?right-view.right+12:0;
-    const dy=top<view.top+12?top-view.top-12:bottom>view.bottom-12?bottom-view.bottom+12:0;
+    const dx=left<view.left+16?left-view.left-16:right>view.right-16?right-view.right+16:0;
+    let dy=top<view.top+18?top-view.top-18:bottom>view.bottom-18?bottom-view.bottom+18:0;
+    if(getSettings().writingMode==='vertical' &&
+       (revealColumnTop || (columnFollowUntil && Date.now()<columnFollowUntil))){
+      // Show the TOP of the newly-started column, not only the caret's position.
+      // It must remain visible even after the iPad keyboard/IME scrolls the page.
+      const sheet=ta.closest('.page');
+      const sheetRect=sheet?.getBoundingClientRect();
+      const sheetTop=(sheetRect?.top??top)+(parseFloat(getComputedStyle(sheet).paddingTop)||0);
+      dy=sheetTop-(view.top+22);
+      revealColumnTop=false;
+      repeatColumnFollow();
+    }
     if(dx||dy)workspace.scrollBy({left:dx,top:dy,behavior:'instant'});
   });
 }
@@ -762,7 +871,7 @@ function syncFromPage(ta,focus,deferLayout=false){
   if(newText===c.text){
     globalCaret=c.start+Math.min(localStart,newText.length);
     globalSelEnd=c.start+Math.min(localEnd,newText.length);
-    updateStatus();paintVertical(ta);
+    updateStatus();paintVertical(ta);noteVerticalColumn(ta);
     return;
   }
   docText=docText.slice(0,c.start)+newText+docText.slice(c.end);
@@ -774,8 +883,11 @@ function syncFromPage(ta,focus,deferLayout=false){
     if(delta)for(let j=i+1;j<chunks.length;j++){
       chunks[j].start+=delta;chunks[j].end+=delta;
     }
-    updateStatus();paintVertical(ta);scheduleIdleLayout(ta);
-  }else renderPages(globalCaret,globalSelEnd,focus,true);
+    updateStatus();paintVertical(ta);noteVerticalColumn(ta);scheduleReveal();scheduleIdleLayout(ta);
+  }else{
+    paintVertical(ta);noteVerticalColumn(ta);
+    renderPages(globalCaret,globalSelEnd,focus,true);
+  }
 }
 function bindEditor(ta){
   if(ta.dataset.bound)return;ta.dataset.bound='1';
@@ -783,7 +895,7 @@ function bindEditor(ta){
     ta._selecting=true;clearTimeout(layoutIdleTimer);layoutIdleTimer=0;
   });
   for(const type of ['pointerup','pointercancel'])ta.addEventListener(type,()=>{ta._selecting=false;});
-  ta.addEventListener('focus',()=>{ta.closest('.page').classList.add('editing');if(!isComposing)syncCaret(ta);paintVertical(ta)});
+  ta.addEventListener('focus',()=>{ta.closest('.page').classList.add('editing');if(!isComposing)syncCaret(ta);paintVertical(ta);if(getSettings().writingMode==='vertical')ta._lastVerticalRow=gridStopAt(ta,ta.selectionStart).row});
   for(const type of ['click','select','keyup'])ta.addEventListener(type,()=>{
     if(!rendering&&!isComposing){syncCaret(ta);paintVertical(ta)}
   });
@@ -799,7 +911,8 @@ function bindEditor(ta){
     // contenteditable. The committed textarea string is the only source.
     isComposing=false;compositionScroll=null;
     ta.closest('.page')?.classList.remove('composing');
-    syncFromPage(ta,true,true);paintVertical(ta);
+    syncFromPage(ta,true,true);paintVertical(ta);noteVerticalColumn(ta);
+    scheduleReveal();if(columnFollowUntil)repeatColumnFollow();
   });
   // iPad context-menu pastes may report either a paste event or insertFromPaste.
   // Mark them so the page split happens immediately rather than after the idle timer.
@@ -807,6 +920,9 @@ function bindEditor(ta){
   ta.addEventListener('beforeinput',e=>{
     if(isComposing||e.isComposing)return;
     const c=chunks[+ta.dataset.index];if(!c)return;
+    if(e.inputType==='historyUndo'){
+      e.preventDefault();$('undoBtn').click();return;
+    }
     if(e.inputType==='insertFromPaste'||e.inputType==='insertFromDrop')ta._pastePending=true;
     if(e.inputType==='deleteContentBackward' && ta.selectionStart===0 && ta.selectionEnd===0 && c.start>0){
       e.preventDefault();
@@ -851,6 +967,9 @@ function bindEditor(ta){
       e.preventDefault();$('selectAllBtn').click();return;
     }
     if(isComposing||e.isComposing)return;
+    if((e.metaKey||e.ctrlKey) && !e.altKey && e.key.toLowerCase()==='z' && !e.shiftKey){
+      e.preventDefault();$('undoBtn').click();return;
+    }
     if(/^Arrow/.test(e.key))moveArrow(ta,e);
   });
 }
@@ -881,7 +1000,8 @@ function moveArrow(ta,e){
       return;
     }
     target=Math.max(0,Math.min(ta.value.length,target));
-    ta.setSelectionRange(target,target);syncCaret(ta);paintVertical(ta);scheduleReveal();
+    ta.setSelectionRange(target,target);syncCaret(ta);paintVertical(ta);
+    noteVerticalColumn(ta);scheduleReveal();
     return;
   }
   const prev=vertical?'ArrowUp':'ArrowLeft',next=vertical?'ArrowDown':'ArrowRight';
@@ -957,6 +1077,13 @@ function setDoc(text,caret=0,end=caret,rememberIt=true,focus=true){
   save();renderPages(globalCaret,globalSelEnd,focus,true);
 }
 
+// Hardware keyboard shortcut when the toolbar or paper (rather than a
+// native textarea) owns focus. Full-text and page editors handle it locally.
+document.addEventListener('keydown',e=>{
+  if(isComposing || !(e.metaKey||e.ctrlKey) || e.altKey || e.shiftKey || e.key.toLowerCase()!=='z')return;
+  if(e.target.closest?.('#fullTextPanel, input, textarea, select, [contenteditable="true"]'))return;
+  e.preventDefault();$('undoBtn').click();
+});
 $('undoBtn').onclick=()=>{
   if(!history.length)return;
   docText=history.pop();
@@ -1053,19 +1180,18 @@ function preparePrintPages(){
   // Allow a safety margin for the iPad print engine while preserving
   // exactly the same column/row cells and screen-page boundaries.
   const vertical=s.writingMode==='vertical';
-  // A4 portrait for horizontal writing; A4 landscape for vertical writing.
-  // Both layouts reserve ample space for iPad's print headers and margins.
-  const maxWidth=(vertical?246:165)*mmPx;
-  const maxHeight=(vertical?146:201)*mmPx;
+  // Always use A4 portrait. Vertical manuscripts are laid sideways and each
+  // printed glyph is rotated -90°. Turning the physical paper clockwise yields
+  // the same column direction and upright glyphs as the editor.
+  const maxWidth=165*mmPx;
+  const maxHeight=201*mmPx;
   const printRuleId='kotobaPrintPageSize';
   let printRule=document.getElementById(printRuleId);
   if(!printRule){printRule=document.createElement('style');printRule.id=printRuleId;document.head.append(printRule)}
-  printRule.textContent=vertical
-    ? '@page { size: A4 landscape; margin:14mm }'
-    : '@page { size: A4 portrait; margin:18mm }';
+  printRule.textContent='@page { size: A4 portrait; margin:18mm }';
   el.classList.toggle('vertical-print',vertical);
-  const widthUnits=vertical?s.lineCount*Number(s.lineHeight):s.charCount;
-  const heightUnits=vertical?s.charCount:s.lineCount*Number(s.lineHeight);
+  const widthUnits=s.charCount;
+  const heightUnits=s.lineCount*Number(s.lineHeight);
   const fitSize=Math.min(Number(s.fontSize),
     maxWidth*0.98/widthUnits,
     maxHeight*0.98/heightUnits);
@@ -1078,6 +1204,14 @@ function preparePrintPages(){
     const body=document.createElement('div');
     body.className='print-preview'+(s.writingMode==='vertical'?' vertical':'');
     writeEditorText(body,chunk.text);
+    if(vertical){
+      // Rotate Japanese script but not Latin script or Arabic digits.
+      // This intentionally leaves 漢数字 (一二三十百千...) in Japanese orientation.
+      for(const cell of body.querySelectorAll('.editor-char')){
+        if(/^[\p{Script=Latin}0-9０-９]+$/u.test(cell.textContent))
+          cell.classList.add('print-latin');
+      }
+    }
     sheet.append(body);
     const number=document.createElement('div');
     number.className='print-page-number';
@@ -1093,9 +1227,7 @@ $('pdfBtn').onclick=()=>{
   if(isComposing){alert('文字の変換を確定してからPDF / 印刷を押してください。');return;}
   preparePrintPages();
   if(getSettings().writingMode==='vertical'){
-    // Native iPad Safari print UI does not consistently honor CSS @page size.
-    // Tell the user to select landscape instead of shrinking/rotating the text.
-    alert('縦書きのPDFはA4の「横向き」で印刷します。印刷オプションの「方向」が縦向きなら、横向きへ変更してください。Safariでは自動で切り替わらない場合があります。');
+    alert('縦書き印刷はA4縦向きです。文字を横向きに配置し、各文字を90度回転しています。印刷した紙を右に90度回すと、原稿画面と同じ縦書きで読めます。印刷画面の「方向」は「縦向き」にしてください。');
   }
   window.print();
 };

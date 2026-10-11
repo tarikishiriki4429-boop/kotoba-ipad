@@ -1,6 +1,6 @@
-// Kotoba Writer: build49 staging native-editor regression rollback; license view reliability.
+// Kotoba Writer: build50 staging print/scroll/toolbar/theme/undo candidate; license view reliability.
 // No AI libraries, workers, models, or external AI endpoints are requested.
-const CACHE='kotoba-writer-shell-v50';
+const CACHE='kotoba-writer-shell-v51';
 const PRIVACY_FLAG='kotoba-writer-privacy-lock-v1';
 const SHELL=['./','./index.html','./manifest.webmanifest','./licenses.html'];
 
