@@ -139,6 +139,14 @@ button:disabled{opacity:.45}
   .page.vertical.editing .grid-caret{animation:kw-caret-blink 1.1s steps(2,start) infinite}
 }
 @keyframes kw-caret-blink{to{opacity:0}}
+/* Build52: visible selected text follows the same per-character grid as the
+   manuscript. Native WebKit selection rectangles use different soft-wraps. */
+.page.vertical .page-editor::selection,
+.page.vertical .page-editor::-moz-selection{background:transparent!important;color:transparent!important}
+.page .grid-selection-layer{position:absolute;inset:0;z-index:5;pointer-events:none}
+.page .grid-selected-rect{position:absolute;background:rgba(54,120,216,.29);
+  border-radius:2px;pointer-events:none}
+html.kw-dark .page .grid-selected-rect{background:rgba(143,169,216,.42)}
 .page.manuscript:not(.vertical) .page-editor{
   background-image:
     linear-gradient(to right,rgba(0,0,0,.065) 1px,transparent 1px),
@@ -424,7 +432,7 @@ html.kw-dark .page-preview .editor-char.search-target{color:#231f1c;background:#
   <textarea id="fullText" aria-label="全文（編集・選択・コピー用）"></textarea>
 </div>
 <div id="licensesPanel" class="panel" role="dialog" aria-label="利用条件・ライセンス">
-  <div id="licensesHeader"><button id="closeLicenses">閉じる</button><a id="licensesDirectLink" href="./licenses.html?view=build51" target="_blank" rel="noopener noreferrer">利用条件を別タブで開く</a></div>
+  <div id="licensesHeader"><button id="closeLicenses">閉じる</button><a id="licensesDirectLink" href="./licenses.html?view=build52" target="_blank" rel="noopener noreferrer">利用条件を別タブで開く</a></div>
   <div id="licensesStatus" role="status" aria-live="polite"></div>
   <div id="licensesContent" role="document" aria-label="利用条件の本文" tabindex="0"></div>
 </div>
@@ -432,7 +440,7 @@ html.kw-dark .page-preview .editor-char.search-target{color:#231f1c;background:#
 <div id="printArea"></div>
 
 <script type="module">
-const BUILD=51;
+const BUILD=52;
 const $=id=>document.getElementById(id);
 $('buildVersion').textContent='Kotoba Writer build '+BUILD;
 const STORAGE='kotoba-writer-draft-v1';
@@ -777,6 +785,116 @@ function gridStopAt(ta,offset){
   return choices[choices.length-1]||stops.reduce((best,p)=>
     Math.abs(p.offset-offset)<Math.abs(best.offset-offset)?p:best,stops[0]);
 }
+// Show the entire selected range, including the FIRST column in the drag.
+// We do not delegate visible highlighting to the hidden native textarea.
+function paintGridSelection(ta){
+  const page=ta.closest('.page');
+  const layer=page?.querySelector('.grid-selection-layer');
+  const preview=page?.querySelector('.page-preview');
+  if(!layer || !preview)return;
+  const a=Math.min(ta.selectionStart,ta.selectionEnd);
+  const b=Math.max(ta.selectionStart,ta.selectionEnd);
+  if(a===b){layer.replaceChildren();return;}
+  const {charCount:cols,lineCount:rows,fontSize,lineHeight}=getSettings();
+  const fs=Number(fontSize),advance=fs*Number(lineHeight);
+  const ranges=new Map();
+  let row=0,col=0;
+  for(const {segment:ch,index:i} of units(ta.value)){
+    if(ch==='\n') {row++;col=0;continue;}
+    const hanging=col>=cols && isHangingChar(ch);
+    if(col>=cols && !hanging){row++;col=0;}
+    if(i<b && i+ch.length>a && row<rows){
+      let group=ranges.get(row);
+      if(!group){group={start:col,end:col+1};ranges.set(row,group)}
+      else{group.start=Math.min(group.start,col);group.end=Math.max(group.end,col+1)}
+    }
+    if(!hanging)col++;
+  }
+  const fragment=document.createDocumentFragment();
+  for(const [r,span] of ranges){
+    const rect=document.createElement('span');rect.className='grid-selected-rect';
+    rect.style.left=(preview.offsetLeft+preview.offsetWidth-(r+1)*advance+(advance-fs)/2)+'px';
+    rect.style.top=(preview.offsetTop+span.start*fs)+'px';
+    rect.style.width=fs+'px';
+    rect.style.height=((span.end-span.start)*fs)+'px';
+    fragment.append(rect);
+  }
+  layer.replaceChildren(fragment);
+}
+// Pointer positions use visible grapheme cells, never native textarea wraps.
+function gridHitOffset(ta,clientX,clientY){
+  const preview=ta.closest('.page')?.querySelector('.page-preview');
+  if(!preview)return 0;
+  const rect=preview.getBoundingClientRect(),settings=getSettings();
+  const fs=Number(settings.fontSize),advance=fs*Number(settings.lineHeight);
+  const row=Math.max(0,Math.min(settings.lineCount-1,Math.floor((rect.right-clientX)/advance)));
+  const col=Math.max(0,Math.min(settings.charCount,Math.round((clientY-rect.top)/fs)));
+  return gridOffsetAt(ta,row,col);
+}
+function setGridSelection(ta,anchor,focus){
+  const begin=Math.max(0,Math.min(anchor,focus)),end=Math.min(ta.value.length,Math.max(anchor,focus));
+  ta.setSelectionRange(begin,end,focus<anchor?'backward':'forward');
+  syncCaret(ta);paintVertical(ta);
+}
+function clearSelectionPointer(ta){
+  const state=ta._gridPointer;
+  if(!state)return;
+  clearTimeout(state.timer);
+  ta._gridPointer=null;
+}
+function bindGridPointer(ta){
+  ta.addEventListener('pointerdown',e=>{
+    if(getSettings().writingMode!=='vertical'||e.button!==0||isComposing)return;
+    clearSelectionPointer(ta);
+    ta._suppressTapClick=false; // A prior drag may have generated no click.
+    const anchor=gridHitOffset(ta,e.clientX,e.clientY);
+    const state={id:e.pointerId,anchor,last:anchor,active:e.pointerType==='mouse',
+      x:e.clientX,y:e.clientY,started:false,timer:0};
+    ta._gridPointer=state;
+    if(e.pointerType==='mouse'){
+      // Real trackpad/mouse drag is handled here; stop native WebKit from
+      // selecting a different row or skipping the initial column.
+      e.preventDefault();
+      ta.focus({preventScroll:true});
+      setGridSelection(ta,anchor,anchor);
+      state.started=true;ta._suppressTapClick=true;
+      try{ta.setPointerCapture(e.pointerId)}catch{}
+    }else if(e.pointerType==='touch'){
+      // Do not interfere with an ordinary touch swipe (page scrolling).
+      // A stationary long press begins a precise selected range.
+      state.timer=setTimeout(()=>{
+        if(ta._gridPointer!==state||!ta.isConnected||isComposing)return;
+        state.active=true;state.started=true;ta._suppressTapClick=true;
+        ta.focus({preventScroll:true});
+        setGridSelection(ta,anchor,anchor);
+      },480);
+    }
+  });
+  ta.addEventListener('pointermove',e=>{
+    const state=ta._gridPointer;
+    if(!state||state.id!==e.pointerId)return;
+    if(!state.active){
+      if(Math.hypot(e.clientX-state.x,e.clientY-state.y)>9){
+        clearTimeout(state.timer);ta._gridPointer=null;
+      }
+      return;
+    }
+    if(e.cancelable)e.preventDefault();
+    const focus=gridHitOffset(ta,e.clientX,e.clientY);
+    if(focus!==state.last){state.last=focus;setGridSelection(ta,state.anchor,focus)}
+  },{passive:false});
+  ta.addEventListener('pointerup',e=>{
+    const state=ta._gridPointer;
+    if(!state||state.id!==e.pointerId)return;
+    if(state.active){
+      const focus=gridHitOffset(ta,e.clientX,e.clientY);
+      setGridSelection(ta,state.anchor,focus);
+      ta._suppressTapClick=true;
+    }
+    clearSelectionPointer(ta);ta._selecting=false;
+  });
+  ta.addEventListener('pointercancel',()=>{clearSelectionPointer(ta);ta._selecting=false});
+}
 function paintVertical(ta,previewOnly=false){
   const page=ta.closest('.page');
   if(!page?.classList.contains('vertical'))return;
@@ -788,6 +906,7 @@ function paintVertical(ta,previewOnly=false){
     preview._paintedValue=ta.value;
     preview._layoutKey=''; // Rebuild from canonical page text on blur/reflow.
   }
+  if(!previewOnly)paintGridSelection(ta);
   const caret=page.querySelector('.grid-caret');
   if(!caret || previewOnly)return;
   const selecting=ta.selectionStart!==ta.selectionEnd;
@@ -802,14 +921,11 @@ function paintVertical(ta,previewOnly=false){
   caret.style.width=font+'px';
 }
 function verticalTap(ta,e){
-  if(isComposing || e.detail===0)return;
-  const page=ta.closest('.page'), preview=page?.querySelector('.page-preview');
-  if(!preview)return;
-  const rect=preview.getBoundingClientRect(),settings=getSettings();
-  const font=Number(settings.fontSize),advance=font*Number(settings.lineHeight);
-  const row=Math.max(0,Math.min(settings.lineCount-1,Math.floor((rect.right-e.clientX)/advance)));
-  const col=Math.max(0,Math.min(settings.charCount,Math.round((e.clientY-rect.top)/font)));
-  const offset=gridOffsetAt(ta,row,col);
+  // A finished drag must NEVER collapse its selected range on the click event
+  // that WebKit may fire after pointerup. Also preserve native long-press ranges.
+  if(ta._suppressTapClick){ta._suppressTapClick=false;return;}
+  if(isComposing || e.detail===0 || ta.selectionStart!==ta.selectionEnd)return;
+  const offset=gridHitOffset(ta,e.clientX,e.clientY);
   ta.setSelectionRange(offset,offset);syncCaret(ta);paintVertical(ta);
 }
 // A real textarea is used for typing. A separate page-preview shows the
@@ -836,6 +952,7 @@ function syncCaret(ta){
   updateStatus();
 }
 function syncFromPage(ta,focus,deferLayout=false){
+  if(!ta.isConnected)return;
   const i=+ta.dataset.index,c=chunks[i];if(!c)return;
   const localStart=ta.selectionStart,localEnd=ta.selectionEnd;
   const newText=ta.value.replace(/\r\n?/g,'\n');
@@ -854,6 +971,11 @@ function syncFromPage(ta,focus,deferLayout=false){
   docText=docText.slice(0,c.start)+newText+docText.slice(c.end);
   globalCaret=c.start+localStart;globalSelEnd=c.start+localEnd;
   save();
+  // The native textarea must never hold an overfull page for 260 ms.
+  // Splitting immediately also keeps deletion/reflow across pages consistent.
+  if(deferLayout && !isComposing &&
+     (paginate(newText).length>1 || (i<chunks.length-1 && newText.length!==oldLength)))
+    deferLayout=false;
   if(deferLayout){
     const delta=newText.length-oldLength;
     c.text=newText;c.end+=delta;
@@ -868,6 +990,7 @@ function syncFromPage(ta,focus,deferLayout=false){
 }
 function bindEditor(ta){
   if(ta.dataset.bound)return;ta.dataset.bound='1';
+  bindGridPointer(ta);
   ta.addEventListener('pointerdown',()=>{
     ta._selecting=true;clearTimeout(layoutIdleTimer);layoutIdleTimer=0;
   });
@@ -1014,7 +1137,9 @@ function renderPages(caret=globalCaret,selEnd=globalSelEnd,focus=false,scroll=fa
       const preview=document.createElement('div');preview.className='page-preview';
       preview.setAttribute('aria-hidden','true');
       const gridCaret=document.createElement('span');gridCaret.className='grid-caret';
-      page.replaceChildren(ta,preview,gridCaret);bindEditor(ta);
+      const selectionLayer=document.createElement('div');selectionLayer.className='grid-selection-layer';
+      selectionLayer.setAttribute('aria-hidden','true');
+      page.replaceChildren(ta,preview,selectionLayer,gridCaret);bindEditor(ta);
     }
     ta.dataset.index=i;
     const layoutKey=c.text+'\u0000'+getSettings().charCount+'\u0000'+(vertical?'v':'h');
