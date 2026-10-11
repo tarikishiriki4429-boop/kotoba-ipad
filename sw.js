@@ -1,6 +1,6 @@
-// Kotoba Writer: build38 AI-free release candidate.
+// Kotoba Writer: build41 AI-free release; license update reliability.
 // No AI libraries, workers, models, or external AI endpoints are requested.
-const CACHE='kotoba-writer-shell-v41';
+const CACHE='kotoba-writer-shell-v42';
 const PRIVACY_FLAG='kotoba-writer-privacy-lock-v1';
 const SHELL=['./','./index.html','./manifest.webmanifest','./licenses.html'];
 
@@ -21,6 +21,13 @@ self.addEventListener('message',event=>{
 });
 async function offlineOnly(){return caches.has(PRIVACY_FLAG)}
 async function cacheOnly(request){
+  // 利用条件は更新確認用のクエリの有無にかかわらず同じ原文を返す。
+  // 秘匿モード中は通信しない。
+  const url=new URL(request.url);
+  if(url.origin===self.location.origin && url.pathname.endsWith('/licenses.html')){
+    return await caches.match('./licenses.html') ||
+      new Response('License page is not cached',{status:503});
+  }
   const cached=await caches.match(request);
   if(cached)return cached;
   if(request.mode==='navigate'){
@@ -50,16 +57,19 @@ async function cacheFirst(request){
 // License notices should refresh when online, while remaining available offline.
 async function licenseNetworkFirst(request){
   try{
-    const response=await fetch(request);
+    // キャッシュ更新を目的とするオンライン閲覧は毎回ネット上の原文を確認する。
+    const response=await fetch(request,{cache:'no-store'});
     if(response.ok){
-      const copy=response.clone();
-      caches.open(CACHE).then(cache=>cache.put(request,copy)).catch(()=>{});
+      try{
+        const cache=await caches.open(CACHE);
+        // 毎回変わるrefreshクエリを保存キーにせず、オフライン用に1件だけ保持。
+        await cache.put('./licenses.html',response.clone());
+      }catch(error){/* 保存できなくても取得した利用条件は表示する */}
       return response;
     }
-    const cached=await caches.match(request);
-    return cached||response;
+    return await caches.match('./licenses.html') || response;
   }catch(error){
-    return await caches.match(request) || await caches.match('./licenses.html') ||
+    return await caches.match('./licenses.html') ||
       new Response('License page unavailable offline',{status:503});
   }
 }

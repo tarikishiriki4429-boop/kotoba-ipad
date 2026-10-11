@@ -278,12 +278,12 @@ button:disabled{opacity:.45}
   <p id="fullTextStatus" class="note" role="status"></p>
   <textarea id="fullText" aria-label="全文（編集・選択・コピー用）"></textarea>
 </div>
-<div id="licensesPanel" class="panel" role="dialog" aria-label="利用条件・ライセンス"><button id="closeLicenses">閉じる</button><iframe src="./licenses.html?v=20261011" title="利用条件・ライセンス" style="width:100%;height:65vh;border:0"></iframe></div>
+<div id="licensesPanel" class="panel" role="dialog" aria-label="利用条件・ライセンス"><button id="closeLicenses">閉じる</button><iframe id="licensesFrame" src="about:blank" title="利用条件・ライセンス" style="width:100%;height:65vh;border:0"></iframe></div>
 <input id="fileInput" type="file" accept=".txt,text/plain">
 <div id="printArea"></div>
 
 <script type="module">
-const BUILD=40;
+const BUILD=41;
 const $=id=>document.getElementById(id);
 $('buildVersion').textContent='Kotoba Writer build '+BUILD;
 const STORAGE='kotoba-writer-draft-v1';
@@ -1176,7 +1176,16 @@ $('checkAppUpdate').onclick=async()=>{
     alert('更新を確認できませんでした。ネット接続を確認してください。');
   }finally{btn.disabled=false;}
 };
-$('licensesBtn').onclick=()=>$('licensesPanel').classList.add('show');
+// 利用条件は開くたびに読み直す。オンライン時は新しいURLで取得し、
+// 秘匿モードONやオフライン時はService Workerに保存済みの原文を使う。
+$('licensesBtn').onclick=()=>{
+  const frame=$('licensesFrame');
+  const url=(privacyMode||!navigator.onLine)
+    ? './licenses.html'
+    : './licenses.html?refresh='+Date.now();
+  frame.src=url;
+  $('licensesPanel').classList.add('show');
+};
 $('closeLicenses').onclick=()=>$('licensesPanel').classList.remove('show');
 $('privacyBtn').onclick=async()=>{
   if(!privacyMode){
