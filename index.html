@@ -150,6 +150,24 @@ button:disabled{opacity:.45}
   #printArea{display:block!important;white-space:pre-wrap;font-family:"Yu Mincho",serif;font-size:12pt;line-height:1.8}
   @page{size:A4;margin:18mm}
 }
+
+/* Search results can be inspected without closing the replace controls. */
+#findPanel{max-width:900px;max-height:calc(100dvh - 24px);overflow-y:auto}
+#searchPreview{max-height:12vh;overflow-y:auto}
+#searchResults{display:flex;flex-direction:column;gap:5px;max-height:30vh;overflow-y:auto;
+  -webkit-overflow-scrolling:touch;margin-top:7px;padding:3px;border:1px solid #dedbd5;
+  border-radius:9px;background:#f9f8f6}
+.search-hit{display:block;width:100%;background:white;color:#222;text-align:left;
+  border:1px solid #dedbd5;padding:8px 10px;border-radius:8px;font-weight:400;
+  white-space:normal;overflow-wrap:anywhere}
+.search-hit.active{background:#edf3ff;border:2px solid #3271c5;padding:7px 9px}
+.search-hit .search-meta{display:block;font-size:12px;font-weight:700;color:#444;margin-bottom:4px}
+.search-hit .search-context{font-size:13px;line-height:1.5;white-space:pre-wrap}
+.search-hit mark{background:#ffe69c;padding:0 1px;border-radius:2px;color:inherit}
+#searchMore{margin-top:7px;width:100%;display:none}
+.page.search-page{outline:2px solid #4678c0;outline-offset:2px}
+.page-preview .editor-char.search-target{background:#ffe69c;box-shadow:0 0 0 1px #d3aa4a;border-radius:2px}
+
 </style>
 </head>
 <body>
@@ -229,16 +247,19 @@ button:disabled{opacity:.45}
   <h3>検索・置換</h3>
   <div class="row">
     <input id="findText" type="text" placeholder="検索する文字">
-    <button id="nextBtn">次へ</button><span id="findInfo" class="note"></span>
+    <button id="prevBtn" type="button">前へ</button><button id="nextBtn" type="button">次へ</button><span id="findInfo" class="note"></span>
   </div>
   <div class="row" style="margin-top:8px">
     <input id="replaceText" type="text" placeholder="置換後の文字">
-    <button id="replaceOneBtn">1件置換</button>
+    <button id="replaceOneBtn" disabled>選択した1件を置換</button>
     <button id="replaceAllBtn">すべて置換</button>
     <button id="goMatchBtn" disabled>本文で確認</button>
     <button id="closeFind">閉じる</button>
   </div>
-  <div id="searchPreview" class="result">検索結果をここに表示します。</div>
+  <div id="searchPreview" class="result">一覧から選ぶと、その場所へ移動します。</div>
+  <div id="searchResultsSummary" class="note" role="status">検索語を入力してください。</div>
+  <div id="searchResults" role="group" aria-label="検索結果一覧"></div>
+  <button id="searchMore" type="button">さらに100件表示</button>
 </div>
 
 <div id="fullTextPanel" class="panel" role="dialog" aria-label="全文選択">
@@ -262,7 +283,7 @@ button:disabled{opacity:.45}
 <div id="printArea"></div>
 
 <script type="module">
-const BUILD=39;
+const BUILD=40;
 const $=id=>document.getElementById(id);
 $('buildVersion').textContent='Kotoba Writer build '+BUILD;
 const STORAGE='kotoba-writer-draft-v1';
@@ -373,6 +394,8 @@ function editorCaretRect(ta){
   return {left:rc.left+(lc.col-1)*fs,top:rc.top+(lc.row-1)*lh,width:2,height:fs};
 }
 let searchPos=0,currentMatch=null,lastSearchQuery='';
+let searchPositions=[],searchDocSnapshot='',searchQuerySnapshot='',searchSelectedIndex=-1,searchVisibleCount=0;
+const SEARCH_RESULT_BATCH=100;
 let privacyMode=localStorage.getItem('kotoba-writer-privacy')==='1';
 
 function clamp(n,a,b,f){n=parseInt(n,10);return Number.isNaN(n)?f:Math.max(a,Math.min(b,n))}
@@ -838,49 +861,168 @@ $('trimLeadingBtn').onclick=()=>{
   setDoc(docText.slice(prefix.length),Math.max(0,globalCaret-prefix.length),Math.max(0,globalSelEnd-prefix.length),true,true);
 };
 
-/* 検索・置換 */
-$('findBtn').onclick=()=>{$('findPanel').classList.add('show');$('findText').focus()};
-$('closeFind').onclick=()=>$('findPanel').classList.remove('show');
+/* 検索・置換（全件一覧から位置を指定して1件ずつ置換） */
 function matches(q){
   const a=[];if(!q)return a;let p=0;
-  while(p<=docText.length-q.length){const i=docText.indexOf(q,p);if(i<0)break;a.push(i);p=i+Math.max(1,q.length)}
+  while(p<=docText.length-q.length){
+    const i=docText.indexOf(q,p);if(i<0)break;
+    a.push(i);p=i+Math.max(1,q.length);
+  }
   return a;
 }
-function showMatch(start,q,idx,total){
-  if(start<0){$('findInfo').textContent='0件';$('searchPreview').textContent='見つかりません';currentMatch=null;$('goMatchBtn').disabled=true;return}
-  const a=Math.max(0,start-35),b=Math.min(docText.length,start+q.length+35);
-  $('searchPreview').textContent=(a?'…':'')+docText.slice(a,b)+(b<docText.length?'…':'');
-  $('findInfo').textContent=`${idx+1} / ${total}件`;
-  currentMatch={start,end:start+q.length};$('goMatchBtn').disabled=false;
+function clearSearchHighlight(){
+  document.querySelectorAll('.page.search-page').forEach(el=>el.classList.remove('search-page'));
+  document.querySelectorAll('.editor-char.search-target').forEach(el=>el.classList.remove('search-target'));
 }
-function findNext(){
-  const q=$('findText').value;if(!q)return false;
-  const m=matches(q);if(!m.length){showMatch(-1,q,0,0);return false}
-  if(q!==lastSearchQuery){lastSearchQuery=q;searchPos=0}
-  let idx=m.findIndex(x=>x>=searchPos);if(idx<0)idx=0;
-  const s=m[idx];searchPos=s+q.length;showMatch(s,q,idx,m.length);return true;
+function markSearchHighlight(start,end){
+  clearSearchHighlight();
+  for(let p=0;p<chunks.length;p++){
+    const c=chunks[p];
+    if(c.end<=start || c.start>=end)continue;
+    const page=$('pages').children[p],preview=page?.querySelector('.page-preview');
+    if(!page||!preview)continue;
+    page.classList.add('search-page');
+    const spans=preview.querySelectorAll('.editor-char');
+    let n=0;
+    for(const unit of units(c.text)){
+      if(unit.segment==='\n')continue;
+      const el=spans[n++];
+      if(el && c.start+unit.index<end && c.start+unit.index+unit.segment.length>start)
+        el.classList.add('search-target');
+    }
+  }
 }
+function scrollToSearchMatch(offset){
+  const p=pageForOffset(offset),page=$('pages').children[p];
+  const workspace=document.querySelector('.workspace');
+  if(!page||!workspace)return;
+  const rect=page.getBoundingClientRect(),view=workspace.getBoundingClientRect();
+  workspace.scrollBy({top:rect.top-view.top-14,behavior:'instant'});
+}
+function updateSearchHitSelection(){
+  $('searchResults').querySelectorAll('.search-hit').forEach(button=>{
+    const active=Number(button.dataset.hitIndex)===searchSelectedIndex;
+    button.classList.toggle('active',active);
+    button.setAttribute('aria-pressed',active?'true':'false');
+  });
+  const enabled=!!currentMatch && docText===searchDocSnapshot &&
+    $('findText').value===searchQuerySnapshot &&
+    docText.slice(currentMatch.start,currentMatch.end)===searchQuerySnapshot;
+  $('replaceOneBtn').disabled=!enabled;
+  $('goMatchBtn').disabled=!enabled;
+  $('prevBtn').disabled=searchPositions.length===0;
+  $('nextBtn').disabled=searchPositions.length===0;
+}
+function searchContextNode(start,q){
+  const wrap=document.createElement('span');wrap.className='search-context';
+  const left=Math.max(0,start-26),right=Math.min(docText.length,start+q.length+32);
+  const before=docText.slice(left,start).replace(/\n/g,'⏎');
+  const after=docText.slice(start+q.length,right).replace(/\n/g,'⏎');
+  wrap.append(document.createTextNode((left?'…':'')+before));
+  const mark=document.createElement('mark');mark.textContent=q.replace(/\n/g,'⏎');wrap.append(mark);
+  wrap.append(document.createTextNode(after+(right<docText.length?'…':'')));
+  return wrap;
+}
+function appendSearchHitBatch(){
+  const list=$('searchResults'),q=searchQuerySnapshot;
+  const end=Math.min(searchVisibleCount+SEARCH_RESULT_BATCH,searchPositions.length);
+  const fragment=document.createDocumentFragment();
+  for(let i=searchVisibleCount;i<end;i++){
+    const start=searchPositions[i];
+    const b=document.createElement('button');b.type='button';b.className='search-hit';
+    b.dataset.hitIndex=String(i);
+    const meta=document.createElement('span');meta.className='search-meta';
+    meta.textContent=`${i+1}件目 · ${pageForOffset(start)+1}ページ · 文字位置 ${start+1}`;
+    b.append(meta,searchContextNode(start,q));
+    b.setAttribute('aria-label',`${i+1}件目、${pageForOffset(start)+1}ページ、本文位置へ移動`);
+    b.onclick=()=>selectSearchHit(i);
+    fragment.appendChild(b);
+  }
+  list.append(fragment);searchVisibleCount=end;
+  $('searchMore').style.display=end<searchPositions.length?'block':'none';
+  $('searchMore').textContent=`さらに${Math.min(SEARCH_RESULT_BATCH,searchPositions.length-end)}件表示（${end}/${searchPositions.length}）`;
+  updateSearchHitSelection();
+}
+function rebuildSearchResults(message=''){
+  const q=$('findText').value;
+  searchDocSnapshot=docText;searchQuerySnapshot=q;
+  searchPositions=matches(q);searchSelectedIndex=-1;searchVisibleCount=0;
+  currentMatch=null;searchPos=0;lastSearchQuery=q;
+  $('searchResults').replaceChildren();clearSearchHighlight();
+  $('findInfo').textContent=q?`${searchPositions.length}件`:'未検索';
+  $('searchResultsSummary').textContent=q
+    ? `${searchPositions.length}件見つかりました。結果を押すと、その原稿ページを表示します。`
+    : '検索語を入力すると、該当箇所を一覧表示します。';
+  $('searchPreview').textContent=message||(searchPositions.length?'結果を選んでから「選択した1件を置換」を押してください。':q?'一致する文字がありません。':'検索結果をここに表示します。');
+  if(q && searchPositions.length)appendSearchHitBatch();
+  else $('searchMore').style.display='none';
+  updateSearchHitSelection();
+}
+function refreshSearchIfOutdated(){
+  if(searchDocSnapshot!==docText || searchQuerySnapshot!==$('findText').value){
+    rebuildSearchResults();return true;
+  }
+  return false;
+}
+function selectSearchHit(index){
+  if(refreshSearchIfOutdated())return;
+  if(index<0||index>=searchPositions.length)return;
+  const q=searchQuerySnapshot,start=searchPositions[index];
+  if(docText.slice(start,start+q.length)!==q){rebuildSearchResults('本文が更新されました。検索結果を選び直してください。');return;}
+  searchSelectedIndex=index;currentMatch={start,end:start+q.length};searchPos=start+q.length;
+  globalCaret=start;globalSelEnd=start+q.length;
+  $('findInfo').textContent=`${index+1} / ${searchPositions.length}件`;
+  $('searchPreview').textContent=`選択：${index+1}件目（${pageForOffset(start)+1}ページ） · 置換欄を編集すると、この1件だけを変更できます。`;
+  markSearchHighlight(start,start+q.length);
+  scrollToSearchMatch(start);
+  updateSearchHitSelection();
+}
+function navigateSearch(direction){
+  refreshSearchIfOutdated();
+  if(!searchPositions.length)return false;
+  const idx=searchSelectedIndex===-1
+    ? (direction<0?searchPositions.length-1:0)
+    : (searchSelectedIndex+direction+searchPositions.length)%searchPositions.length;
+  while(idx>=searchVisibleCount)appendSearchHitBatch();
+  selectSearchHit(idx);
+  const button=$('searchResults').querySelector(`[data-hit-index="${idx}"]`);
+  button?.scrollIntoView({block:'nearest',inline:'nearest'});
+  return true;
+}
+function findNext(){return navigateSearch(1)}
+function findPrev(){return navigateSearch(-1)}
+$('findBtn').onclick=()=>{
+  $('findPanel').classList.add('show');refreshSearchIfOutdated();$('findText').focus();
+};
+$('closeFind').onclick=()=>{$('findPanel').classList.remove('show');clearSearchHighlight()};
+$('findText').oninput=()=>rebuildSearchResults();
+$('prevBtn').onclick=findPrev;
 $('nextBtn').onclick=findNext;
-$('findText').oninput=()=>{lastSearchQuery='';searchPos=0;currentMatch=null;$('goMatchBtn').disabled=true};
+$('searchMore').onclick=appendSearchHitBatch;
 $('goMatchBtn').onclick=()=>{
-  if(!currentMatch)return;
-  $('findPanel').classList.remove('show');
-  globalCaret=currentMatch.start;globalSelEnd=currentMatch.end;
+  if(refreshSearchIfOutdated()||!currentMatch)return;
+  const match={...currentMatch};
+  $('findPanel').classList.remove('show');clearSearchHighlight();
+  globalCaret=match.start;globalSelEnd=match.end;
   renderPages(globalCaret,globalSelEnd,true,true);
 };
 $('replaceOneBtn').onclick=()=>{
-  const q=$('findText').value,r=$('replaceText').value;if(!q)return;
-  if(!currentMatch||docText.slice(currentMatch.start,currentMatch.end)!==q){lastSearchQuery='';searchPos=0;if(!findNext())return}
-  const m=currentMatch,next=docText.slice(0,m.start)+r+docText.slice(m.end);
+  if(refreshSearchIfOutdated()||!currentMatch)return;
+  const q=$('findText').value,r=$('replaceText').value;
+  const m={...currentMatch};
+  if(docText.slice(m.start,m.end)!==q){rebuildSearchResults('本文が変わりました。もう一度結果を選んでください。');return;}
+  const next=docText.slice(0,m.start)+r+docText.slice(m.end);
   setDoc(next,m.start,m.start+r.length,true,false);
-  searchPos=m.start+r.length;currentMatch=null;lastSearchQuery=q;findNext();
+  rebuildSearchResults('指定した1件だけを置換しました。続ける場合は結果からもう一度選んでください。');
 };
 $('replaceAllBtn').onclick=()=>{
-  const q=$('findText').value,r=$('replaceText').value;if(!q)return;
-  const n=matches(q).length;if(!n){showMatch(-1,q,0,0);return}
+  const q=$('findText').value,r=$('replaceText').value;
+  if(!q)return;
+  refreshSearchIfOutdated();
+  const n=searchPositions.length;
+  if(!n)return;
   setDoc(docText.split(q).join(r),0,0,true,false);
-  $('findInfo').textContent=n+'件置換しました';$('searchPreview').textContent=n+'件を置換しました';
-  currentMatch=null;searchPos=0;lastSearchQuery='';$('goMatchBtn').disabled=true;
+  rebuildSearchResults(`${n}件をすべて置換しました。取り消しも利用できます。`);
 };
 
 let fullTextComposing=false,fullTextPagesDirty=false;

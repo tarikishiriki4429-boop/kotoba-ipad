@@ -1,6 +1,6 @@
 // Kotoba Writer: build38 AI-free release candidate.
 // No AI libraries, workers, models, or external AI endpoints are requested.
-const CACHE='kotoba-writer-shell-v40';
+const CACHE='kotoba-writer-shell-v41';
 const PRIVACY_FLAG='kotoba-writer-privacy-lock-v1';
 const SHELL=['./','./index.html','./manifest.webmanifest','./licenses.html'];
 
