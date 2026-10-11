@@ -145,7 +145,9 @@
     "packaged": true,
     "packaged_path": "licenses/Tokenizers-Rust-LICENSE.txt",
     "packaged_sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
-    "source_sha256_matches_packaged": true
+    "source_sha256_matches_packaged": true,
+    "exact_observed_wasm_version": "0.21.1",
+    "fixed_license_verification": "Hugging Face tokenizers tags v0.21.0/v0.21.1 LICENSE same Git blob SHA 261eeb9e9f8b2b4b0d119366dda99c6fd7d35c64"
   },
   {
     "file": "release-review/Tokenizers-CMakeLists.txt",
@@ -278,5 +280,94 @@
     "packaged_sha256": "d3e2f59e1d71176dfdb555ece6a41f7a5aa0f52ff21211010ace314f57695f6b",
     "source_sha256_matches_packaged": true,
     "note": "同固定版にあるAbseilの正確なApache 2.0全文。新規公開候補。"
+  },
+  {
+    "file": "licenses/DMLC-Core-LICENSE.txt",
+    "packaged": true,
+    "packaged_path": "licenses/DMLC-Core-LICENSE.txt",
+    "packaged_sha256": "b40930bbcf80744c86c46a12bc9da056641d722716c378f5659b9e555ef833e1",
+    "source_git_blob_sha1": "8dada3edaf50dbc082c9a125058f25def75e625a",
+    "source_sha256_verification": "file bytes reconstructed/copied and Git blob SHA matched upstream",
+    "url": "https://github.com/dmlc/dmlc-core/blob/3031e4a61a98f49f07a42cfdec6242340fb2fd8c/LICENSE",
+    "note": "source pin 3031e4a61; exact official license"
+  },
+  {
+    "file": "licenses/Emscripten-LICENSE.txt",
+    "packaged": true,
+    "packaged_path": "licenses/Emscripten-LICENSE.txt",
+    "packaged_sha256": "620a78084fc7ca97c0b5dea9abf891f3ffcadfdbf305276f099c9c4e12fc1d86",
+    "source_git_blob_sha1": "70cabe388d27da221bd769c50b427a35354f4f1d",
+    "source_sha256_verification": "file bytes reconstructed/copied and Git blob SHA matched upstream",
+    "url": "https://github.com/emscripten-core/emscripten/blob/main/LICENSE",
+    "note": "matches audited main; exact toolchain release version unknown"
+  },
+  {
+    "file": "licenses/Emscripten-musl-COPYRIGHT.txt",
+    "packaged": true,
+    "packaged_path": "licenses/Emscripten-musl-COPYRIGHT.txt",
+    "packaged_sha256": "f9bc4423732350eb0b3f7ed7e91d530298476f8fec0c6c427a1c04ade22655af",
+    "source_git_blob_sha1": "c1628e9ac84f927fe791124ec172fb61c760bb9b",
+    "source_sha256_verification": "file bytes reconstructed/copied and Git blob SHA matched upstream",
+    "url": "https://github.com/emscripten-core/emscripten/blob/4.0.20/system/lib/libc/musl/COPYRIGHT",
+    "note": "original license from Emscripten tags 3.1.56, 3.1.74, 4.0.0, 4.0.10 and 4.0.20; exact compiler version used for the GPU WASM is NOT known; later main differs in authorship notices"
+  },
+  {
+    "file": "licenses/Rust-hashbrown-0.15.2-LICENSE-MIT.txt",
+    "packaged": true,
+    "packaged_path": "licenses/Rust-hashbrown-0.15.2-LICENSE-MIT.txt",
+    "packaged_sha256": "ff8f68cb076caf8cefe7a6430d4ac086ce6af2ca8ce2c4e5a2004d4552ef52a2",
+    "source_git_blob_sha1": "5afc2a7b0acabd34676023f9ebe3912ea2643ac2",
+    "source_sha256_verification": "file bytes reconstructed/copied and Git blob SHA matched upstream",
+    "url": "https://github.com/rust-lang/hashbrown/blob/0034bc69968840a104df299cad71092a5e76ed11/LICENSE-MIT",
+    "note": "source hashbrown 0.15.2 release commit; output binary presence inferred from build path"
+  },
+  {
+    "file": "licenses/TVM-FFI-LICENSE.txt",
+    "packaged": true,
+    "packaged_path": "licenses/TVM-FFI-LICENSE.txt",
+    "packaged_sha256": "bb354d8b94589ad8817f2dff029d39a1133d217407f73679d0b0311c980e511f",
+    "source_git_blob_sha1": "49ac4b3df9b391344a96ea7731bda084a4815b6e",
+    "source_sha256_verification": "file bytes reconstructed/copied and Git blob SHA matched upstream",
+    "url": "https://github.com/apache/tvm-ffi/blob/ae346ec92a3c386f1376064ae086aae72947c329/LICENSE",
+    "note": "source pin ae346ec92; exact official license incl. thirdparty appendix"
+  },
+  {
+    "file": "licenses/TVM-FFI-NOTICE.txt",
+    "packaged": true,
+    "packaged_path": "licenses/TVM-FFI-NOTICE.txt",
+    "packaged_sha256": "5181189219b74687e08884d813b8f98c874d0e4ba84eb7afc4bb350d22502c24",
+    "source_git_blob_sha1": "160794b12964d746e7196a5ff372a328fc9b6f87",
+    "source_sha256_verification": "file bytes reconstructed/copied and Git blob SHA matched upstream",
+    "url": "https://github.com/apache/tvm-ffi/blob/ae346ec92a3c386f1376064ae086aae72947c329/NOTICE",
+    "note": "source pin ae346ec92; exact official NOTICE"
+  },
+  {
+    "file": "licenses/Rust-bitflags-1.3.2-LICENSE-MIT.txt",
+    "packaged": true,
+    "packaged_path": "licenses/Rust-bitflags-1.3.2-LICENSE-MIT.txt",
+    "packaged_sha256": "6485b8ed310d3f0340bf1ad1f47645069ce4069dcc6bb46c7d5c6faf41de1fdb",
+    "source_git_blob_sha1": "39d4bdb5acd313c1a92dbeaa1c379aaf0596a315",
+    "source_sha256_verification": "file bytes copied and exact upstream Git blob SHA verified",
+    "url": "https://github.com/bitflags/bitflags/blob/1.3.2/LICENSE-MIT",
+    "note": "Onig 6.4.0 Cargo.toml declares bitflags 1.3; actual linked patch not independently determined. 1.3.2 is the published 1.3-series reference and is NOT proof of exact linked version."
+  },
+  {
+    "file": "licenses/Rust-onig_sys-69.8.1-LICENSE-MIT.txt",
+    "packaged": true,
+    "packaged_path": "licenses/Rust-onig_sys-69.8.1-LICENSE-MIT.txt",
+    "packaged_sha256": "71f321038b088358004bee991635ac09e4c703bec467d3c30c06992c0595f189",
+    "source_git_blob_sha1": "5b0fc41df44f47904d3a53587141f16dd11c88e1",
+    "source_sha256_verification": "file bytes copied and exact upstream Git blob SHA verified",
+    "url": "https://github.com/rust-onig/rust-onig/blob/v6.4.0/onig_sys/LICENSE.md",
+    "note": "onig 6.4.0 declares onig_sys 69.8.1; upstream source has this MIT notice. C Oniguruma has separate BSD-like terms."
+  },
+  {
+    "file": "licenses/Rust23-指定版原文48ファイル統合.txt",
+    "packaged": true,
+    "packaged_path": "licenses/Rust23-指定版原文48ファイル統合.txt",
+    "packaged_sha256": "15ccc41bc051706c8dd997d81941629b1400069fcf6ea18365802e1338ce1bae",
+    "source": "kotoba-rust23-license-evidence.zip (48 original notice/license files, previous SHA256 evidence)",
+    "verification_scope": "assembled supplemental reference; NOT an authoritative full Cargo.lock/SBOM",
+    "note": "Detected 23 registry-sourced Rust crates; combines their license and copyright texts with clear BEGIN/END delimiters."
   }
 ]

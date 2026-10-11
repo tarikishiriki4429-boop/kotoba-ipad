@@ -1,3 +1,38 @@
+【2026-10-11 最終反映候補・追加権利表示】
+これは第三者部品の帰属・ライセンス通知です。元部品の使用許諾やNOTICEは各原文を参照してください。ここでの「確認済み」は指定ソースまたは実物から確認した範囲を意味し、ソフトウェア全体の合法性を保証しません。
+
+TVM-FFI — Apache License 2.0 / 固定コミット ae346ec92a3c386f1376064ae086aae72947c329
+原文 licenses/TVM-FFI-LICENSE.txt、NOTICE licenses/TVM-FFI-NOTICE.txt
+Apache TVM FFI / Copyright 2024-present The Apache Software Foundation
+This product includes software developed at The Apache Software Foundation (http://www.apache.org/).
+
+DMLC-Core — Apache License 2.0 / 固定コミット 3031e4a61a98f49f07a42cfdec6242340fb2fd8c
+原文 licenses/DMLC-Core-LICENSE.txt。指定版に独立NOTICEは発見されず。
+
+Emscripten — MIT 又は Illinois/NCSA。許諾原文 licenses/Emscripten-LICENSE.txt
+Emscriptenに同梱されるmusl libc — MIT（付随する第三者著作権告知を含む）。原文 licenses/Emscripten-musl-COPYRIGHT.txt
+正確なemccバージョンは非確定。商用利用禁止の発見を意味しないが、固定5リリース（3.1.56〜4.0.20）の許諾文一致を証拠として収録。
+
+Rust onig_sys 69.8.1 — MIT。原文 licenses/Rust-onig_sys-69.8.1-LICENSE-MIT.txt
+Rust bitflags 1.3系 — MIT又はApache-2.0。1.3.2のMIT原文 licenses/Rust-bitflags-1.3.2-LICENSE-MIT.txt（厳密な採用パッチ版未確定）
+Rust hashbrown 0.15.2 — MIT又はApache-2.0。MIT原文 licenses/Rust-hashbrown-0.15.2-LICENSE-MIT.txt（/rust/deps/由来、独立Cargoクレートと断言しない）
+検出済みRust registryクレート23種・ライセンスと著作権表示原文48ファイル：licenses/Rust23-指定版原文48ファイル統合.txt
+Hugging Face tokenizers実WASM内の検出版は0.21.1。0.21.0/0.21.1の公式LICENSE Git blobはどちらも 261eeb9e9f8b2b4b0d119366dda99c6fd7d35c64、掲載中の原文と一致。
+
+以下は旧監査の全文を保持した履歴です。一部に「当時未特定」とある場合は先頭の最新補足を優先してください。
+
+
+# 2026-10-11 調査追補：Rust-Onigの補助依存（実リンク版の完全SBOMではない）
+
+onig 6.4.0 の upstream `onig/Cargo.toml` は onig_sys 69.8.1 と bitflags 1.3 系への依存を指定しています。
+- onig_sys 69.8.1：Rust-Onig v6.4.0 の `onig_sys/LICENSE.md` はMIT。原文 `licenses/Rust-onig_sys-69.8.1-LICENSE-MIT.txt`。Oniguruma C本体はMITではなく別の2条項BSD系COPYINGに従います。
+- bitflags 1.3 系：MIT/Apache-2.0。`1.3.2` は参考となる1.3系の公開原文で、実際のパッチ版と一致した証拠ではありません。原文 `licenses/Rust-bitflags-1.3.2-LICENSE-MIT.txt`。
+- RustトークナイザーWASMからはこれら2部品の正確なCargoレジストリパスが検出できていないため、**ソース依存指定と出荷実体の完全一致は未証明**。NOTICEを保守的に補足しています。
+
+Oniguruma COPYRIGHT の Git blob (`ee4d7cf05501ee338de85b1e92df869c1e8d5bbf`) は公式 v6.9.8 と v6.9.9 で一致し、既存 `licenses/Oniguruma-COPYING.txt` とも一致しています。
+
+CDN: 2026-10-10にSafariから `esm.run` のリダイレクト先 `cdn.jsdelivr.net/.../+esm` を計測し、保存済み監査JSとSHA-256が一致。これは測定時点の確認です。最終販売時に再確認します。
+
 無料公開版のお知らせ（2026-10-10）
 アプリ本体は無料です。旧「販売候補」などは過去の監査履歴の題名です。
 全配信バイナリのライセンス完全照合は未了です。LICENSE_AUDIT.md参照。
@@ -123,3 +158,18 @@ Rust-Onig(onig 6.4.0)のMIT原文は公式v6.4.0 tagのLICENSE.md全文と一致
 TVM-FFI（A03調査中：表示義務を最終確定する前の調査記録）
 GPU用WASMを生成した固定TVMソースの `web/emcc/wasm_runtime.cc` はTVM-FFIのC++ソースを直接includeし、解析したWASMにもTVMFFI関数が存在する。TVM-FFIの公式プロジェクトはApache-2.0で、上流NOTICEも公開されている。固定TVMに紐づく正確なTVM-FFI gitlinkコミットとライセンス原文の対応、必要なNOTICEの公開方法は引き続き確認する。暫定的な上流mainのNOTICEを当時の厳密な出荷版原文と称しない。
 関連資料: LICENSE_AUDIT.md およびA03 GPU-WASM監査報告書（配布準備資料）。
+
+【2026-10-11 A03/A09追加補足：固定WASMの実物と公式採用版から確認】
+- TVM-FFI：Apache-2.0。固定TVM c8515e1 の採用gitlink ae346ec92a3c386f1376064ae086aae72947c329。TVMのWeb実行コードがTVM-FFIのC++実装を直接取り込み、GPU用WASMにもTVMFFI関数が存在。原文: licenses/TVM-FFI-LICENSE.txt、NOTICE: licenses/TVM-FFI-NOTICE.txt。
+  NOTICE の著作権表示: Apache TVM FFI / Copyright 2024-present The Apache Software Foundation。実際の原文参照。
+- DMLC-Core：Apache-2.0。固定TVM c8515e1 の採用gitlink 3031e4a61a98f49f07a42cfdec6242340fb2fd8c。原文: licenses/DMLC-Core-LICENSE.txt。固定版に独立したNOTICEファイルは見つからなかった。ヘッダー内の著作権表示にも留意する。
+- hashbrown 0.15.2：実配信のTokenizer WASMのRustビルドパスから検出。選択可能なMITまたはApache-2.0のうち、MIT全文: licenses/Rust-hashbrown-0.15.2-LICENSE-MIT.txt。通常のcrates.io依存として組み込まれたか、Rustツールチェーン由来なのかは確定しない。
+- Emscripten：固定WASMがEmscripten由来の呼び出しを使用し、MLC/TVM固定版のWebビルドにもemcc指定がある。EmscriptenはMITまたはIllinois/NCSAで許諾。公式原文: licenses/Emscripten-LICENSE.txt。記録した原文は調査時点のupstream mainであり、当該WASM生成時のEmscriptenツールチェーン版は未確定。
+- musl libc：Emscripten上流は同梱muslのMIT許諾を明記。原文: licenses/Emscripten-musl-COPYRIGHT.txt。Emscripten 3.1.56～4.0.20の検証対象5リリースで同じCOPYRIGHTを確認し、そこから原文を収録。正確なビルド時SDK版および出荷WASMに含まれたmuslの各ソース・オブジェクトは未確定。
+- LLVM libc++ / compiler-rtなど：生成WASMに含まれる可能性がある。Apache-2.0 WITH LLVM-exceptionの埋込みObjectに関する例外も確認したが、ビルドツールチェーンを特定して依存採用範囲を評価する必要がある。公式: https://llvm.org/docs/DeveloperPolicy.html
+【重要】この追補は第三者ライセンスへの対応を進めるものであり、GPU用WASM・Tokenizer/XGrammar WASMの全リンク依存の網羅を保証するものではない。LICENSE_AUDIT.md参照。
+
+【2026-10-11 最新補足：A04/A07/A09】
+- A04：MLC変換Qwen固定リビジョン9bd564bのREADMEはbase_modelをQwen/Qwen2.5-1.5B-Instructと明記し、WebLLM/MLC-LLMでの用途を案内。READMEに別途商用禁止条項を検出していないが、変換モデルの独立LICENSEがないことを、無制限の利用保証とは解釈しない。元QwenのApache 2.0表示は継続。
+- A07：実行時CDNはesm.run。これはjsDelivr運営だが本番ではメインドメインを推奨する公式説明がある。実配信バイト列の一致を未検証のため、別のURLへ切り替える前に同一性検査を実施する。
+- A09：hashbrown 0.15.2のビルド文字列は /rust/deps/hashbrown-0.15.2/ であり、従来23種のCargoレジストリ由来パスとは異なる。Rust標準ライブラリ側に組み込まれた可能性が高く、独立した24番目のCargo依存と断言しない。
