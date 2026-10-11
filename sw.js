@@ -1,6 +1,6 @@
-// Kotoba Writer: build46 AI-free release; license view reliability.
+// Kotoba Writer: build47 staging editing-safety candidate; license view reliability.
 // No AI libraries, workers, models, or external AI endpoints are requested.
-const CACHE='kotoba-writer-shell-v47';
+const CACHE='kotoba-writer-shell-v48';
 const PRIVACY_FLAG='kotoba-writer-privacy-lock-v1';
 const SHELL=['./','./index.html','./manifest.webmanifest','./licenses.html'];
 
