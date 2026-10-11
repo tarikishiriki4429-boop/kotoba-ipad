@@ -1,6 +1,6 @@
-// Kotoba Writer: build41 AI-free release; license update reliability.
+// Kotoba Writer: build42 AI-free release; license view reliability.
 // No AI libraries, workers, models, or external AI endpoints are requested.
-const CACHE='kotoba-writer-shell-v42';
+const CACHE='kotoba-writer-shell-v43';
 const PRIVACY_FLAG='kotoba-writer-privacy-lock-v1';
 const SHELL=['./','./index.html','./manifest.webmanifest','./licenses.html'];
 

@@ -168,6 +168,20 @@ button:disabled{opacity:.45}
 .page.search-page{outline:2px solid #4678c0;outline-offset:2px}
 .page-preview .editor-char.search-target{background:#ffe69c;box-shadow:0 0 0 1px #d3aa4a;border-radius:2px}
 
+
+/* 利用条件はiframeではなくアプリ内へ表示する。Safariの空白iframeを回避。 */
+#licensesPanel{max-width:960px}
+#licensesHeader{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+#licensesDirectLink{font-size:13px;color:#075caa;text-decoration:underline}
+#licensesStatus{font-size:13px;color:#555;line-height:1.5;margin:8px 0;min-height:1em}
+#licensesContent{height:65vh;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  padding:16px 22px;background:#faf9f6;border-radius:4px;color:#222;
+  font-family:system-ui,sans-serif;font-size:16px;line-height:1.7;overflow-wrap:anywhere}
+#licensesContent pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px}
+#licensesContent summary{cursor:pointer;padding:12px;background:#eee}
+#licensesContent details{margin:10px 0}
+#licensesContent a{color:#075caa;text-decoration:underline}
+
 </style>
 </head>
 <body>
@@ -278,12 +292,16 @@ button:disabled{opacity:.45}
   <p id="fullTextStatus" class="note" role="status"></p>
   <textarea id="fullText" aria-label="全文（編集・選択・コピー用）"></textarea>
 </div>
-<div id="licensesPanel" class="panel" role="dialog" aria-label="利用条件・ライセンス"><button id="closeLicenses">閉じる</button><iframe id="licensesFrame" src="about:blank" title="利用条件・ライセンス" style="width:100%;height:65vh;border:0"></iframe></div>
+<div id="licensesPanel" class="panel" role="dialog" aria-label="利用条件・ライセンス">
+  <div id="licensesHeader"><button id="closeLicenses">閉じる</button><a id="licensesDirectLink" href="./licenses.html?view=build42" target="_blank" rel="noopener noreferrer">利用条件を別タブで開く</a></div>
+  <div id="licensesStatus" role="status" aria-live="polite"></div>
+  <div id="licensesContent" role="document" aria-label="利用条件の本文" tabindex="0"></div>
+</div>
 <input id="fileInput" type="file" accept=".txt,text/plain">
 <div id="printArea"></div>
 
 <script type="module">
-const BUILD=41;
+const BUILD=42;
 const $=id=>document.getElementById(id);
 $('buildVersion').textContent='Kotoba Writer build '+BUILD;
 const STORAGE='kotoba-writer-draft-v1';
@@ -1176,17 +1194,61 @@ $('checkAppUpdate').onclick=async()=>{
     alert('更新を確認できませんでした。ネット接続を確認してください。');
   }finally{btn.disabled=false;}
 };
-// 利用条件は開くたびに読み直す。オンライン時は新しいURLで取得し、
-// 秘匿モードONやオフライン時はService Workerに保存済みの原文を使う。
-$('licensesBtn').onclick=()=>{
-  const frame=$('licensesFrame');
-  const url=(privacyMode||!navigator.onLine)
-    ? './licenses.html'
-    : './licenses.html?refresh='+Date.now();
-  frame.src=url;
-  $('licensesPanel').classList.add('show');
+// Safariで利用条件のiframeが白くなる場合があるため、同一オリジンのHTMLを
+// 読み取って本文をアプリ内へ表示する。書き込み対象は利用条件パネルのみ。
+// オフラインと秘匿モードではCacheStorageから読むため、通信を発生させない。
+let licensesReadToken=0;
+async function openLicensesPanel(){
+  const token=++licensesReadToken;
+  const panel=$('licensesPanel');
+  const content=$('licensesContent');
+  const status=$('licensesStatus');
+  panel.classList.add('show');
+  content.replaceChildren();
+  content.scrollTop=0;
+  status.textContent='利用条件を読み込んでいます…';
+  const localOnly=privacyMode||!navigator.onLine;
+  try{
+    let response;
+    if(localOnly){
+      if(!('caches' in window))throw new Error('キャッシュ機能がありません');
+      response=await caches.match('./licenses.html');
+      if(!response)throw new Error('保存済みの利用条件がありません');
+    }else{
+      try{
+        response=await fetch('./licenses.html?refresh='+Date.now(),{cache:'no-store'});
+        if(!response.ok)throw new Error('HTTP '+response.status);
+      }catch(error){
+        response=('caches' in window)?await caches.match('./licenses.html'):null;
+        if(!response)throw error;
+      }
+    }
+    if(!response||!response.ok)throw new Error('利用条件を取得できませんでした');
+    const html=await response.text();
+    const parsed=new DOMParser().parseFromString(html,'text/html');
+    if(!parsed.body.querySelector('h1')||!parsed.body.textContent.includes('Kotoba Writer')){
+      throw new Error('利用条件の形式を確認できませんでした');
+    }
+    // 外部由来のコードが実行されないよう、表示用の要素のみ残す。
+    parsed.body.querySelectorAll('script,style,iframe,object,embed,form,link').forEach(el=>el.remove());
+    parsed.body.querySelectorAll('*').forEach(el=>{
+      [...el.attributes].forEach(attr=>{
+        if(/^on/i.test(attr.name)||attr.name==='srcdoc')el.removeAttribute(attr.name);
+      });
+    });
+    if(token!==licensesReadToken)return;
+    content.replaceChildren(...Array.from(parsed.body.childNodes).map(n=>document.importNode(n,true)));
+    status.textContent=localOnly?'保存済みの利用条件を表示しています。':' ';
+  }catch(error){
+    if(token!==licensesReadToken)return;
+    status.textContent='利用条件を表示できませんでした。上の「利用条件を別タブで開く」をお試しください。';
+  }
+}
+$('licensesBtn').onclick=openLicensesPanel;
+$('closeLicenses').onclick=()=>{
+  ++licensesReadToken;
+  $('licensesPanel').classList.remove('show');
 };
-$('closeLicenses').onclick=()=>$('licensesPanel').classList.remove('show');
 $('privacyBtn').onclick=async()=>{
   if(!privacyMode){
     privacyMode=true;
