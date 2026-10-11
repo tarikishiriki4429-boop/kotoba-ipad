@@ -144,11 +144,33 @@ button:disabled{opacity:.45}
 @media(max-width:700px){
   .toolbar{top:auto}.workspace{padding-top:16px}.page{padding:38px 24px}.pages{align-items:flex-start}
 }
+/* Print one physical A4 sheet for each manuscript page. Pagination is shared with
+   the editor rather than delegated to the browser's flowing-text layout. */
 @media print{
-  .topbar,.toolbar,.statusbar,.panel,.privacy-banner{display:none!important}
-  html,body{position:static!important;height:auto!important;overflow:visible!important}body,.workspace{background:white!important;padding:0!important}.pages{display:none!important}
-  #printArea{display:block!important;white-space:pre-wrap;font-family:"Yu Mincho",serif;font-size:12pt;line-height:1.8}
-  @page{size:A4;margin:18mm}
+  @page{size:A4 portrait;margin:18mm}
+  html,body{display:block!important;position:static!important;inset:auto!important;
+    width:auto!important;height:auto!important;min-height:0!important;
+    overflow:visible!important;background:white!important;margin:0!important;padding:0!important}
+  .topbar,.toolbar,.statusbar,.panel,.privacy-banner,.workspace{display:none!important}
+  #printArea{display:block!important;position:static!important;width:170mm!important;
+    margin:0!important;padding:0!important;background:white!important}
+  #printArea .print-sheet{position:relative;display:block;box-sizing:border-box;
+    width:170mm;height:252mm;margin:0;padding:0;background:white;color:#171717;
+    overflow:hidden;break-after:page;page-break-after:always;break-inside:avoid;page-break-inside:avoid}
+  #printArea .print-sheet:last-child{break-after:auto;page-break-after:auto}
+  #printArea .print-preview{display:block;position:relative;overflow:visible;margin:0;padding:0;border:0;
+    width:calc(var(--chars) * var(--print-font-size));
+    height:calc(var(--lines) * var(--print-font-size) * var(--line-height));
+    font-size:var(--print-font-size);line-height:var(--line-height);
+    font-family:"Hiragino Mincho ProN","Yu Mincho","YuMincho",serif;
+    font-kerning:none;font-variant-east-asian:full-width;letter-spacing:0;white-space:pre-wrap}
+  #printArea .print-preview.vertical{writing-mode:vertical-rl;text-orientation:mixed;
+    width:calc(var(--lines) * var(--print-font-size) * var(--line-height));
+    height:calc(var(--chars) * var(--print-font-size))}
+  #printArea .print-preview .editor-line{block-size:calc(var(--print-font-size) * var(--line-height));
+    inline-size:calc(var(--chars) * var(--print-font-size))}
+  #printArea .print-page-number{position:absolute;right:2mm;bottom:1mm;
+    font-family:system-ui,sans-serif;font-size:8pt;line-height:1;color:#777}
 }
 
 /* Search results can be inspected without closing the replace controls. */
@@ -301,7 +323,7 @@ button:disabled{opacity:.45}
 <div id="printArea"></div>
 
 <script type="module">
-const BUILD=42;
+const BUILD=43;
 const $=id=>document.getElementById(id);
 $('buildVersion').textContent='Kotoba Writer build '+BUILD;
 const STORAGE='kotoba-writer-draft-v1';
@@ -855,7 +877,51 @@ $('saveBtn').onclick=async()=>{
     $('saveStatus').textContent=e.name==='AbortError'?'TXT保存を中止しました':'TXT保存に失敗しました：'+e.message;
   }finally{setFileOperationBusy(false);}
 };
-$('pdfBtn').onclick=()=>{$('printArea').textContent=docText;window.print()};
+// The editable page and the PDF must use the exact same pagination and
+// grapheme-cell layout. A4 is fixed; reduce print font size only if needed
+// to keep the chosen charCount x lineCount grid inside its printable area.
+let lastPrintText=null,lastPrintSettings='';
+function preparePrintPages(){
+  const s=getSettings();
+  const settingsKey=[s.fontSize,s.lineHeight,s.writingMode,s.charCount,s.lineCount].join('|');
+  if(lastPrintText===docText && lastPrintSettings===settingsKey && $('printArea').firstElementChild)return;
+  const pages=paginate(docText);
+  const el=$('printArea');
+  const mmPx=96/25.4;
+  const maxWidth=166*mmPx,maxHeight=243*mmPx;
+  const vertical=s.writingMode==='vertical';
+  const widthUnits=vertical?s.lineCount*Number(s.lineHeight):s.charCount;
+  const heightUnits=vertical?s.charCount:s.lineCount*Number(s.lineHeight);
+  const fitSize=Math.min(Number(s.fontSize),
+    maxWidth*0.98/widthUnits,
+    maxHeight*0.98/heightUnits);
+  el.style.setProperty('--print-font-size',fitSize.toFixed(3)+'px');
+  const fragment=document.createDocumentFragment();
+  pages.forEach((chunk,i)=>{
+    const sheet=document.createElement('section');
+    sheet.className='print-sheet';
+    sheet.setAttribute('aria-label',`原稿 ${i+1} / ${pages.length} ページ`);
+    const body=document.createElement('div');
+    body.className='print-preview'+(s.writingMode==='vertical'?' vertical':'');
+    writeEditorText(body,chunk.text);
+    sheet.append(body);
+    const number=document.createElement('div');
+    number.className='print-page-number';
+    number.textContent=(i+1)+' / '+pages.length;
+    sheet.append(number);
+    fragment.append(sheet);
+  });
+  el.replaceChildren(fragment);
+  lastPrintText=docText;
+  lastPrintSettings=settingsKey;
+}
+$('pdfBtn').onclick=()=>{
+  if(isComposing){alert('文字の変換を確定してからPDF / 印刷を押してください。');return;}
+  preparePrintPages();
+  window.print();
+};
+// Browser/menu print commands use the same format as the PDF button.
+window.addEventListener('beforeprint',()=>{if(!isComposing)preparePrintPages()});
 
 function formatText(){
   let t=docText.replace(/\r\n?/g,'\n');
