@@ -162,6 +162,15 @@ button:disabled{opacity:.45}
   #printArea .print-sheet{position:relative;display:block;box-sizing:border-box;
     width:170mm;height:220mm;margin:0;padding:0;background:white;color:#171717;
     overflow:hidden;break-inside:avoid;page-break-inside:avoid}
+  /* Vertical text uses a landscape A4 page and a landscape manuscript grid.
+     Safari may ignore CSS @page orientation; its native dialog must then be
+     set to Landscape by the user. A shorter fixed sheet avoids blank tail pages. */
+  #printArea.vertical-print{width:260mm!important}
+  #printArea.vertical-print .print-sheet{width:260mm;height:160mm}
+  #printArea.vertical-print .print-preview.vertical{
+    position:relative;margin-left:auto;margin-right:0;
+    writing-mode:vertical-rl;text-orientation:mixed}
+  #printArea.vertical-print .print-page-number{right:3mm;bottom:2mm}
   #printArea .print-preview{display:block;position:relative;overflow:visible;margin:0;padding:0;border:0;
     width:calc(var(--chars) * var(--print-font-size));
     height:calc(var(--lines) * var(--print-font-size) * var(--line-height));
@@ -327,7 +336,7 @@ button:disabled{opacity:.45}
 <div id="printArea"></div>
 
 <script type="module">
-const BUILD=45;
+const BUILD=46;
 const $=id=>document.getElementById(id);
 $('buildVersion').textContent='Kotoba Writer build '+BUILD;
 const STORAGE='kotoba-writer-draft-v1';
@@ -894,8 +903,18 @@ function preparePrintPages(){
   const mmPx=96/25.4;
   // Allow a safety margin for the iPad print engine while preserving
   // exactly the same column/row cells and screen-page boundaries.
-  const maxWidth=165*mmPx,maxHeight=201*mmPx;
   const vertical=s.writingMode==='vertical';
+  // A4 portrait for horizontal writing; A4 landscape for vertical writing.
+  // Both layouts reserve ample space for iPad's print headers and margins.
+  const maxWidth=(vertical?246:165)*mmPx;
+  const maxHeight=(vertical?146:201)*mmPx;
+  const printRuleId='kotobaPrintPageSize';
+  let printRule=document.getElementById(printRuleId);
+  if(!printRule){printRule=document.createElement('style');printRule.id=printRuleId;document.head.append(printRule)}
+  printRule.textContent=vertical
+    ? '@page { size: A4 landscape; margin:14mm }'
+    : '@page { size: A4 portrait; margin:18mm }';
+  el.classList.toggle('vertical-print',vertical);
   const widthUnits=vertical?s.lineCount*Number(s.lineHeight):s.charCount;
   const heightUnits=vertical?s.charCount:s.lineCount*Number(s.lineHeight);
   const fitSize=Math.min(Number(s.fontSize),
@@ -924,6 +943,11 @@ function preparePrintPages(){
 $('pdfBtn').onclick=()=>{
   if(isComposing){alert('文字の変換を確定してからPDF / 印刷を押してください。');return;}
   preparePrintPages();
+  if(getSettings().writingMode==='vertical'){
+    // Native iPad Safari print UI does not consistently honor CSS @page size.
+    // Tell the user to select landscape instead of shrinking/rotating the text.
+    alert('縦書きのPDFはA4の「横向き」で印刷します。印刷オプションの「方向」が縦向きなら、横向きへ変更してください。Safariでは自動で切り替わらない場合があります。');
+  }
   window.print();
 };
 // Browser/menu print commands use the same format as the PDF button.
