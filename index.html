@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#eceae6">
+<meta name="theme-color" content="#eceae6" id="appThemeMeta">
 <link rel="manifest" href="./manifest.webmanifest">
 <title>Kotoba Writer</title>
 <style>
@@ -15,7 +15,14 @@
 *{box-sizing:border-box}
 html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#d8d7d4}
 body{position:fixed;left:0;right:0;top:var(--viewport-top,0px);height:var(--viewport-height,100dvh);display:flex;flex-direction:column}
-.topbar,.toolbar,.statusbar{flex-shrink:0}
+.topbar,.toolbar,.statusbar,.compact-controls{flex-shrink:0}
+/* The narrow strip remains visible when the main tool area is folded. */
+.compact-controls{position:relative;z-index:21;display:flex;align-items:center;justify-content:space-between;
+  gap:8px;min-height:34px;padding:3px 10px;background:#efede9;border-bottom:1px solid #ccc9c3}
+.compact-controls button{padding:3px 10px;border-radius:7px;font-size:12px;line-height:1.6}
+body.controls-collapsed .topbar,body.controls-collapsed .toolbar{display:none}
+body.controls-collapsed .compact-controls{padding-top:max(3px,env(safe-area-inset-top))}
+
 button,select,input{font:inherit}
 button{border:1px solid #c9c7c2;border-radius:9px;background:#fff;color:#222;padding:8px 11px;font-weight:600}
 button.primary{background:#222;color:#fff;border-color:#222}
@@ -36,10 +43,10 @@ button:disabled{opacity:.45}
 .presetbar{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 .presetbar button{padding:6px 9px;font-size:12px}
 .workspace{flex:1;min-height:0;padding:28px 10px 40px;overflow:auto;overscroll-behavior:contain;overflow-anchor:none;scroll-behavior:auto}
-.pages{display:flex;flex-direction:column;gap:26px;align-items:flex-start;min-width:max-content}
+.pages{position:relative;display:flex;flex-direction:column;gap:26px;align-items:flex-start;min-width:max-content}
 .page{
-  position:relative;background:#fff;box-shadow:0 2px 13px rgba(0,0,0,.16);
-  padding:56px 58px;border-radius:2px;width:max-content;margin-inline:auto;flex-shrink:0;
+  --paper-bg:#fff;position:relative;background:#fff;box-shadow:0 2px 13px rgba(0,0,0,.16);
+  padding:var(--paper-pad-y,42px) var(--paper-pad-x,42px);border-radius:2px;width:max-content;margin-inline:auto;flex-shrink:0;
 }
 .page::after{
   content:attr(data-page);position:absolute;right:16px;bottom:12px;font-size:11px;color:#999;
@@ -62,7 +69,7 @@ button:disabled{opacity:.45}
   height:calc(var(--chars) * 1em);
 }
 .editor-line{
-  display:block;inline-size:calc(var(--chars) * 1em);
+  position:relative;display:block;inline-size:calc(var(--chars) * 1em);
   block-size:calc(var(--font-size) * var(--line-height));
   white-space:pre;overflow:visible;
 }
@@ -71,7 +78,11 @@ button:disabled{opacity:.45}
   white-space:pre;vertical-align:baseline;
 }
 .editor-line > br{display:none}
-.hanging-char{position:relative;z-index:2;overflow:visible}
+/* A hanging mark MUST NOT participate in the browser's soft wrapping.
+   Otherwise Safari moves the preceding glyph as well, despite our grid model.
+   Logical inline-start works for both horizontal and vertical writing. */
+.hanging-char{position:absolute;inset-inline-start:calc(var(--chars) * 1em);
+  inset-block-start:0;z-index:2;overflow:visible}
 .hanging-char::selection{background:Highlight;color:HighlightText}
 /* Build34: Keep IME composition inside a real native textarea.  A
    contenteditable containing one-cell spans makes WebKit introduce transient
@@ -88,7 +99,7 @@ button:disabled{opacity:.45}
 }
 /* Pasting across a page boundary must not trap touch scrolling in a nested textarea. */
 .page.editing .page-editor{opacity:1;overflow:hidden}
-.page-preview{position:absolute;z-index:1;pointer-events:none;left:58px;top:56px;
+.page-preview{position:absolute;z-index:1;pointer-events:none;left:var(--paper-pad-x,42px);top:var(--paper-pad-y,42px);
   margin:0;padding:0;border:0;overflow:visible;
   font-size:var(--font-size);line-height:var(--line-height);
   font-family:"Hiragino Mincho ProN","Yu Mincho","YuMincho",serif;
@@ -102,7 +113,60 @@ button:disabled{opacity:.45}
   height:calc(var(--chars) * 1em);
 }
 .page.editing .page-preview{visibility:hidden}
-@media(max-width:700px){.page-preview{left:24px;top:38px}}
+@media(max-width:700px){:root{--paper-pad-x:26px;--paper-pad-y:26px}}
+/* build47+: The native textarea continues to own text and IME, but WebKit's
+   vertical wrapping cannot be used as our manuscript layout. Draw the visible
+   glyphs and caret on the exact same grapheme grid, even while composing. */
+.page.vertical .page-editor,
+.page.vertical.editing .page-editor{
+  opacity:1!important;color:transparent!important;-webkit-text-fill-color:transparent!important;
+  caret-color:transparent!important;z-index:3;
+  /* The native textarea covers the entire sheet and receives touch, paste,
+     selection and Japanese IME events directly.  A compact hidden proxy broke
+     those actions on iPad Safari in build48.  Its native caret uses vertical
+     writing coordinates; the manuscript preview still owns visible glyphs. */
+  writing-mode:vertical-rl!important;text-orientation:mixed!important;
+  pointer-events:auto!important;touch-action:auto!important;
+  cursor:vertical-text!important;
+  -webkit-user-select:text!important;user-select:text!important;
+}
+/* The painted grid, rather than a second browser-native wrap algorithm,
+   is the visible text for BOTH modes, during and after editing. The native
+   textarea remains the genuine focus/IME/clipboard owner on the full sheet. */
+.page.vertical.editing .page-preview,
+.page:not(.vertical).editing .page-preview{visibility:visible!important}
+.page:not(.vertical).editing .page-editor{
+  opacity:1!important;color:transparent!important;
+  -webkit-text-fill-color:transparent!important;caret-color:transparent!important;
+  pointer-events:auto!important;touch-action:auto!important;
+  -webkit-user-select:text!important;user-select:text!important
+}
+.page .grid-caret{
+  position:absolute;display:none;pointer-events:none;z-index:6;
+  width:var(--font-size);height:2px;background:#183d72;border-radius:2px;
+  box-shadow:0 0 0 .2px #183d72;
+}
+.page.editing .grid-caret{display:block}
+.page.editing .grid-caret.selected{display:none}
+/* Place the real grid above WebKit's native IME underline: the hidden
+   textarea still receives input, but its different soft-wrap must not paint
+   a blue underline across unrelated manuscript characters. */
+.page.composing .page-preview{z-index:4;background:var(--paper-bg,#fff)}
+.page.composition-ghost{position:absolute;z-index:8;pointer-events:none;
+  box-sizing:border-box;margin:0!important;flex:none!important}
+.page.composing .grid-caret{display:none!important}
+@media (prefers-reduced-motion: no-preference){
+  .page.editing .grid-caret{animation:kw-caret-blink 1.1s steps(2,start) infinite}
+}
+@keyframes kw-caret-blink{to{opacity:0}}
+/* Build52: visible selected text follows the same per-character grid as the
+   manuscript. Native WebKit selection rectangles use different soft-wraps. */
+.page .page-editor::selection,
+.page .page-editor::-moz-selection{background:transparent!important;color:transparent!important}
+.page .grid-selection-layer{position:absolute;inset:0;z-index:5;pointer-events:none}
+.page .grid-selected-rect{position:absolute;background:rgba(54,120,216,.29);
+  border-radius:2px;pointer-events:none}
+html.kw-dark .page .grid-selected-rect{background:rgba(143,169,216,.42)}
 .page.manuscript:not(.vertical) .page-editor{
   background-image:
     linear-gradient(to right,rgba(0,0,0,.065) 1px,transparent 1px),
@@ -142,13 +206,110 @@ button:disabled{opacity:.45}
 .privacy-banner.show{display:block}
 #fileInput,#printArea{display:none}
 @media(max-width:700px){
-  .toolbar{top:auto}.workspace{padding-top:16px}.page{padding:38px 24px}.pages{align-items:flex-start}
+  .toolbar{top:auto}.workspace{padding-top:16px}.pages{align-items:flex-start}
 }
+/* Cozy dark mode: warm almost-black surfaces with low-glare gray ink. */
+html.kw-dark,html.kw-dark body{background:#1d1917!important;color:#c9c4bf}
+html.kw-dark .compact-controls,html.kw-dark .toolbar{background:#26211e;border-color:#4c4440;color:#c9c4bf}
+html.kw-dark .topbar,html.kw-dark .statusbar{background:rgba(38,33,30,.97);border-color:#4c4440;color:#c9c4bf}
+html.kw-dark .toolbar label,html.kw-dark .note{color:#bab4ae}
+html.kw-dark button,html.kw-dark input,html.kw-dark select{background:#35302b;color:#d4d0cc;border-color:#554d47}
+html.kw-dark button.primary{background:#67605a;color:#f3f0eb}
+html.kw-dark .page{--paper-bg:#2a2521;background:#2a2521;box-shadow:0 2px 16px rgba(0,0,0,.4);color:#c9c4bf}
+html.kw-dark .page::after{color:#99908a}
+html.kw-dark .page-editor,html.kw-dark .page-preview{color:#c9c4bf!important;caret-color:#ddd4cb!important}
+html.kw-dark .page.vertical .page-editor,
+html.kw-dark .page.editing .page-editor{
+  color:transparent!important;-webkit-text-fill-color:transparent!important;caret-color:transparent!important}
+html.kw-dark .grid-caret{background:#d7c4ae;box-shadow:0 0 0 .2px #d7c4ae}
+html.kw-dark .page.manuscript .page-editor{background-image:none}
+html.kw-dark .panel{background:#2a2521;color:#d0cac5;border-color:#514943}
+html.kw-dark .result,html.kw-dark #searchResults,html.kw-dark #licensesContent{background:#302a26;color:#cec9c3;border-color:#57504a}
+html.kw-dark .search-hit{background:#36302b;color:#d0cbc5;border-color:#5c514a}
+html.kw-dark .search-hit.active{background:#464039;border-color:#b8aa91}
+html.kw-dark .search-hit .search-meta{color:#cac3ba}
+html.kw-dark #licensesStatus{color:#bbb2a8}
+html.kw-dark #fullText{background:#292420;color:#d0cac5;border-color:#5c514a}
+html.kw-dark .privacy-banner{background:#243027;color:#bccab9;border-color:#405246}
+html.kw-dark .page.search-page{outline-color:#c4a876}
+html.kw-dark .page-preview .editor-char.search-target{color:#231f1c;background:#dbc38d}
 @media print{
-  .topbar,.toolbar,.statusbar,.panel,.privacy-banner{display:none!important}
-  html,body{position:static!important;height:auto!important;overflow:visible!important}body,.workspace{background:white!important;padding:0!important}.pages{display:none!important}
-  #printArea{display:block!important;white-space:pre-wrap;font-family:"Yu Mincho",serif;font-size:12pt;line-height:1.8}
-  @page{size:A4;margin:18mm}
+  html.kw-dark,html.kw-dark body{background:white!important;color:#171717!important}
+  html.kw-dark #printArea,html.kw-dark #printArea *{color:#171717!important;box-shadow:none!important}
+}
+/* Print one physical A4 sheet for each manuscript page. Pagination is shared with
+   the editor rather than delegated to the browser's flowing-text layout. */
+/* iPad Safari may reserve additional room for print headers, footers and
+   page margins. A 252mm print sheet may fragment on the very last page.
+   Keep each sheet safely below A4's 261mm nominal printable height, and
+   keep the actual manuscript grid smaller than the sheet itself. Never
+   use break-after:page; natural page fragmentation places one sheet/page. */
+@media print{
+  @page{size:A4 portrait;margin:18mm}
+  html,body{display:block!important;position:static!important;inset:auto!important;
+    width:auto!important;height:auto!important;min-height:0!important;
+    overflow:visible!important;background:white!important;margin:0!important;padding:0!important}
+  .topbar,.toolbar,.compact-controls,.statusbar,.panel,.privacy-banner,.workspace{display:none!important}
+  #printArea{display:block!important;position:static!important;width:174mm!important;
+    margin:0!important;padding:0!important;background:white!important}
+  #printArea .print-sheet{position:relative;display:block;box-sizing:border-box;
+    width:170mm;height:234mm;margin:0 0 0 2mm;padding:0;background:white;color:#171717;
+    overflow:hidden;break-inside:avoid;page-break-inside:avoid}
+  /* Start the second and subsequent manuscript pages on a new physical sheet.
+     No break AFTER the final page: that created a blank trailing sheet on iPad. */
+  #printArea .print-sheet + .print-sheet{
+    break-before:page!important;page-break-before:always!important;
+  }
+  /* Vertical manuscript on A4 PORTRAIT: each logical column is one
+     horizontal row. Japanese glyphs rotate -90 degrees; Latin glyphs
+     and Arabic digits retain their unrotated print orientation. */
+  #printArea.vertical-print{width:174mm!important}
+  #printArea.vertical-print .print-sheet{width:170mm;height:234mm}
+  #printArea.vertical-print .print-preview.vertical{
+    position:absolute;margin:0;
+    writing-mode:horizontal-tb!important;text-orientation:mixed;
+    width:calc(var(--chars) * var(--print-font-size));
+    height:calc(var(--lines) * var(--print-font-size) * var(--print-line-height))}
+  #printArea.vertical-print .print-preview.vertical .editor-line{
+    display:block;writing-mode:horizontal-tb!important;
+    inline-size:calc(var(--chars) * var(--print-font-size));
+    block-size:calc(var(--print-font-size) * var(--print-line-height))}
+  /* Turn kana/kanji (including 漢数字) -90deg. Latin letters and Arabic
+     numerals retain their original print orientation as a horizontal run. */
+  #printArea.vertical-print .print-preview.vertical .editor-char{
+    display:inline-block;transform:rotate(-90deg);transform-origin:center center}
+  #printArea.vertical-print .print-preview.vertical .editor-char.print-latin{
+    transform:none!important}
+  /* Print punctuation uses vertical Japanese glyph forms, not rotated
+     horizontal bracket shapes. This affects PDF only; TXT is unchanged. */
+  #printArea.vertical-print .print-preview.vertical .editor-char.print-tate-punct{
+    font-feature-settings:"vert" 1,"vrt2" 1}
+
+  #printArea.vertical-print .print-page-number{right:2mm;bottom:1mm}
+  #printArea .print-preview{display:block;position:absolute;left:0;top:0;
+    overflow:visible;margin:0;padding:0;border:0;
+    width:calc(var(--chars) * var(--print-font-size));
+    height:calc(var(--lines) * var(--print-font-size) * var(--print-line-height));
+    font-size:var(--print-font-size);line-height:var(--print-line-height);
+    font-family:"Hiragino Mincho ProN","Yu Mincho","YuMincho",serif;
+    font-kerning:none;font-variant-east-asian:full-width;letter-spacing:0;white-space:pre-wrap}
+  #printArea .print-preview.vertical{writing-mode:horizontal-tb;text-orientation:mixed;
+    width:calc(var(--chars) * var(--print-font-size));
+    height:calc(var(--lines) * var(--print-font-size) * var(--print-line-height))}
+  #printArea .print-preview .editor-line{block-size:calc(var(--print-font-size) * var(--print-line-height));
+    inline-size:calc(var(--chars) * var(--print-font-size))}
+  /* Ruby is only interpreted in the PDF DOM. Native editable TXT stays intact.
+     In sideways vertical print, ruby annotation occupies the upper side of the
+     horizontal print row; once the page is rotated, it sits to the right. */
+  #printArea .print-ruby{ruby-position:over;white-space:nowrap}
+  #printArea .print-ruby-base{white-space:nowrap}
+  #printArea .print-ruby rt{font-size:var(--ruby-scale,.46em);line-height:1;
+    text-align:center;white-space:nowrap;letter-spacing:0}
+  #printArea .print-ruby rt .ruby-glyph{display:inline-block;inline-size:1em;
+    text-align:center;white-space:nowrap}
+  #printArea.vertical-print .print-ruby rt .ruby-glyph:not(.ruby-latin){transform:rotate(-90deg)}
+  #printArea .print-page-number{position:absolute;right:2mm;bottom:1mm;
+    font-family:system-ui,sans-serif;font-size:8pt;line-height:1;color:#777}
 }
 
 /* Search results can be inspected without closing the replace controls. */
@@ -194,7 +355,7 @@ button:disabled{opacity:.45}
   <button id="openBtn">TXTを開く</button>
   <button id="saveBtn">TXT保存</button>
   <button id="fileNameBtn">名前変更</button>
-  <button id="pdfBtn">PDF / 印刷</button>
+  <button id="pdfBtn" title="ルビは（本文（よみ））と入力するとPDFで変換されます。TXTにはそのまま保存されます。">PDF / 印刷</button>
   <div class="spacer"></div>
   <button id="findBtn">検索・置換</button>
   <button id="formatBtn">体裁を整える</button>
@@ -206,7 +367,7 @@ button:disabled{opacity:.45}
   <button id="privacyBtn" class="privacy-btn">秘匿モード OFF</button>
 </div>
 
-<div class="toolbar">
+<div class="toolbar" id="writerControls">
   <label>文字サイズ
     <select id="fontSize">
       <option>14</option><option>16</option><option selected>18</option><option>20</option><option>22</option><option>24</option><option>28</option>
@@ -231,6 +392,10 @@ button:disabled{opacity:.45}
     <button data-preset="42,34">42×34</button>
     <button data-preset="20,20">20×20</button>
   </div>
+</div>
+<div class="compact-controls" role="group" aria-label="画面の表示設定">
+  <button id="toggleControls" type="button" aria-expanded="true" aria-controls="writerControls">▲ 操作ボタンをしまう</button>
+  <button id="toggleTheme" type="button" aria-pressed="false">☾ ダークモード</button>
 </div>
 
 <div id="privacyBanner" class="privacy-banner">秘匿モードON：ネット取得をキャッシュ限定にしています。</div>
@@ -293,7 +458,7 @@ button:disabled{opacity:.45}
   <textarea id="fullText" aria-label="全文（編集・選択・コピー用）"></textarea>
 </div>
 <div id="licensesPanel" class="panel" role="dialog" aria-label="利用条件・ライセンス">
-  <div id="licensesHeader"><button id="closeLicenses">閉じる</button><a id="licensesDirectLink" href="./licenses.html?view=build42" target="_blank" rel="noopener noreferrer">利用条件を別タブで開く</a></div>
+  <div id="licensesHeader"><button id="closeLicenses">閉じる</button><a id="licensesDirectLink" href="./licenses.html?view=build57" target="_blank" rel="noopener noreferrer">利用条件を別タブで開く</a></div>
   <div id="licensesStatus" role="status" aria-live="polite"></div>
   <div id="licensesContent" role="document" aria-label="利用条件の本文" tabindex="0"></div>
 </div>
@@ -301,12 +466,33 @@ button:disabled{opacity:.45}
 <div id="printArea"></div>
 
 <script type="module">
-const BUILD=42;
+const BUILD=57;
 const $=id=>document.getElementById(id);
 $('buildVersion').textContent='Kotoba Writer build '+BUILD;
 const STORAGE='kotoba-writer-draft-v1';
 const SETTINGS='kotoba-writer-settings-v1';
 const FILE_NAME_KEY='kotoba-writer-file-name-v1';
+const THEME_KEY='kotoba-writer-theme-v1';
+const CONTROLS_KEY='kotoba-writer-controls-hidden-v1';
+function setDarkMode(enabled){
+  document.documentElement.classList.toggle('kw-dark',enabled);
+  const b=$('toggleTheme');b.setAttribute('aria-pressed',String(enabled));
+  b.textContent=enabled?'☀ 明るい表示':'☾ ダークモード';
+  document.getElementById('appThemeMeta')?.setAttribute('content',enabled?'#1d1917':'#eceae6');
+  try{localStorage.setItem(THEME_KEY,enabled?'1':'0')}catch{}
+}
+function setControlsHidden(hidden){
+  document.body.classList.toggle('controls-collapsed',hidden);
+  const b=$('toggleControls');b.setAttribute('aria-expanded',String(!hidden));
+  b.textContent=hidden?'▼ 操作ボタンを開く':'▲ 操作ボタンをしまう';
+  try{localStorage.setItem(CONTROLS_KEY,hidden?'1':'0')}catch{}
+  // Folding the controls changes the viewport and may expose more of the page.
+  if(!hidden && document.querySelector('.page-editor'))scheduleReveal();
+}
+$('toggleTheme').onclick=()=>setDarkMode(!document.documentElement.classList.contains('kw-dark'));
+$('toggleControls').onclick=()=>setControlsHidden(!document.body.classList.contains('controls-collapsed'));
+setDarkMode(localStorage.getItem(THEME_KEY)==='1');
+setControlsHidden(localStorage.getItem(CONTROLS_KEY)==='1');
 const defaultFileName=()=> 'kotoba-'+new Date().toISOString().slice(0,10)+'.txt';
 let documentFileName=localStorage.getItem(FILE_NAME_KEY)||defaultFileName();
 let documentFileHandle=null,fileOperationBusy=false;
@@ -317,98 +503,94 @@ let history=[];
 let isComposing=false;
 const graphemes=new Intl.Segmenter('ja',{granularity:'grapheme'});
 function units(text){return Array.from(graphemes.segment(text));}
-function previousOffset(pos){const a=units(docText.slice(0,pos));return a.length?a[a.length-1].index:0;}
-function nextOffset(pos){const a=units(docText.slice(pos));return pos+(a[0]?.segment.length||0);}
+// Move on WHOLE graphemes, not UTF-16 code units. A tap or stale native
+// selection can otherwise land inside an emoji/ZWJ and make arrows jump.
+function previousOffset(pos){
+  pos=Math.max(0,Math.min(pos,docText.length));if(!pos)return 0;
+  const result=graphemes.segment(docText).containing?.(pos-1);
+  if(result)return result.index;
+  const segments=units(docText.slice(0,pos));
+  return segments.length?segments[segments.length-1].index:0;
+}
+function nextOffset(pos){
+  pos=Math.max(0,Math.min(pos,docText.length));
+  if(pos===docText.length)return pos;
+  const result=graphemes.segment(docText).containing?.(pos);
+  if(result)return result.index+result.segment.length;
+  return pos+(units(docText.slice(pos))[0]?.segment.length||0);
+}
 let rendering=false;
-// iPad Safari may drop auto-repeat keystrokes if every native insertion
-// immediately rebuilds the contenteditable cells and replaces the caret.
-// Keep the browser's live editing DOM while characters arrive, and normalize
-// layout only after the burst of input stops. This timer never owns the text;
-// docText/localStorage are synchronized on every non-composing input.
-const LAYOUT_IDLE_MS=260;
+// Committed inputs are partitioned synchronously. Keep the timer token only
+// for older event-handler cancellation; no delayed reflow is scheduled.
 let layoutIdleTimer=0;
-function scheduleIdleLayout(ta){
-  clearTimeout(layoutIdleTimer);
-  layoutIdleTimer=setTimeout(()=>{
-    layoutIdleTimer=0;
-    if(isComposing || !ta.isConnected || ta._selecting)return;
-    const focused=document.activeElement===ta;
-    if(focused){
-      // Read native selection now, never restore the pre-long-press caret.
-      syncCaret(ta);
-      if(ta.selectionStart!==ta.selectionEnd)return;
-      const next=paginate(docText);
-      // Ordinary typing does not need any input value assignment or layout.
-      if(next.length===chunks.length && next.every((c,i)=>c.start===chunks[i].start && c.end===chunks[i].end))return;
-    }
-    renderPages(globalCaret,globalSelEnd,focused,true);
-  },LAYOUT_IDLE_MS);
-}
-function scheduleCompositionPreview(ta){
-  if(ta._previewFrame)return;
-  ta._previewFrame=requestAnimationFrame(()=>{
-    ta._previewFrame=0;
-    if(isComposing && ta.isConnected)paintComposition(ta);
-  });
-}
 let revealFrame=0;
-let inputScroll=null,restoreFrame=0,compositionScroll=null;
-function captureInputScroll(){
-  const w=document.querySelector('.workspace');
-  inputScroll=compositionScroll || {left:w.scrollLeft,top:w.scrollTop};
-}
-function restoreInputScroll(){
-  if(!inputScroll)return;
-  const position=inputScroll;inputScroll=null;
-  const w=document.querySelector('.workspace');
-  w.scrollLeft=position.left;w.scrollTop=position.top;
-  cancelAnimationFrame(restoreFrame);
-  restoreFrame=requestAnimationFrame(()=>{
-    w.scrollLeft=position.left;w.scrollTop=position.top;
-    if(!isComposing)scheduleReveal();
-  });
-}
-// A real touch/wheel gesture always takes precedence over automatic restoration.
-for(const type of ['touchstart','pointerdown','wheel'])document.addEventListener(type,()=>{
-  inputScroll=null;compositionScroll=null;cancelAnimationFrame(restoreFrame);cancelAnimationFrame(revealFrame);
-},{passive:true});
+// The IME's native textarea scroll and our workspace may disagree on iPad.
+// Never restore a pre-composition scroll snapshot after the candidate commits:
+// that caused the visible snap backwards and forwards in build50.
+let revealColumnTop=false;
 function viewportChanged(){
   const vv=window.visualViewport;
   document.documentElement.style.setProperty('--viewport-height',(vv?.height||innerHeight)+'px');
   document.documentElement.style.setProperty('--viewport-top',(vv?.offsetTop||0)+'px');
 }
-function viewportResized(){viewportChanged();if(compositionScroll){inputScroll=compositionScroll;restoreInputScroll()}else scheduleReveal();}
+function viewportResized(){viewportChanged();scheduleReveal();}
 window.visualViewport?.addEventListener('resize',viewportResized);
-// Panning the visual viewport must not start another editor scroll.
 window.visualViewport?.addEventListener('scroll',viewportChanged);
 window.addEventListener('resize',viewportResized);
-// Scroll only enough to expose the actual caret, never center the entire sheet.
+// User-driven scroll/selection must take precedence; only typing follows.
+for(const type of ['touchstart','pointerdown','wheel'])document.addEventListener(type,()=>{
+  cancelAnimationFrame(revealFrame);
+},{passive:true});
+function noteVerticalColumn(ta,fromTyping=false){
+  if(getSettings().writingMode!=='vertical')return;
+  const point=gridStopAt(ta,Math.min(ta.selectionStart,ta.value.length));
+  // A column jump made by an ARROW is not a new text line: forcing paperTop
+  // into view on arrow navigation previously made scrollTop bounce 27↔273.
+  // Even during typing, reset only when the caret is genuinely at the
+  // beginning of a newly entered column, never midway through an old one.
+  if(fromTyping && ta._lastVerticalRow!==undefined &&
+     point.row>ta._lastVerticalRow && point.col<=2)revealColumnTop=true;
+  ta._lastVerticalRow=point.row;
+}
 function scheduleReveal(){
   cancelAnimationFrame(revealFrame);
   revealFrame=requestAnimationFrame(()=>{
     const ta=document.activeElement;
-    if(isComposing || !ta?.classList.contains('page-editor'))return;
+    if(!ta?.classList.contains('page-editor')||!ta.isConnected)return;
     const workspace=document.querySelector('.workspace');
-    // Native collapsed ranges can have no rect (especially during WebKit
-    // layout). Never substitute the entire editor/line's bounding box: its
-    // bottom would scroll the viewport to the end of the manuscript.
-    const m=editorCaretRect(ta);
-    if(!m)return;
-    const style=getComputedStyle(ta),view=workspace.getBoundingClientRect();
-    const left=m.left,top=m.top;
-    const right=left+Math.max(2,m.width),bottom=top+Math.max(parseFloat(style.fontSize),m.height);
-    const dx=left<view.left+12?left-view.left-12:right>view.right-12?right-view.right+12:0;
-    const dy=top<view.top+12?top-view.top-12:bottom>view.bottom-12?bottom-view.bottom+12:0;
-    if(dx||dy)workspace.scrollBy({left:dx,top:dy,behavior:'instant'});
+    if(!workspace)return;
+    const provisional=compositionCaretRect(ta);
+    const caret=provisional||editorCaretRect(ta);if(!caret)return;
+    const view=workspace.getBoundingClientRect();
+    const comfortY=Math.min(84,Math.max(32,view.height*.17));
+    const comfortX=Math.min(70,Math.max(20,view.width*.08));
+    const left=caret.left,right=left+Math.max(2,caret.width);
+    const top=caret.top,bottom=top+Math.max(3,caret.height);
+    let dx=left<view.left+comfortX?left-view.left-comfortX:
+      right>view.right-comfortX?right-view.right+comfortX:0;
+    let dy=top<view.top+comfortY?top-view.top-comfortY:
+      bottom>view.bottom-comfortY?bottom-view.bottom+comfortY:0;
+    if(getSettings().writingMode==='vertical' && revealColumnTop && !provisional){
+      // When the next column begins, put its FIRST cell below a safe top margin.
+      // One correction, not a timer that repeatedly fights native touch scroll.
+      const sheet=ta.closest('.page');
+      const paperTop=sheet?.getBoundingClientRect().top+(parseFloat(getComputedStyle(sheet).paddingTop)||0);
+      if(Number.isFinite(paperTop))dy=paperTop-(view.top+comfortY);
+      revealColumnTop=false;
+    }
+    if(provisional)revealColumnTop=false;
+    if(Math.abs(dx)>.8||Math.abs(dy)>.8)
+      workspace.scrollBy({left:dx,top:dy,behavior:'instant'});
   });
 }
 function editorCaretRect(ta){
   const c=chunks[+ta.dataset.index];if(!c)return null;
-  const pos=Math.max(0,Math.min(ta.selectionStart,ta.value.length));
+  const pos=Math.max(0,Math.min(activeSelectionOffset(ta),ta.value.length));
   const rc=ta.getBoundingClientRect(),lc=lineCol(ta.value,pos);
   const css=getComputedStyle(ta),fs=parseFloat(css.fontSize)||18,lh=parseFloat(css.lineHeight)||fs*1.9;
   const vertical=getSettings().writingMode==='vertical';
-  if(vertical)return{left:rc.right-(lc.row-1)*lh-lh,top:rc.top+(lc.col-1)*fs,width:fs,height:2};
+  if(vertical)return{left:rc.right-lc.row*lh+(lh-fs)/2,
+    top:rc.top+(lc.col-1)*fs,width:fs,height:fs};
   return {left:rc.left+(lc.col-1)*fs,top:rc.top+(lc.row-1)*lh,width:2,height:fs};
 }
 let searchPos=0,currentMatch=null,lastSearchQuery='';
@@ -451,6 +633,7 @@ function remember(){
   $('undoBtn').disabled=!history.length;
 }
 function applySettings(){
+  forgetArrowGoal();
   // Composing text should be committed by the native IME before rebuilding
   // page DOM. Moving layout controls while composition is active must not
   // destroy its provisional text or create phantom paragraphs.
@@ -489,22 +672,22 @@ function isHangingChar(ch){return HANGING_RE.test(ch)}
 function paginate(text){
   const {charCount:cols,lineCount:rows}=getSettings();
   const out=[];
-  let pageStart=0,row=0,col=0;
+  let pageStart=0,row=0,col=0,hangingUsed=false;
   const chars=units(text);
   for(let k=0;k<chars.length;k++){
     const {segment:ch,index:i}=chars[k];
     if(ch==='\n'){
-      row++;col=0;
+      row++;col=0;hangingUsed=false;
       const end=i+ch.length;
       if(row>=rows){out.push({start:pageStart,end,text:text.slice(pageStart,end)});pageStart=end;row=0;col=0;}
       continue;
     }
     if(col>=cols){
-      if(isHangingChar(ch)){
-        // Keep it on the completed line, outside the measure.
-        continue;
+      if(!hangingUsed && isHangingChar(ch)){
+        // Allow a single closing punctuation mark in the hanging margin.
+        hangingUsed=true;continue;
       }
-      row++;col=0;
+      row++;col=0;hangingUsed=false;
       if(row>=rows){
         out.push({start:pageStart,end:i,text:text.slice(pageStart,i)});
         pageStart=i;row=0;col=0;
@@ -512,7 +695,8 @@ function paginate(text){
     }
     col++;
   }
-  if(pageStart<text.length || !out.length)out.push({start:pageStart,end:text.length,text:text.slice(pageStart)});
+  if(pageStart<text.length || !out.length || (pageStart===text.length && text.endsWith('\n')))
+    out.push({start:pageStart,end:text.length,text:text.slice(pageStart)});
   return out;
 }
 function pageForOffset(pos){
@@ -524,17 +708,14 @@ function pageForOffset(pos){
   return Math.max(0,chunks.length-1);
 }
 function lineCol(text,pos){
-  const {charCount:cols}=getSettings();
-  let row=1,col=1;
-  for(const {segment:ch} of units(text.slice(0,pos))){
-    if(ch==='\n'){row++;col=1;continue;}
-    if(col>cols){
-      if(isHangingChar(ch))continue;
-      row++;col=1;
-    }
-    col++;
-  }
-  return {row,col:Math.min(col,cols+1)};
+  const stop=gridStopForText(text,pos);
+  return {row:stop.row+1,col:stop.col+1};
+}
+function gridStopForText(value,offset){
+  const stops=gridStops(value);
+  const exact=stops.filter(p=>p.offset===offset);
+  return exact[exact.length-1]||stops.reduce((best,p)=>
+    Math.abs(p.offset-offset)<Math.abs(best.offset-offset)?p:best,stops[0]);
 }
 function updateStatus(){
   $('count').textContent=docText.length+'文字';
@@ -558,10 +739,11 @@ function pageClass(){
 function writeEditorText(el,value){
   const {charCount:cols}=getSettings();
   const fragment=document.createDocumentFragment();
-  let col=0,line;
+  let col=0,row=-1,line,hangingUsed=false;
+  const rowLimit=getSettings().lineCount;
   function newLine(){
-    line=document.createElement('span');line.className='editor-line';
-    fragment.append(line);col=0;
+    row++;line=document.createElement('span');line.className='editor-line';
+    fragment.append(line);col=0;hangingUsed=false;
   }
   function emptyCaret(){
     if(line.childNodes.length)return;
@@ -571,10 +753,13 @@ function writeEditorText(el,value){
   newLine();
   for(const {segment:ch} of units(value)){
     if(ch==='\n'){
-      emptyCaret();line.append(document.createElement('br'));newLine();continue;
+      emptyCaret();line.append(document.createElement('br'));
+      if(row+1<rowLimit)newLine();
+      continue;
     }
-    const hanging=col>=cols && isHangingChar(ch);
+    const hanging=col>=cols && !hangingUsed && isHangingChar(ch);
     if(col>=cols && !hanging)newLine();
+    if(hanging)hangingUsed=true;
     const cell=document.createElement('span');
     cell.className='editor-char'+(hanging?' hanging-char':'');
     if(hanging)cell.dataset.hanging='1';
@@ -583,6 +768,308 @@ function writeEditorText(el,value){
   }
   emptyCaret();
   el.replaceChildren(fragment);
+}
+// Cursor coordinates and tap hit-testing must use the same grapheme-cell rules
+// as writeEditorText() and paginate(). Offsets are UTF-16, as in textarea.
+function gridStops(value){
+  const {charCount:cols}=getSettings();
+  let row=0,col=0,hangingUsed=false;
+  const stops=[{offset:0,row:0,col:0}];
+  for(const {segment:ch,index} of units(value)){
+    if(ch==='\n'){
+      row++;col=0;hangingUsed=false;
+      stops.push({offset:index+ch.length,row,col});continue;
+    }
+    if(col>=cols && (!isHangingChar(ch)||hangingUsed)){
+      row++;col=0;hangingUsed=false;
+      // The same offset also represents the start of the new visual row.
+      stops.push({offset:index,row,col});
+    }
+    if(col<cols)col++;
+    else if(isHangingChar(ch))hangingUsed=true;
+    stops.push({offset:index+ch.length,row,col});
+  }
+  return stops;
+}
+function gridOffsetAt(ta,targetRow,targetCol){
+  const stops=gridStops(ta.value);
+  let chosen=stops[0],best=Infinity;
+  for(const pos of stops){
+    const distance=Math.abs(pos.row-targetRow)*1000+Math.abs(pos.col-targetCol);
+    if(distance<best){best=distance;chosen=pos;}
+  }
+  return chosen.offset;
+}
+function gridStopAt(ta,offset){
+  const stops=gridStops(ta.value);
+  const choices=stops.filter(p=>p.offset===offset);
+  // At a visual wrap, the new column is where the next glyph is entered.
+  return choices[choices.length-1]||stops.reduce((best,p)=>
+    Math.abs(p.offset-offset)<Math.abs(best.offset-offset)?p:best,stops[0]);
+}
+// Show the entire selected range, including the FIRST column in the drag.
+// We do not delegate visible highlighting to the hidden native textarea.
+function paintGridSelection(ta){
+  const page=ta.closest('.page');
+  const layer=page?.querySelector('.grid-selection-layer');
+  const preview=page?.querySelector('.page-preview');
+  if(!layer || !preview)return;
+  const a=Math.min(ta.selectionStart,ta.selectionEnd);
+  const b=Math.max(ta.selectionStart,ta.selectionEnd);
+  if(a===b){layer.replaceChildren();return;}
+  const {charCount:cols,lineCount:rows,fontSize,lineHeight}=getSettings();
+  const fs=Number(fontSize),advance=fs*Number(lineHeight);
+  const ranges=new Map();
+  let row=0,col=0,hangingUsed=false;
+  for(const {segment:ch,index:i} of units(ta.value)){
+    if(ch==='\n') {row++;col=0;hangingUsed=false;continue;}
+    const hanging=col>=cols && !hangingUsed && isHangingChar(ch);
+    if(col>=cols && !hanging){row++;col=0;hangingUsed=false;}
+    if(hanging)hangingUsed=true;
+    if(i<b && i+ch.length>a && row<rows){
+      let group=ranges.get(row);
+      if(!group){group={start:col,end:col+1};ranges.set(row,group)}
+      else{group.start=Math.min(group.start,col);group.end=Math.max(group.end,col+1)}
+    }
+    if(!hanging)col++;
+  }
+  const fragment=document.createDocumentFragment();
+  for(const [r,span] of ranges){
+    const rect=document.createElement('span');rect.className='grid-selected-rect';
+    if(getSettings().writingMode==='vertical'){
+      rect.style.left=(preview.offsetLeft+preview.offsetWidth-(r+1)*advance+(advance-fs)/2)+'px';
+      rect.style.top=(preview.offsetTop+span.start*fs)+'px';
+      rect.style.width=fs+'px';
+      rect.style.height=((span.end-span.start)*fs)+'px';
+    }else{
+      rect.style.left=(preview.offsetLeft+span.start*fs)+'px';
+      rect.style.top=(preview.offsetTop+r*advance+(advance-fs)/2)+'px';
+      rect.style.width=((span.end-span.start)*fs)+'px';
+      rect.style.height=fs+'px';
+    }
+    fragment.append(rect);
+  }
+  layer.replaceChildren(fragment);
+}
+// Pointer positions use visible grapheme cells, never native textarea wraps.
+function gridHitOffset(ta,clientX,clientY){
+  const preview=ta.closest('.page')?.querySelector('.page-preview');
+  if(!preview)return 0;
+  const rect=preview.getBoundingClientRect(),settings=getSettings();
+  const fs=Number(settings.fontSize),advance=fs*Number(settings.lineHeight);
+  const vertical=settings.writingMode==='vertical';
+  const row=vertical
+    ? Math.max(0,Math.min(settings.lineCount-1,Math.floor((rect.right-clientX)/advance)))
+    : Math.max(0,Math.min(settings.lineCount-1,Math.floor((clientY-rect.top)/advance)));
+  const col=vertical
+    ? Math.max(0,Math.min(settings.charCount,Math.round((clientY-rect.top)/fs)))
+    : Math.max(0,Math.min(settings.charCount,Math.round((clientX-rect.left)/fs)));
+  return gridOffsetAt(ta,row,col);
+}
+function setGridSelection(ta,anchor,focus){
+  const begin=Math.max(0,Math.min(anchor,focus)),end=Math.min(ta.value.length,Math.max(anchor,focus));
+  ta.setSelectionRange(begin,end,focus<anchor?'backward':'forward');
+  syncCaret(ta);paintVertical(ta);
+}
+function clearSelectionPointer(ta){
+  const state=ta._gridPointer;
+  if(!state)return;
+  clearTimeout(state.timer);
+  ta._gridPointer=null;
+}
+function bindGridPointer(ta){
+  ta.addEventListener('pointerdown',e=>{
+    forgetArrowGoal();
+    if(e.button!==0||isComposing)return;
+    clearSelectionPointer(ta);
+    ta._suppressTapClick=false; // A prior drag may have generated no click.
+    const anchor=gridHitOffset(ta,e.clientX,e.clientY);
+    const state={id:e.pointerId,anchor,last:anchor,active:e.pointerType==='mouse',
+      x:e.clientX,y:e.clientY,started:false,timer:0};
+    ta._gridPointer=state;
+    if(e.pointerType==='mouse'){
+      // Real trackpad/mouse drag is handled here; stop native WebKit from
+      // selecting a different row or skipping the initial column.
+      e.preventDefault();
+      ta.focus({preventScroll:true});
+      setGridSelection(ta,anchor,anchor);
+      state.started=true;ta._suppressTapClick=true;
+      try{ta.setPointerCapture(e.pointerId)}catch{}
+    }else if(e.pointerType==='touch'){
+      // Do not interfere with an ordinary touch swipe (page scrolling).
+      // A stationary long press begins a precise selected range.
+      state.timer=setTimeout(()=>{
+        if(ta._gridPointer!==state||!ta.isConnected||isComposing)return;
+        state.active=true;state.started=true;ta._suppressTapClick=true;
+        ta.focus({preventScroll:true});
+        setGridSelection(ta,anchor,anchor);
+      },480);
+    }
+  });
+  ta.addEventListener('pointermove',e=>{
+    const state=ta._gridPointer;
+    if(!state||state.id!==e.pointerId)return;
+    if(!state.active){
+      if(Math.hypot(e.clientX-state.x,e.clientY-state.y)>9){
+        clearTimeout(state.timer);ta._gridPointer=null;
+      }
+      return;
+    }
+    if(e.cancelable)e.preventDefault();
+    const focus=gridHitOffset(ta,e.clientX,e.clientY);
+    if(focus!==state.last){state.last=focus;setGridSelection(ta,state.anchor,focus)}
+  },{passive:false});
+  ta.addEventListener('pointerup',e=>{
+    const state=ta._gridPointer;
+    if(!state||state.id!==e.pointerId)return;
+    if(state.active){
+      const focus=gridHitOffset(ta,e.clientX,e.clientY);
+      setGridSelection(ta,state.anchor,focus);
+      ta._suppressTapClick=true;
+    }
+    clearSelectionPointer(ta);ta._selecting=false;
+  });
+  ta.addEventListener('pointercancel',()=>{clearSelectionPointer(ta);ta._selecting=false});
+}
+// IME text belongs to the native textarea until committed. A provisional
+// extra line must NEVER appear below the manuscript's last permitted row.
+// Show any overflow in a temporary continuation *sheet* without changing
+// docText/localStorage, replacing the focused textarea or ending conversion.
+function clearCompositionGhosts(ta=null){
+  const clear=editor=>{
+    for(const node of editor._compositionGhosts||[])node.remove();
+    editor._compositionGhosts=[];editor._compositionParts=null;
+  };
+  if(ta)clear(ta);
+  else{
+    for(const node of document.querySelectorAll('#pages > .composition-ghost'))node.remove();
+    document.querySelector('#pages')?.style.removeProperty('padding-bottom');
+  }
+  // Existing real pages always keep their position while the IME is open.
+  if(!document.querySelector('#pages > .composition-ghost'))
+    document.querySelector('#pages')?.style.removeProperty('padding-bottom');
+}
+function provisionalCompositionParts(ta){
+  const source=chunks[+ta.dataset.index];
+  if(!source)return [{start:0,end:ta.value.length,text:ta.value}];
+  // Include the following manuscript when previewing a provisional edit.
+  // Otherwise an inserted preedit would temporarily "push" the old next
+  // page offscreen rather than reflowing the next page in-place.
+  // Limit work on a 100k-character novel to a few adjacent sheets per key.
+  const s=getSettings(),budget=Math.max(1400,s.charCount*s.lineCount*4);
+  const suffix=docText.slice(source.end,source.end+budget);
+  return paginate(ta.value+suffix).slice(0,5);
+}
+function paintCompositionContinuation(ta,parts){
+  const sheet=ta.closest('.page'),container=document.querySelector('#pages');
+  if(!sheet||!container)return;
+  const srcIndex=+ta.dataset.index;
+  const existing=ta._compositionGhosts||[],added=[];
+  const gap=parseFloat(getComputedStyle(container).rowGap)||26;
+  let furthestBottom=0;
+  let virtualTop=sheet.offsetTop;
+  for(let j=1;j<parts.length;j++){
+    // Don't rely on container.children index after absolute ghost insertion.
+    const realPage=[...container.children].filter(el=>el.classList.contains('page') &&
+      !el.classList.contains('composition-ghost'))[srcIndex+j];
+    let ghost=existing[j-1];
+    if(!ghost){
+      ghost=document.createElement('div');
+      ghost.className=pageClass()+' composition-ghost';
+      const preview=document.createElement('div');
+      preview.className='page-preview';preview.setAttribute('aria-hidden','true');
+      ghost.append(preview);
+    }
+    if(realPage)virtualTop=realPage.offsetTop;
+    else if(j===1)virtualTop=sheet.offsetTop+sheet.offsetHeight+gap;
+    else virtualTop+=sheet.offsetHeight+gap;
+    ghost.style.left=(realPage?.offsetLeft??sheet.offsetLeft)+'px';
+    ghost.style.top=virtualTop+'px';
+    ghost.style.width=sheet.offsetWidth+'px';
+    ghost.style.height=sheet.offsetHeight+'px';
+    container.append(ghost);  // absolute: DOES NOT push real pages down
+    const preview=ghost.querySelector('.page-preview');
+    if(preview._paintedValue!==parts[j].text){
+      writeEditorText(preview,parts[j].text);
+      preview._paintedValue=parts[j].text;
+    }
+    added.push(ghost);
+    furthestBottom=Math.max(furthestBottom,virtualTop+sheet.offsetHeight);
+  }
+  for(const ghost of existing.slice(added.length))ghost.remove();
+  ta._compositionGhosts=added;ta._compositionParts=parts;
+  const realPages=[...container.children].filter(el=>el.classList.contains('page') &&
+    !el.classList.contains('composition-ghost'));
+  const realBottom=realPages.length?
+    realPages[realPages.length-1].offsetTop+realPages[realPages.length-1].offsetHeight:0;
+  const extra=Math.max(0,furthestBottom-realBottom);
+  if(extra)container.style.paddingBottom=(extra+gap)+'px';
+  else container.style.removeProperty('padding-bottom');
+}
+function compositionCaretRect(ta){
+  if(!isComposing||!ta._compositionGhosts?.length)return null;
+  const parts=ta._compositionParts||[];
+  const local=ta.selectionStart;
+  let idx=parts.findIndex((part,i)=>local<part.end||i===parts.length-1);
+  if(idx<=0)return null;
+  const ghost=ta._compositionGhosts[idx-1],preview=ghost?.querySelector('.page-preview');
+  if(!preview)return null;
+  const part=parts[idx];
+  const stop=gridStopForText(part.text,Math.max(0,local-part.start));
+  const rect=preview.getBoundingClientRect(),s=getSettings();
+  const fs=Number(s.fontSize),advance=fs*Number(s.lineHeight);
+  if(s.writingMode==='vertical'){
+    return{left:rect.right-(stop.row+1)*advance+(advance-fs)/2,
+      top:rect.top+stop.col*fs,width:fs,height:fs};
+  }
+  return{left:rect.left+stop.col*fs,
+    top:rect.top+stop.row*advance,width:2,height:fs};
+}
+function paintVertical(ta,previewOnly=false){
+  const page=ta.closest('.page');
+  if(!page)return;
+  const preview=page.querySelector('.page-preview');
+  if(!preview)return;
+  // Rendering the preview cannot change textarea.value, selection or IME.
+  // Split UNCOMMITTED preedit text using the same page limits as committed
+  // text. Ghost pages disappear when the conversion ends; no saved bytes move.
+  const composing=isComposing && document.activeElement===ta;
+  const parts=composing?provisionalCompositionParts(ta):null;
+  const visibleValue=parts?.[0]?.text??ta.value;
+  if(composing)paintCompositionContinuation(ta,parts);
+  else if(ta._compositionGhosts?.length)clearCompositionGhosts(ta);
+  if(preview._paintedValue!==visibleValue){
+    writeEditorText(preview,visibleValue);
+    preview._paintedValue=visibleValue;
+    preview._layoutKey=''; // Rebuild from canonical page text on blur/reflow.
+  }
+  if(!previewOnly)paintGridSelection(ta);
+  const caret=page.querySelector('.grid-caret');
+  if(!caret || previewOnly)return;
+  const selecting=ta.selectionStart!==ta.selectionEnd;
+  caret.classList.toggle('selected',selecting);
+  if(selecting)return;
+  const pos=gridStopAt(ta,ta.selectionStart), s=getSettings();
+  const font=Number(s.fontSize),advance=font*Number(s.lineHeight);
+  if(pos.row>=s.lineCount){caret.style.display='none';return;}
+  caret.style.display='';
+  if(s.writingMode==='vertical'){
+    caret.style.left=(preview.offsetLeft+preview.offsetWidth-(pos.row+1)*advance+(advance-font)/2)+'px';
+    caret.style.top=(preview.offsetTop+pos.col*font)+'px';
+    caret.style.width=font+'px';caret.style.height='2px';
+  }else{
+    caret.style.left=(preview.offsetLeft+pos.col*font)+'px';
+    caret.style.top=(preview.offsetTop+pos.row*advance+(advance-font)/2)+'px';
+    caret.style.width='2px';caret.style.height=font+'px';
+  }
+}
+function verticalTap(ta,e){
+  // A finished drag must NEVER collapse its selected range on the click event
+  // that WebKit may fire after pointerup. Also preserve native long-press ranges.
+  if(ta._suppressTapClick){ta._suppressTapClick=false;return;}
+  if(isComposing || e.detail===0 || ta.selectionStart!==ta.selectionEnd)return;
+  const offset=gridHitOffset(ta,e.clientX,e.clientY);
+  ta.setSelectionRange(offset,offset);syncCaret(ta);paintVertical(ta);
 }
 // A real textarea is used for typing. A separate page-preview shows the
 // strict grid when inactive; changing CSS while Japanese IME is active cannot
@@ -602,79 +1089,185 @@ function replaceSelection(ta,text){
   save();renderPages(start+text.length,start+text.length,true,true);
 }
 function syncCaret(ta){
+  // Calling focus() while renderPages() is restoring a position may synchronously
+  // emit focus/select notifications with the PREVIOUS selection of this textarea.
+  // They must not override the caller's intended absolute manuscript offset.
+  if(rendering || !ta.isConnected || document.activeElement!==ta)return;
   const c=chunks[+ta.dataset.index];if(!c)return;
   globalCaret=c.start+ta.selectionStart;
   globalSelEnd=c.start+ta.selectionEnd;
   updateStatus();
 }
 function syncFromPage(ta,focus,deferLayout=false){
+  if(!ta.isConnected)return;
   const i=+ta.dataset.index,c=chunks[i];if(!c)return;
   const localStart=ta.selectionStart,localEnd=ta.selectionEnd;
   const newText=ta.value.replace(/\r\n?/g,'\n');
-  const oldLength=c.end-c.start;
-  docText=docText.slice(0,c.start)+newText+docText.slice(c.end);
+  if(newText!==c.text)forgetArrowGoal();
+  // Never overwrite a newer edit with an old textarea or a delayed blur event.
+  if(docText.slice(c.start,c.end)!==c.text){
+    if(!isComposing)renderPages(globalCaret,globalSelEnd,false,false);
+    return;
+  }
+  if(newText===c.text){
+    if(document.activeElement===ta){
+      globalCaret=c.start+Math.min(localStart,newText.length);
+      globalSelEnd=c.start+Math.min(localEnd,newText.length);
+      updateStatus();paintVertical(ta);noteVerticalColumn(ta);
+    }
+    return;
+  }
+  const oldText=docText;
+  docText=oldText.slice(0,c.start)+newText+oldText.slice(c.end);
   globalCaret=c.start+localStart;globalSelEnd=c.start+localEnd;
   save();
-  if(deferLayout){
-    const delta=newText.length-oldLength;
-    c.text=newText;c.end+=delta;
-    if(delta)for(let j=i+1;j<chunks.length;j++){
-      chunks[j].start+=delta;chunks[j].end+=delta;
+  // Even a single keystroke can shift the beginning of the following page.
+  // Recompute the entire partition NOW. No 260ms period of inconsistent
+  // cursor, visible grid and manuscript pagination is permitted.
+  const planned=paginate(docText);
+  const changed=planned.length!==chunks.length ||
+    planned.some((x,j)=>!chunks[j]||x.start!==chunks[j].start||x.end!==chunks[j].end);
+  if(changed){
+    renderPages(globalCaret,globalSelEnd,focus,true);
+  }else{
+    chunks.forEach((chunk,j)=>{chunk.text=planned[j].text});
+    navigationRowsCache.clear();
+    updateStatus();paintVertical(ta);noteVerticalColumn(ta,true);scheduleReveal();
+    // Refresh PREVIEWS without touching the active native IME textarea.
+    // Only pages whose contents changed need to be repainted.
+    for(let j=0;j<chunks.length;j++){
+      if(j===i)continue;
+      const editor=$('pages').children[j]?.firstElementChild;
+      const preview=editor?.closest('.page')?.querySelector('.page-preview');
+      if(preview && preview._paintedValue!==chunks[j].text){
+        writeEditorText(preview,chunks[j].text);
+        preview._paintedValue=chunks[j].text;
+        preview._layoutKey='';
+        if(editor && document.activeElement!==editor && editor.value!==chunks[j].text)editor.value=chunks[j].text;
+      }
     }
-    updateStatus();scheduleIdleLayout(ta);
-  }else renderPages(globalCaret,globalSelEnd,focus,true);
+  }
+}
+// A single pending Safari edit transaction can receive several rapid key
+// presses. Track the absolute document cursor so no repeated Backspace is
+// dropped while the old textarea waits for the next task to repaint.
+let boundaryEditSession=null;
+function scheduleBoundaryCommit(ta,position,fromKeydown=false){
+  if(boundaryEditSession?.ta===ta)clearTimeout(boundaryEditSession.timer);
+  const session={ta,position,timer:0};
+  boundaryEditSession=session;
+  ta._boundaryEditPending=true;
+  const commit=()=>{
+    if(boundaryEditSession!==session)return;
+    boundaryEditSession=null;ta._boundaryEditPending=false;
+    renderPages(session.position,session.position,true,true);
+  };
+  // A prevented hardware keydown is safe to commit after its event finishes.
+  // For software-keyboard beforeinput wait for WebKit's native event cycle.
+  if(fromKeydown)queueMicrotask(commit);
+  else session.timer=setTimeout(commit,0);
+}
+function handlePageBoundaryDelete(ta,direction,fromKeydown=false){
+  if(isComposing)return false;
+  const active=boundaryEditSession?.ta===ta?boundaryEditSession:null;
+  let cursor;
+  if(active){cursor=active.position;}
+  else{
+    const c=chunks[+ta.dataset.index];if(!c)return false;
+    if(ta.selectionStart!==ta.selectionEnd)return false;
+    const atBeginning=direction==='backward'&&ta.selectionStart===0&&c.start>0;
+    const atEnd=direction==='forward'&&ta.selectionStart===ta.value.length&&c.end<docText.length;
+    if(!atBeginning&&!atEnd)return false;
+    cursor=atBeginning?c.start:c.end;
+  }
+  const start=direction==='backward'?previousOffset(cursor):cursor;
+  const end=direction==='forward'?nextOffset(cursor):cursor;
+  if(end<=start)return false;
+  remember();docText=docText.slice(0,start)+docText.slice(end);save();
+  scheduleBoundaryCommit(ta,start,fromKeydown);
+  return true;
+}
+function handlePendingBoundaryInsert(ta,text){
+  const pending=boundaryEditSession;
+  if(!pending||pending.ta!==ta||typeof text!=='string'||!text)return false;
+  const at=Math.max(0,Math.min(pending.position,docText.length));
+  remember();docText=docText.slice(0,at)+text+docText.slice(at);save();
+  scheduleBoundaryCommit(ta,at+text.length);
+  return true;
+}
+function handlePageBoundaryInsert(ta,e){
+  if(isComposing||e.isComposing||!e.cancelable||ta._boundaryEditPending)return false;
+  if(e.inputType!=='insertText'||typeof e.data!=='string'||!e.data)return false;
+  const c=chunks[+ta.dataset.index];if(!c)return false;
+  // Only preempt a collapsed cursor at the filled page END. Ordinary edits
+  // and all IME composition remain owned by the native textarea.
+  if(ta.selectionStart!==ta.selectionEnd||ta.selectionStart!==ta.value.length)return false;
+  if(paginate(c.text+e.data).length<2)return false;
+  e.preventDefault();
+  remember();const at=c.end;docText=docText.slice(0,at)+e.data+docText.slice(at);
+  save();scheduleBoundaryCommit(ta,at+e.data.length);
+  return true;
 }
 function bindEditor(ta){
   if(ta.dataset.bound)return;ta.dataset.bound='1';
+  bindGridPointer(ta);
   ta.addEventListener('pointerdown',()=>{
     ta._selecting=true;clearTimeout(layoutIdleTimer);layoutIdleTimer=0;
   });
   for(const type of ['pointerup','pointercancel'])ta.addEventListener(type,()=>{ta._selecting=false;});
-  ta.addEventListener('focus',()=>{ta.closest('.page').classList.add('editing');if(!isComposing)syncCaret(ta)});
+  ta.addEventListener('focus',()=>{ta.closest('.page').classList.add('editing');if(!isComposing&&!rendering)syncCaret(ta);if(!rendering)paintVertical(ta);if(!rendering && getSettings().writingMode==='vertical')ta._lastVerticalRow=gridStopAt(ta,ta.selectionStart).row});
   for(const type of ['click','select','keyup'])ta.addEventListener(type,()=>{
-    if(!rendering&&!isComposing)syncCaret(ta);
+    if(!rendering&&!isComposing){syncCaret(ta);paintVertical(ta)}
   });
+  ta.addEventListener('click',e=>verticalTap(ta,e));
   ta.addEventListener('compositionstart',()=>{
-    isComposing=true;remember();captureInputScroll();compositionScroll={...inputScroll};
+    isComposing=true;forgetArrowGoal();ta.closest('.page')?.classList.add('composing');
+    remember();paintVertical(ta);scheduleReveal();
     clearTimeout(layoutIdleTimer);layoutIdleTimer=0;
+  });
+  ta.addEventListener('compositionupdate',()=>{
+    paintVertical(ta,true);noteVerticalColumn(ta,true);scheduleReveal();
   });
   ta.addEventListener('compositionend',()=>{
     // No provisional paragraphs or temporary spaces have ever been read from
     // contenteditable. The committed textarea string is the only source.
-    isComposing=false;compositionScroll=null;
-    syncFromPage(ta,true,true);
+    isComposing=false;
+    clearCompositionGhosts(ta);
+    ta.closest('.page')?.classList.remove('composing');
+    syncFromPage(ta,true,false);paintVertical(ta);noteVerticalColumn(ta);
+    scheduleReveal();
   });
   // iPad context-menu pastes may report either a paste event or insertFromPaste.
   // Mark them so the page split happens immediately rather than after the idle timer.
-  ta.addEventListener('paste',()=>{ta._pastePending=true;});
+  ta.addEventListener('paste',()=>{forgetArrowGoal();ta._pastePending=true;});
   ta.addEventListener('beforeinput',e=>{
     if(isComposing||e.isComposing)return;
-    const c=chunks[+ta.dataset.index];if(!c)return;
+    if(ta._boundaryEditPending){
+      if(e.inputType==='deleteContentBackward')handlePageBoundaryDelete(ta,'backward');
+      else if(e.inputType==='deleteContentForward')handlePageBoundaryDelete(ta,'forward');
+      else if(e.inputType==='insertText')handlePendingBoundaryInsert(ta,e.data);
+      if(e.cancelable)e.preventDefault();return;
+    }
+    if(e.inputType==='historyUndo'){
+      e.preventDefault();$('undoBtn').click();return;
+    }
+    if(e.inputType==='deleteContentBackward' && handlePageBoundaryDelete(ta,'backward')){
+      if(e.cancelable)e.preventDefault();return;
+    }
+    if(e.inputType==='deleteContentForward' && handlePageBoundaryDelete(ta,'forward')){
+      if(e.cancelable)e.preventDefault();return;
+    }
+    if(handlePageBoundaryInsert(ta,e))return;
     if(e.inputType==='insertFromPaste'||e.inputType==='insertFromDrop')ta._pastePending=true;
-    if(e.inputType==='deleteContentBackward' && ta.selectionStart===0 && ta.selectionEnd===0 && c.start>0){
-      e.preventDefault();
-      const start=previousOffset(c.start);remember();
-      docText=docText.slice(0,start)+docText.slice(c.start);save();
-      renderPages(start,start,true,true);return;
-    }
-    if(e.inputType==='deleteContentForward' && ta.selectionStart===ta.value.length && ta.selectionEnd===ta.value.length && c.end<docText.length){
-      e.preventDefault();const end=nextOffset(c.end);remember();
-      docText=docText.slice(0,c.end)+docText.slice(end);save();
-      renderPages(c.end,c.end,true,true);return;
-    }
     remember();
   });
   ta.addEventListener('input',e=>{
-    if(isComposing||e.isComposing)return;
-    // On iPad a paste can exceed the current page. Re-page synchronously so
-    // there is no overfull native textarea that captures subsequent swipes.
-    // Length-change fallback covers Safari variants with inputType='insertText'.
-    const c=chunks[+ta.dataset.index];
-    const bulkEdit=!!ta._pastePending || e.inputType==='insertFromPaste' ||
-      e.inputType==='insertFromDrop' ||
-      (c && Math.abs(ta.value.length-c.text.length)>1);
+    if(ta._boundaryEditPending)return;
+    if(isComposing||e.isComposing){paintVertical(ta,true);noteVerticalColumn(ta,true);scheduleReveal();return;}
+    // Every committed edit, including iPad paste and single keystrokes, is
+    // laid out immediately. Never let a hidden textarea contain extra rows.
     ta._pastePending=false;
-    syncFromPage(ta,true,!bulkEdit);
+    syncFromPage(ta,true,false);
   });
   ta.addEventListener('blur',()=>{
     // A page-mode switch or pagination may replace the textarea while its
@@ -682,41 +1275,190 @@ function bindEditor(ta){
     if(rendering){ta.closest('.page')?.classList.remove('editing');return;}
     if(isComposing)return;
     // Committed text comes only from native textarea.value.
-    if(ta.isConnected)syncFromPage(ta,false,true);
+    if(ta.isConnected)syncFromPage(ta,false,false);
     ta.closest('.page')?.classList.remove('editing');
+    const caret=ta.closest('.page')?.querySelector('.grid-caret');if(caret)caret.style.display='';
     clearTimeout(layoutIdleTimer);layoutIdleTimer=0;
     renderPages(globalCaret,globalSelEnd,false,false);
   });
   ta.addEventListener('keydown',e=>{
+    if(!isComposing&&!e.isComposing&&!e.metaKey&&!e.ctrlKey&&!e.altKey){
+      const direction=e.key==='Backspace'?'backward':e.key==='Delete'?'forward':null;
+      if(direction && handlePageBoundaryDelete(ta,direction,true)){
+        e.preventDefault();return;
+      }
+    }
     if((e.metaKey||e.ctrlKey) && e.key.toLowerCase()==='a'&&!isComposing){
       e.preventDefault();$('selectAllBtn').click();return;
     }
     if(isComposing||e.isComposing)return;
+    if((e.metaKey||e.ctrlKey) && !e.altKey && e.key.toLowerCase()==='z' && !e.shiftKey){
+      e.preventDefault();$('undoBtn').click();return;
+    }
     if(/^Arrow/.test(e.key))moveArrow(ta,e);
   });
 }
+// build55: one deterministic visual-cell navigation engine for ALL arrow keys.
+// Native textarea line wrapping differs from the visible grid on iPad Safari.
+// Remember the desired character column when crossing a shorter row/column.
 let arrowGoal=null,arrowAnchor=null;
+function forgetArrowGoal(){arrowGoal=null;arrowAnchor=null;}
+function activeSelectionOffset(ta){
+  return ta.selectionStart!==ta.selectionEnd && ta.selectionDirection==='backward'
+    ? ta.selectionStart : ta.selectionEnd;
+}
+function gridRows(value){
+  const lastByOffset=new Map();
+  for(const point of gridStops(value))lastByOffset.set(point.offset,point);
+  const rows=new Map();
+  // At a soft-wrap boundary the same source offset has two visual positions.
+  // Use the canonical position (the first cell in the *next* visual row).
+  for(const point of lastByOffset.values()){
+    if(point.row>=getSettings().lineCount)continue;
+    if(!rows.has(point.row))rows.set(point.row,[]);
+    rows.get(point.row).push(point);
+  }
+  return rows;
+}
+// Most novels exceed 100,000 characters. Arrow keys MUST NOT rebuild
+// the grid of every page on every keypress; cache only nearby pages.
+const navigationRowsCache=new Map();
+function getNavigationRows(pageIndex){
+  const piece=chunks[pageIndex];if(!piece)return new Map();
+  const cached=navigationRowsCache.get(pageIndex);
+  if(cached && cached.text===piece.text)return cached.rows;
+  const rows=gridRows(piece.text);
+  // A page boundary offset belongs to the NEXT page (unless this is the last).
+  if(pageIndex<chunks.length-1){
+    for(const [row,points] of rows){
+      const filtered=points.filter(point=>point.offset<piece.text.length);
+      if(filtered.length)rows.set(row,filtered);
+      else rows.delete(row);
+    }
+  }
+  navigationRowsCache.set(pageIndex,{text:piece.text,rows});
+  while(navigationRowsCache.size>6){
+    navigationRowsCache.delete(navigationRowsCache.keys().next().value);
+  }
+  return rows;
+}
+function nearestVisualOffset(points,desiredCol){
+  if(!points?.length)return null;
+  let winner=points[0],distance=Math.abs(winner.col-desiredCol);
+  for(const point of points.slice(1)){
+    const candidate=Math.abs(point.col-desiredCol);
+    // Prefer the smaller coordinate on a tie; selection never jumps past a glyph.
+    if(candidate<distance || (candidate===distance && point.col<winner.col)){
+      winner=point;distance=candidate;
+    }
+  }
+  return winner.offset;
+}
 function moveArrow(ta,e){
-  // Leave ordinary arrow movement to the native input system, except when
-  // crossing page boundaries. Textarea selection handles Shift/IME itself.
-  if(e.shiftKey||e.metaKey||e.ctrlKey||e.altKey)return;
-  const i=+ta.dataset.index,c=chunks[i];if(!c)return;
+  if(!/^Arrow(Up|Down|Left|Right)$/.test(e.key) || e.altKey||e.metaKey||e.ctrlKey)return;
+  revealColumnTop=false;
+  const source=chunks[+ta.dataset.index];if(!source)return;
   const vertical=getSettings().writingMode==='vertical';
-  const prev=vertical?'ArrowUp':'ArrowLeft',next=vertical?'ArrowDown':'ArrowRight';
-  if(e.key===prev&&ta.selectionStart===0&&ta.selectionEnd===0&&i>0){
-    e.preventDefault();renderPages(c.start,c.start,true,true);
-    const prevPage=$('pages').children[i-1]?.firstElementChild;
-    if(prevPage){prevPage.focus({preventScroll:true});prevPage.setSelectionRange(prevPage.value.length,prevPage.value.length);syncCaret(prevPage)}
-  }else if(e.key===next&&ta.selectionStart===ta.value.length&&ta.selectionEnd===ta.value.length&&i<chunks.length-1){
-    e.preventDefault();const nextPage=$('pages').children[i+1]?.firstElementChild;
-    nextPage?.focus({preventScroll:true});nextPage?.setSelectionRange(0,0);
-    if(nextPage)syncCaret(nextPage);
+  const blockDirection=vertical?
+    (e.key==='ArrowRight'?-1:e.key==='ArrowLeft'?1:0):
+    (e.key==='ArrowUp'?-1:e.key==='ArrowDown'?1:0);
+  const backwards=vertical?(e.key==='ArrowUp'||e.key==='ArrowRight'):
+    (e.key==='ArrowLeft'||e.key==='ArrowUp');
+  const extend=e.shiftKey;
+  e.preventDefault();
+  const selBegin=source.start+ta.selectionStart;
+  const selEnd=source.start+ta.selectionEnd;
+  if(selBegin!==selEnd && !extend){
+    const collapse=backwards?selBegin:selEnd;
+    forgetArrowGoal();
+    applyGridCursor(collapse,ta);
+    return;
+  }
+  const focus=Math.max(0,Math.min(source.start+activeSelectionOffset(ta),docText.length));
+  // pageForOffset owns boundary affinity, regardless of which textarea is
+  // still dispatching WebKit's last keyup/blur notification.
+  const page=pageForOffset(focus),piece=chunks[page];
+  const anchor=extend
+    ?(arrowAnchor && arrowAnchor.focus===focus ? arrowAnchor.anchor :
+      (ta.selectionDirection==='backward'?selEnd:selBegin))
+    :focus;
+  let target=focus,desired=null;
+  if(blockDirection){
+    const here=gridStopForText(piece.text,focus-piece.start);
+    desired=arrowGoal && arrowGoal.focus===focus && arrowGoal.vertical===vertical
+      ?arrowGoal.desired:here.col;
+    // Move to the closest real row, including its immediate neighboring page.
+    // The same global row/cell goal works for horizontal and vertical writing.
+    let destinationPage=page,row=here.row+blockDirection;
+    let points=null;
+    while(destinationPage>=0 && destinationPage<chunks.length){
+      const candidates=getNavigationRows(destinationPage);
+      const addresses=[...candidates.keys()].sort((a,b)=>a-b);
+      const next=blockDirection>0?addresses.find(n=>n>=row):
+        addresses.slice().reverse().find(n=>n<=row);
+      if(next!==undefined){
+        points=candidates.get(next);break;
+      }
+      destinationPage+=blockDirection;
+      row=blockDirection>0?0:getSettings().lineCount-1;
+    }
+    if(points?.length){
+      const dest=chunks[destinationPage];
+      let best=points[0],score=Math.abs(best.col-desired);
+      for(const candidate of points.slice(1)){
+        const d=Math.abs(candidate.col-desired);
+        if(d<score||(d===score&&candidate.col<best.col)){
+          best=candidate;score=d;
+        }
+      }
+      target=dest.start+best.offset;
+    }
+  }else{
+    // Advance one complete grapheme, including over page boundaries.
+    target=backwards?previousOffset(focus):nextOffset(focus);
+  }
+  target=Math.max(0,Math.min(target,docText.length));
+  if(target===focus){if(!blockDirection)forgetArrowGoal();return;}
+  if(extend){
+    // Each native textarea can select only its own page. Leave the existing
+    // selection unchanged rather than silently selecting unrelated text.
+    if(target<source.start||target>source.end){forgetArrowGoal();return;}
+    const a=Math.min(anchor,target)-source.start;
+    const b=Math.max(anchor,target)-source.start;
+    ta.setSelectionRange(a,b,target<anchor?'backward':'forward');
+    arrowAnchor={anchor,focus:target};
+    syncCaret(ta);paintVertical(ta);scheduleReveal();
+  }else{
+    arrowAnchor=null;
+    applyGridCursor(target,ta);
+  }
+  arrowGoal=blockDirection?{desired,focus:target,vertical}:null;
+}
+function applyGridCursor(target,origin){
+  revealColumnTop=false;
+  const newPage=pageForOffset(target),oldPage=+origin.dataset.index;
+  if(newPage!==oldPage){
+    // Never let the old textarea's blur overwrite the newly selected page.
+    renderPages(target,target,true,true);
+  }else{
+    const n=target-chunks[newPage].start;
+    origin.setSelectionRange(n,n);
+    syncCaret(origin);paintVertical(origin);noteVerticalColumn(origin);scheduleReveal();
   }
 }
+
 function renderPages(caret=globalCaret,selEnd=globalSelEnd,focus=false,scroll=false){
   clearTimeout(layoutIdleTimer);layoutIdleTimer=0;
   rendering=true;
+  navigationRowsCache.clear();
+  if(!isComposing)clearCompositionGhosts();
   chunks=paginate(docText);
+  // The underlying manuscript is never edited by pagination. If the joined
+  // sheet slices differ from TXT, fail safely rather than display shifted text.
+  if(chunks.map(c=>c.text).join('')!==docText){
+    console.error('Kotoba Writer: page partition mismatch; manuscript preserved');
+    chunks=[{start:0,end:docText.length,text:docText}];
+  }
   const container=$('pages');
 
   while(container.children.length>chunks.length)container.lastElementChild.remove();
@@ -732,7 +1474,10 @@ function renderPages(caret=globalCaret,selEnd=globalSelEnd,focus=false,scroll=fa
       ta=createEditor(vertical);ta.dataset.mode=vertical?'vertical':'horizontal';
       const preview=document.createElement('div');preview.className='page-preview';
       preview.setAttribute('aria-hidden','true');
-      page.replaceChildren(ta,preview);bindEditor(ta);
+      const gridCaret=document.createElement('span');gridCaret.className='grid-caret';
+      const selectionLayer=document.createElement('div');selectionLayer.className='grid-selection-layer';
+      selectionLayer.setAttribute('aria-hidden','true');
+      page.replaceChildren(ta,preview,selectionLayer,gridCaret);bindEditor(ta);
     }
     ta.dataset.index=i;
     const layoutKey=c.text+'\u0000'+getSettings().charCount+'\u0000'+(vertical?'v':'h');
@@ -740,7 +1485,7 @@ function renderPages(caret=globalCaret,selEnd=globalSelEnd,focus=false,scroll=fa
     if(ta._valueChanged){ta.value=c.text;ta.scrollTop=0;ta.scrollLeft=0;}
     ta._layoutKey=layoutKey;
     const preview=page.querySelector('.page-preview');
-    if(preview && preview._layoutKey!==layoutKey){writeEditorText(preview,c.text);preview._layoutKey=layoutKey;}
+    if(preview && preview._layoutKey!==layoutKey){writeEditorText(preview,c.text);preview._paintedValue=c.text;preview._layoutKey=layoutKey;}
   });
 
   globalCaret=Math.max(0,Math.min(caret,docText.length));
@@ -757,15 +1502,19 @@ function renderPages(caret=globalCaret,selEnd=globalSelEnd,focus=false,scroll=fa
     ta.closest('.page').classList.add('editing');
     // Preserve native selection on ordinary keystrokes. No delayed caret reset.
     if(ta._valueChanged||ta.selectionStart!==start||ta.selectionEnd!==end)ta.setSelectionRange(start,end);
+    // Establish the scrolling baseline from the RESTORED selection, not the
+    // stale caret present during the synchronous focus event.
+    if(getSettings().writingMode==='vertical')ta._lastVerticalRow=gridStopAt(ta,ta.selectionStart).row;
+    paintVertical(ta);
     if(scroll){
-      if(inputScroll)restoreInputScroll();
-      else scheduleReveal();
+      scheduleReveal();
     }
   }
   rendering=false;
 }
 
 function setDoc(text,caret=0,end=caret,rememberIt=true,focus=true){
+  forgetArrowGoal();
   if(rememberIt)remember();
   docText=String(text??'').replace(/\r\n?/g,'\n');
   globalCaret=Math.max(0,Math.min(caret,docText.length));
@@ -773,6 +1522,13 @@ function setDoc(text,caret=0,end=caret,rememberIt=true,focus=true){
   save();renderPages(globalCaret,globalSelEnd,focus,true);
 }
 
+// Hardware keyboard shortcut when the toolbar or paper (rather than a
+// native textarea) owns focus. Full-text and page editors handle it locally.
+document.addEventListener('keydown',e=>{
+  if(isComposing || !(e.metaKey||e.ctrlKey) || e.altKey || e.shiftKey || e.key.toLowerCase()!=='z')return;
+  if(e.target.closest?.('#fullTextPanel, input, textarea, select, [contenteditable="true"]'))return;
+  e.preventDefault();$('undoBtn').click();
+});
 $('undoBtn').onclick=()=>{
   if(!history.length)return;
   docText=history.pop();
@@ -855,7 +1611,161 @@ $('saveBtn').onclick=async()=>{
     $('saveStatus').textContent=e.name==='AbortError'?'TXT保存を中止しました':'TXT保存に失敗しました：'+e.message;
   }finally{setFileOperationBusy(false);}
 };
-$('pdfBtn').onclick=()=>{$('printArea').textContent=docText;window.print()};
+// TXT remains authoritative. The ruby notation is a PRINT-ONLY overlay.
+// A complete （base（reading）） unit is converted; bare （（text）） and empty
+// parts remain literal. No markup is written back into the editable text.
+const RUBY_MARKUP_RE=/（([^（）\r\n]+)（([^（）\r\n]+)））/gu;
+function rubyTokens(source){
+  const out=[];let last=0;
+  RUBY_MARKUP_RE.lastIndex=0;
+  for(const match of source.matchAll(RUBY_MARKUP_RE)){
+    if(match.index>last)out.push({type:'text',text:source.slice(last,match.index)});
+    out.push({type:'ruby',base:match[1],reading:match[2],literal:match[0]});
+    last=match.index+match[0].length;
+  }
+  if(last<source.length)out.push({type:'text',text:source.slice(last)});
+  return out;
+}
+// Unicode's vertical presentation forms provide predictable glyphs even
+// when the installed font has no OpenType "vert" glyph substitutions.
+// The sheet's existing -90deg rotation then presents them upright when read.
+const PRINT_VERTICAL_PUNCTUATION=Object.freeze({
+  '（':'︵','）':'︶','「':'﹁','」':'﹂','『':'﹃','』':'﹄',
+  '［':'﹇','］':'﹈','【':'︻','】':'︼','〈':'︿','〉':'﹀',
+  '《':'︽','》':'︾','〔':'︹','〕':'︺','｛':'︷','｝':'︸'
+});
+function writePrintText(el,source,vertical){
+  const {charCount:cols,lineCount:rows}=getSettings();
+  const frag=document.createDocumentFragment();
+  let col=0,row=-1,line,hangingUsed=false;
+  function newLine(){
+    row++;line=document.createElement('span');line.className='editor-line';frag.append(line);
+    col=0;hangingUsed=false;
+  }
+  function cell(ch){
+    const hang=col>=cols && !hangingUsed && isHangingChar(ch);
+    if(col>=cols&&!hang)newLine();
+    if(hang)hangingUsed=true;
+    const span=document.createElement('span');span.className='editor-char'+(hang?' hanging-char':'');
+    if(hang)span.dataset.hanging='1';
+    if(vertical && /^[\p{Script=Latin}0-9０-９]+$/u.test(ch))span.classList.add('print-latin');
+    const printable=vertical?(PRINT_VERTICAL_PUNCTUATION[ch]||ch):ch;
+    if(printable!==ch)span.classList.add('print-tate-punct');
+    span.textContent=printable;if(!hang)col++;return span;
+  }
+  function literal(text){
+    for(const {segment:ch} of units(text)){
+      if(ch==='\n'){
+        line.append(document.createElement('br'));
+        if(row+1<rows)newLine();
+      }else{const span=cell(ch);line.append(span);}
+    }
+  }
+  newLine();
+  for(const token of rubyTokens(source)){
+    if(token.type==='text'){literal(token.text);continue;}
+    const baseChars=units(token.base).map(x=>x.segment);
+    const readingChars=units(token.reading).map(x=>x.segment);
+    if(!baseChars.length||!readingChars.length||baseChars.length>cols){literal(token.literal);continue;}
+    // Keep the base together. If a block can't fit the final physical line,
+    // preserve the source literally rather than silently dropping glyphs.
+    if(col+baseChars.length>cols && row+1<rows)newLine();
+    if(col+baseChars.length>cols){literal(token.literal);continue;}
+    const ruby=document.createElement('ruby');ruby.className='print-ruby';
+    const base=document.createElement('span');base.className='print-ruby-base';
+    for(const ch of baseChars)base.append(cell(ch));
+    const rt=document.createElement('rt');
+    rt.style.setProperty('--ruby-scale',Math.max(.23,Math.min(.47,.92*baseChars.length/readingChars.length)).toFixed(3)+'em');
+    for(const ch of readingChars){
+      const glyph=document.createElement('span');glyph.className='ruby-glyph';
+      if(/^[\p{Script=Latin}0-9０-９]+$/u.test(ch))glyph.classList.add('ruby-latin');
+      glyph.textContent=vertical?(PRINT_VERTICAL_PUNCTUATION[ch]||ch):ch;
+      rt.append(glyph);
+    }
+    ruby.append(base,rt);line.append(ruby);
+  }
+  el.replaceChildren(frag);
+}
+// Keep a ruby token intact even when the literal TXT notation straddles a
+// manuscript page boundary. The complete token is printed on the page that
+// contains its closing bracket. Every original non-ruby code unit is retained.
+function printChunksWithRuby(source,pages){
+  const out=pages.map(()=>'');
+  let cursor=0;
+  function appendRaw(start,end){
+    if(start>=end)return;
+    pages.forEach((chunk,i)=>{
+      const a=Math.max(start,chunk.start),b=Math.min(end,chunk.end);
+      if(a<b)out[i]+=source.slice(a,b);
+    });
+  }
+  for(const match of source.matchAll(RUBY_MARKUP_RE)){
+    appendRaw(cursor,match.index);
+    const end=match.index+match[0].length;
+    const destination=pages.findIndex(chunk=>end-1>=chunk.start&&end-1<chunk.end);
+    out[destination<0?out.length-1:destination]+=match[0];
+    cursor=end;
+  }
+  appendRaw(cursor,source.length);
+  return out;
+}
+// Use the editor's existing page divisions. Ruby replaces printable glyphs
+// only, so TXT/export and the page count remain unchanged.
+let lastPrintText=null,lastPrintSettings='';
+function preparePrintPages(){
+  const s=getSettings();
+  const settingsKey=[s.fontSize,s.lineHeight,s.writingMode,s.charCount,s.lineCount].join('|');
+  if(lastPrintText===docText && lastPrintSettings===settingsKey && $('printArea').firstElementChild)return;
+  const pages=paginate(docText),el=$('printArea');
+  const mmPx=96/25.4;
+  const vertical=s.writingMode==='vertical';
+  const printRuleId='kotobaPrintPageSize';
+  let printRule=document.getElementById(printRuleId);
+  if(!printRule){printRule=document.createElement('style');printRule.id=printRuleId;document.head.append(printRule)}
+  printRule.textContent='@page { size: A4 portrait; margin:18mm }';
+  el.classList.toggle('vertical-print',vertical);
+  // Widen the usable text rectangle by bringing rows slightly closer
+  // together when necessary. Never scale pages to fill the printable sheet.
+  // Limit physical grid height to the print sheet: a grid overhanging the
+  // sheet can bleed onto the next PDF page even when page counts agree.
+  const desiredWidth=162*mmPx,maxHeight=204*mmPx;
+  const printFont=Math.min(Number(s.fontSize)*1.4,desiredWidth/s.charCount,
+    maxHeight/(s.lineCount*1.3));
+  const printLH=Math.max(1.3,Math.min(Number(s.lineHeight),maxHeight/(s.lineCount*printFont)));
+  el.style.setProperty('--print-font-size',printFont.toFixed(3)+'px');
+  el.style.setProperty('--print-line-height',printLH.toFixed(4));
+  const fragment=document.createDocumentFragment();
+  const printContents=printChunksWithRuby(docText,pages);
+  pages.forEach((chunk,i)=>{
+    const sheet=document.createElement('section');sheet.className='print-sheet';
+    sheet.setAttribute('aria-label',`原稿 ${i+1} / ${pages.length} ページ`);
+    const body=document.createElement('div');
+    body.className='print-preview'+(vertical?' vertical':'');
+    writePrintText(body,printContents[i],vertical);
+    // Calculate native page coordinates instead of CSS translate(): Chromium
+    // and some WebKit versions mis-paginate transformed absolute boxes.
+    const gridWidth=s.charCount*printFont;
+    const gridHeight=s.lineCount*printFont*printLH;
+    body.style.left=((170*mmPx-gridWidth)/2).toFixed(3)+'px';
+    body.style.top=((261*mmPx-gridHeight)/2).toFixed(3)+'px';
+    sheet.append(body);
+    const number=document.createElement('div');number.className='print-page-number';
+    number.textContent=(i+1)+' / '+pages.length;sheet.append(number);
+    fragment.append(sheet);
+  });
+  el.replaceChildren(fragment);
+  lastPrintText=docText;lastPrintSettings=settingsKey;
+}
+$('pdfBtn').onclick=()=>{
+  if(isComposing){alert('文字の変換を確定してからPDF / 印刷を押してください。');return;}
+  preparePrintPages();
+  if(getSettings().writingMode==='vertical'){
+    alert('縦書き印刷はA4縦向きです。文字を横向きに配置し、各文字を90度回転しています。印刷した紙を右に90度回すと、原稿画面と同じ縦書きで読めます。印刷画面の「方向」は「縦向き」にしてください。');
+  }
+  window.print();
+};
+// Browser/menu print commands use the same format as the PDF button.
+window.addEventListener('beforeprint',()=>{if(!isComposing)preparePrintPages()});
 
 function formatText(){
   let t=docText.replace(/\r\n?/g,'\n');
