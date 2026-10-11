@@ -259,6 +259,11 @@ html.kw-dark .page-preview .editor-char.search-target{color:#231f1c;background:#
     display:inline-block;transform:rotate(-90deg);transform-origin:center center}
   #printArea.vertical-print .print-preview.vertical .editor-char.print-latin{
     transform:none!important}
+  /* Print punctuation uses vertical Japanese glyph forms, not rotated
+     horizontal bracket shapes. This affects PDF only; TXT is unchanged. */
+  #printArea.vertical-print .print-preview.vertical .editor-char.print-tate-punct{
+    font-feature-settings:"vert" 1,"vrt2" 1}
+
   #printArea.vertical-print .print-page-number{right:2mm;bottom:1mm}
   #printArea .print-preview{display:block;position:absolute;left:0;top:0;
     overflow:visible;margin:0;padding:0;border:0;
@@ -432,7 +437,7 @@ html.kw-dark .page-preview .editor-char.search-target{color:#231f1c;background:#
   <textarea id="fullText" aria-label="全文（編集・選択・コピー用）"></textarea>
 </div>
 <div id="licensesPanel" class="panel" role="dialog" aria-label="利用条件・ライセンス">
-  <div id="licensesHeader"><button id="closeLicenses">閉じる</button><a id="licensesDirectLink" href="./licenses.html?view=build52" target="_blank" rel="noopener noreferrer">利用条件を別タブで開く</a></div>
+  <div id="licensesHeader"><button id="closeLicenses">閉じる</button><a id="licensesDirectLink" href="./licenses.html?view=build53" target="_blank" rel="noopener noreferrer">利用条件を別タブで開く</a></div>
   <div id="licensesStatus" role="status" aria-live="polite"></div>
   <div id="licensesContent" role="document" aria-label="利用条件の本文" tabindex="0"></div>
 </div>
@@ -440,7 +445,7 @@ html.kw-dark .page-preview .editor-char.search-target{color:#231f1c;background:#
 <div id="printArea"></div>
 
 <script type="module">
-const BUILD=52;
+const BUILD=53;
 const $=id=>document.getElementById(id);
 $('buildVersion').textContent='Kotoba Writer build '+BUILD;
 const STORAGE='kotoba-writer-draft-v1';
@@ -652,22 +657,22 @@ function isHangingChar(ch){return HANGING_RE.test(ch)}
 function paginate(text){
   const {charCount:cols,lineCount:rows}=getSettings();
   const out=[];
-  let pageStart=0,row=0,col=0;
+  let pageStart=0,row=0,col=0,hangingUsed=false;
   const chars=units(text);
   for(let k=0;k<chars.length;k++){
     const {segment:ch,index:i}=chars[k];
     if(ch==='\n'){
-      row++;col=0;
+      row++;col=0;hangingUsed=false;
       const end=i+ch.length;
       if(row>=rows){out.push({start:pageStart,end,text:text.slice(pageStart,end)});pageStart=end;row=0;col=0;}
       continue;
     }
     if(col>=cols){
-      if(isHangingChar(ch)){
-        // Keep it on the completed line, outside the measure.
-        continue;
+      if(!hangingUsed && isHangingChar(ch)){
+        // Allow a single closing punctuation mark in the hanging margin.
+        hangingUsed=true;continue;
       }
-      row++;col=0;
+      row++;col=0;hangingUsed=false;
       if(row>=rows){
         out.push({start:pageStart,end:i,text:text.slice(pageStart,i)});
         pageStart=i;row=0;col=0;
@@ -719,11 +724,11 @@ function pageClass(){
 function writeEditorText(el,value){
   const {charCount:cols}=getSettings();
   const fragment=document.createDocumentFragment();
-  let col=0,row=-1,line;
+  let col=0,row=-1,line,hangingUsed=false;
   const rowLimit=getSettings().lineCount;
   function newLine(){
     row++;line=document.createElement('span');line.className='editor-line';
-    fragment.append(line);col=0;
+    fragment.append(line);col=0;hangingUsed=false;
   }
   function emptyCaret(){
     if(line.childNodes.length)return;
@@ -737,8 +742,9 @@ function writeEditorText(el,value){
       if(row+1<rowLimit)newLine();
       continue;
     }
-    const hanging=col>=cols && isHangingChar(ch);
+    const hanging=col>=cols && !hangingUsed && isHangingChar(ch);
     if(col>=cols && !hanging)newLine();
+    if(hanging)hangingUsed=true;
     const cell=document.createElement('span');
     cell.className='editor-char'+(hanging?' hanging-char':'');
     if(hanging)cell.dataset.hanging='1';
@@ -752,19 +758,20 @@ function writeEditorText(el,value){
 // as writeEditorText() and paginate(). Offsets are UTF-16, as in textarea.
 function gridStops(value){
   const {charCount:cols}=getSettings();
-  let row=0,col=0;
+  let row=0,col=0,hangingUsed=false;
   const stops=[{offset:0,row:0,col:0}];
   for(const {segment:ch,index} of units(value)){
     if(ch==='\n'){
-      row++;col=0;
+      row++;col=0;hangingUsed=false;
       stops.push({offset:index+ch.length,row,col});continue;
     }
-    if(col>=cols && !isHangingChar(ch)){
-      row++;col=0;
+    if(col>=cols && (!isHangingChar(ch)||hangingUsed)){
+      row++;col=0;hangingUsed=false;
       // The same offset also represents the start of the new visual row.
       stops.push({offset:index,row,col});
     }
     if(col<cols)col++;
+    else if(isHangingChar(ch))hangingUsed=true;
     stops.push({offset:index+ch.length,row,col});
   }
   return stops;
@@ -798,11 +805,12 @@ function paintGridSelection(ta){
   const {charCount:cols,lineCount:rows,fontSize,lineHeight}=getSettings();
   const fs=Number(fontSize),advance=fs*Number(lineHeight);
   const ranges=new Map();
-  let row=0,col=0;
+  let row=0,col=0,hangingUsed=false;
   for(const {segment:ch,index:i} of units(ta.value)){
-    if(ch==='\n') {row++;col=0;continue;}
-    const hanging=col>=cols && isHangingChar(ch);
-    if(col>=cols && !hanging){row++;col=0;}
+    if(ch==='\n') {row++;col=0;hangingUsed=false;continue;}
+    const hanging=col>=cols && !hangingUsed && isHangingChar(ch);
+    if(col>=cols && !hanging){row++;col=0;hangingUsed=false;}
+    if(hanging)hangingUsed=true;
     if(i<b && i+ch.length>a && row<rows){
       let group=ranges.get(row);
       if(!group){group={start:col,end:col+1};ranges.set(row,group)}
@@ -974,7 +982,9 @@ function syncFromPage(ta,focus,deferLayout=false){
   // The native textarea must never hold an overfull page for 260 ms.
   // Splitting immediately also keeps deletion/reflow across pages consistent.
   if(deferLayout && !isComposing &&
-     (paginate(newText).length>1 || (i<chunks.length-1 && newText.length!==oldLength)))
+     (paginate(newText).length>1 ||
+      // Any edit affecting an earlier page must immediately reflow its neighbor.
+      (i<chunks.length-1 && newText.length!==oldLength)))
     deferLayout=false;
   if(deferLayout){
     const delta=newText.length-oldLength;
@@ -987,6 +997,66 @@ function syncFromPage(ta,focus,deferLayout=false){
     paintVertical(ta);noteVerticalColumn(ta);
     renderPages(globalCaret,globalSelEnd,focus,true);
   }
+}
+// A single pending Safari edit transaction can receive several rapid key
+// presses. Track the absolute document cursor so no repeated Backspace is
+// dropped while the old textarea waits for the next task to repaint.
+let boundaryEditSession=null;
+function scheduleBoundaryCommit(ta,position,fromKeydown=false){
+  if(boundaryEditSession?.ta===ta)clearTimeout(boundaryEditSession.timer);
+  const session={ta,position,timer:0};
+  boundaryEditSession=session;
+  ta._boundaryEditPending=true;
+  const commit=()=>{
+    if(boundaryEditSession!==session)return;
+    boundaryEditSession=null;ta._boundaryEditPending=false;
+    renderPages(session.position,session.position,true,true);
+  };
+  // A prevented hardware keydown is safe to commit after its event finishes.
+  // For software-keyboard beforeinput wait for WebKit's native event cycle.
+  if(fromKeydown)queueMicrotask(commit);
+  else session.timer=setTimeout(commit,0);
+}
+function handlePageBoundaryDelete(ta,direction,fromKeydown=false){
+  if(isComposing)return false;
+  const active=boundaryEditSession?.ta===ta?boundaryEditSession:null;
+  let cursor;
+  if(active){cursor=active.position;}
+  else{
+    const c=chunks[+ta.dataset.index];if(!c)return false;
+    if(ta.selectionStart!==ta.selectionEnd)return false;
+    const atBeginning=direction==='backward'&&ta.selectionStart===0&&c.start>0;
+    const atEnd=direction==='forward'&&ta.selectionStart===ta.value.length&&c.end<docText.length;
+    if(!atBeginning&&!atEnd)return false;
+    cursor=atBeginning?c.start:c.end;
+  }
+  const start=direction==='backward'?previousOffset(cursor):cursor;
+  const end=direction==='forward'?nextOffset(cursor):cursor;
+  if(end<=start)return false;
+  remember();docText=docText.slice(0,start)+docText.slice(end);save();
+  scheduleBoundaryCommit(ta,start,fromKeydown);
+  return true;
+}
+function handlePendingBoundaryInsert(ta,text){
+  const pending=boundaryEditSession;
+  if(!pending||pending.ta!==ta||typeof text!=='string'||!text)return false;
+  const at=Math.max(0,Math.min(pending.position,docText.length));
+  remember();docText=docText.slice(0,at)+text+docText.slice(at);save();
+  scheduleBoundaryCommit(ta,at+text.length);
+  return true;
+}
+function handlePageBoundaryInsert(ta,e){
+  if(isComposing||e.isComposing||!e.cancelable||ta._boundaryEditPending)return false;
+  if(e.inputType!=='insertText'||typeof e.data!=='string'||!e.data)return false;
+  const c=chunks[+ta.dataset.index];if(!c)return false;
+  // Only preempt a collapsed cursor at the filled page END. Ordinary edits
+  // and all IME composition remain owned by the native textarea.
+  if(ta.selectionStart!==ta.selectionEnd||ta.selectionStart!==ta.value.length)return false;
+  if(paginate(c.text+e.data).length<2)return false;
+  e.preventDefault();
+  remember();const at=c.end;docText=docText.slice(0,at)+e.data+docText.slice(at);
+  save();scheduleBoundaryCommit(ta,at+e.data.length);
+  return true;
 }
 function bindEditor(ta){
   if(ta.dataset.bound)return;ta.dataset.bound='1';
@@ -1021,25 +1091,27 @@ function bindEditor(ta){
   ta.addEventListener('paste',()=>{ta._pastePending=true;});
   ta.addEventListener('beforeinput',e=>{
     if(isComposing||e.isComposing)return;
-    const c=chunks[+ta.dataset.index];if(!c)return;
+    if(ta._boundaryEditPending){
+      if(e.inputType==='deleteContentBackward')handlePageBoundaryDelete(ta,'backward');
+      else if(e.inputType==='deleteContentForward')handlePageBoundaryDelete(ta,'forward');
+      else if(e.inputType==='insertText')handlePendingBoundaryInsert(ta,e.data);
+      if(e.cancelable)e.preventDefault();return;
+    }
     if(e.inputType==='historyUndo'){
       e.preventDefault();$('undoBtn').click();return;
     }
+    if(e.inputType==='deleteContentBackward' && handlePageBoundaryDelete(ta,'backward')){
+      if(e.cancelable)e.preventDefault();return;
+    }
+    if(e.inputType==='deleteContentForward' && handlePageBoundaryDelete(ta,'forward')){
+      if(e.cancelable)e.preventDefault();return;
+    }
+    if(handlePageBoundaryInsert(ta,e))return;
     if(e.inputType==='insertFromPaste'||e.inputType==='insertFromDrop')ta._pastePending=true;
-    if(e.inputType==='deleteContentBackward' && ta.selectionStart===0 && ta.selectionEnd===0 && c.start>0){
-      e.preventDefault();
-      const start=previousOffset(c.start);remember();
-      docText=docText.slice(0,start)+docText.slice(c.start);save();
-      renderPages(start,start,true,true);return;
-    }
-    if(e.inputType==='deleteContentForward' && ta.selectionStart===ta.value.length && ta.selectionEnd===ta.value.length && c.end<docText.length){
-      e.preventDefault();const end=nextOffset(c.end);remember();
-      docText=docText.slice(0,c.end)+docText.slice(end);save();
-      renderPages(c.end,c.end,true,true);return;
-    }
     remember();
   });
   ta.addEventListener('input',e=>{
+    if(ta._boundaryEditPending)return;
     if(isComposing||e.isComposing){paintVertical(ta,true);noteVerticalColumn(ta);scheduleReveal();return;}
     // On iPad a paste can exceed the current page. Re-page synchronously so
     // there is no overfull native textarea that captures subsequent swipes.
@@ -1065,6 +1137,12 @@ function bindEditor(ta){
     renderPages(globalCaret,globalSelEnd,false,false);
   });
   ta.addEventListener('keydown',e=>{
+    if(!isComposing&&!e.isComposing&&!e.metaKey&&!e.ctrlKey&&!e.altKey){
+      const direction=e.key==='Backspace'?'backward':e.key==='Delete'?'forward':null;
+      if(direction && handlePageBoundaryDelete(ta,direction,true)){
+        e.preventDefault();return;
+      }
+    }
     if((e.metaKey||e.ctrlKey) && e.key.toLowerCase()==='a'&&!isComposing){
       e.preventDefault();$('selectAllBtn').click();return;
     }
@@ -1284,20 +1362,32 @@ function rubyTokens(source){
   if(last<source.length)out.push({type:'text',text:source.slice(last)});
   return out;
 }
+// Unicode's vertical presentation forms provide predictable glyphs even
+// when the installed font has no OpenType "vert" glyph substitutions.
+// The sheet's existing -90deg rotation then presents them upright when read.
+const PRINT_VERTICAL_PUNCTUATION=Object.freeze({
+  '（':'︵','）':'︶','「':'﹁','」':'﹂','『':'﹃','』':'﹄',
+  '［':'﹇','］':'﹈','【':'︻','】':'︼','〈':'︿','〉':'﹀',
+  '《':'︽','》':'︾','〔':'︹','〕':'︺','｛':'︷','｝':'︸'
+});
 function writePrintText(el,source,vertical){
   const {charCount:cols,lineCount:rows}=getSettings();
   const frag=document.createDocumentFragment();
-  let col=0,row=-1,line;
+  let col=0,row=-1,line,hangingUsed=false;
   function newLine(){
-    row++;line=document.createElement('span');line.className='editor-line';frag.append(line);col=0;
+    row++;line=document.createElement('span');line.className='editor-line';frag.append(line);
+    col=0;hangingUsed=false;
   }
   function cell(ch){
-    const hang=col>=cols && isHangingChar(ch);
+    const hang=col>=cols && !hangingUsed && isHangingChar(ch);
     if(col>=cols&&!hang)newLine();
+    if(hang)hangingUsed=true;
     const span=document.createElement('span');span.className='editor-char'+(hang?' hanging-char':'');
     if(hang)span.dataset.hanging='1';
     if(vertical && /^[\p{Script=Latin}0-9０-９]+$/u.test(ch))span.classList.add('print-latin');
-    span.textContent=ch;if(!hang)col++;return span;
+    const printable=vertical?(PRINT_VERTICAL_PUNCTUATION[ch]||ch):ch;
+    if(printable!==ch)span.classList.add('print-tate-punct');
+    span.textContent=printable;if(!hang)col++;return span;
   }
   function literal(text){
     for(const {segment:ch} of units(text)){
@@ -1325,7 +1415,8 @@ function writePrintText(el,source,vertical){
     for(const ch of readingChars){
       const glyph=document.createElement('span');glyph.className='ruby-glyph';
       if(/^[\p{Script=Latin}0-9０-９]+$/u.test(ch))glyph.classList.add('ruby-latin');
-      glyph.textContent=ch;rt.append(glyph);
+      glyph.textContent=vertical?(PRINT_VERTICAL_PUNCTUATION[ch]||ch):ch;
+      rt.append(glyph);
     }
     ruby.append(base,rt);line.append(ruby);
   }
