@@ -86,7 +86,8 @@ button:disabled{opacity:.45}
   white-space:pre-wrap;resize:none;tab-size:1;
   opacity:0;caret-color:#111;
 }
-.page.editing .page-editor{opacity:1;overflow:auto}
+/* Pasting across a page boundary must not trap touch scrolling in a nested textarea. */
+.page.editing .page-editor{opacity:1;overflow:hidden}
 .page-preview{position:absolute;z-index:1;pointer-events:none;left:58px;top:56px;
   margin:0;padding:0;border:0;overflow:visible;
   font-size:var(--font-size);line-height:var(--line-height);
@@ -261,7 +262,7 @@ button:disabled{opacity:.45}
 <div id="printArea"></div>
 
 <script type="module">
-const BUILD=38;
+const BUILD=39;
 const $=id=>document.getElementById(id);
 $('buildVersion').textContent='Kotoba Writer build '+BUILD;
 const STORAGE='kotoba-writer-draft-v1';
@@ -602,9 +603,13 @@ function bindEditor(ta){
     isComposing=false;compositionScroll=null;
     syncFromPage(ta,true,true);
   });
+  // iPad context-menu pastes may report either a paste event or insertFromPaste.
+  // Mark them so the page split happens immediately rather than after the idle timer.
+  ta.addEventListener('paste',()=>{ta._pastePending=true;});
   ta.addEventListener('beforeinput',e=>{
     if(isComposing||e.isComposing)return;
     const c=chunks[+ta.dataset.index];if(!c)return;
+    if(e.inputType==='insertFromPaste'||e.inputType==='insertFromDrop')ta._pastePending=true;
     if(e.inputType==='deleteContentBackward' && ta.selectionStart===0 && ta.selectionEnd===0 && c.start>0){
       e.preventDefault();
       const start=previousOffset(c.start);remember();
@@ -620,9 +625,15 @@ function bindEditor(ta){
   });
   ta.addEventListener('input',e=>{
     if(isComposing||e.isComposing)return;
-    // The IME's last input event can be emitted after compositionend;
-    // this is safe because textarea.value is already the real text.
-    syncFromPage(ta,true,true);
+    // On iPad a paste can exceed the current page. Re-page synchronously so
+    // there is no overfull native textarea that captures subsequent swipes.
+    // Length-change fallback covers Safari variants with inputType='insertText'.
+    const c=chunks[+ta.dataset.index];
+    const bulkEdit=!!ta._pastePending || e.inputType==='insertFromPaste' ||
+      e.inputType==='insertFromDrop' ||
+      (c && Math.abs(ta.value.length-c.text.length)>1);
+    ta._pastePending=false;
+    syncFromPage(ta,true,!bulkEdit);
   });
   ta.addEventListener('blur',()=>{
     // A page-mode switch or pagination may replace the textarea while its

@@ -1,4 +1,4 @@
-# Kotoba Writer build38 — AI非搭載・執筆専用版
+# Kotoba Writer build39 — AI非搭載・執筆専用版
 
 **現在の提供版**：note有料記事でWebアプリのURLと利用方法を案内する執筆専用Webアプリです。記事代以外にアプリ内課金や月額料金はありません。URLの購入者認証は行っていません。
 
@@ -6,7 +6,9 @@
 
 **移行**：既存の `kotoba-writer-draft-v1` と `kotoba-writer-settings-v1` の保存キーを維持しています。ブラウザのデータを消すと原稿を失うことがあります。更新前にTXT書き出しでバックアップしてください。
 
-**Web配信用構成**：`index.html`、`sw.js`、`manifest.webmanifest`、`licenses.html`、`THIRD_PARTY_NOTICES.txt`、`LICENSE_AUDIT.md` と `licenses/` のライセンス原文。`ai-worker.js` やAIモデルは配信・キャッシュの対象にしていません。Service Workerキャッシュ世代v39、画面build38。
+**Web配信用構成**：`index.html`、`sw.js`、`manifest.webmanifest`、`licenses.html`、`THIRD_PARTY_NOTICES.txt`、`LICENSE_AUDIT.md` と `licenses/` のライセンス原文。`ai-worker.js` やAIモデルは配信・キャッシュの対象にしていません。Service Workerキャッシュ世代v40、画面build39。
+
+**build39の変更**：原稿用紙への連続貼り付け後に入力欄が独立してスクロールを捕捉する問題を避けるため、ページ入力欄の内部スクロールを無効化し、貼り付け直後にページ再分割する対策を追加。Safari実機での連続貼り付け・ページ跨ぎスクロール確認は未了です。
 
 **公開前確認**：縦書き・横書きの日本語入力、改行、全文選択、検索置換、TXT保存と再読込、オフライン起動、ライセンスリンク、GitHub/Netlifyの配信ハッシュ一致をiPadと本番URLで確認すること。Netlify自動ビルドが停止中なら明示的なデプロイが必要です。
 
