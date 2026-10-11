@@ -460,7 +460,7 @@ html.kw-dark .page-preview .editor-char.search-target{color:#231f1c;background:#
 <div id="printArea"></div>
 
 <script type="module">
-const BUILD=55;
+const BUILD=56;
 const $=id=>document.getElementById(id);
 $('buildVersion').textContent='Kotoba Writer build '+BUILD;
 const STORAGE='kotoba-writer-draft-v1';
@@ -497,40 +497,26 @@ let history=[];
 let isComposing=false;
 const graphemes=new Intl.Segmenter('ja',{granularity:'grapheme'});
 function units(text){return Array.from(graphemes.segment(text));}
-function previousOffset(pos){const a=units(docText.slice(0,pos));return a.length?a[a.length-1].index:0;}
-function nextOffset(pos){const a=units(docText.slice(pos));return pos+(a[0]?.segment.length||0);}
+// Move on WHOLE graphemes, not UTF-16 code units. A tap or stale native
+// selection can otherwise land inside an emoji/ZWJ and make arrows jump.
+function previousOffset(pos){
+  pos=Math.max(0,Math.min(pos,docText.length));if(!pos)return 0;
+  const result=graphemes.segment(docText).containing?.(pos-1);
+  if(result)return result.index;
+  const segments=units(docText.slice(0,pos));
+  return segments.length?segments[segments.length-1].index:0;
+}
+function nextOffset(pos){
+  pos=Math.max(0,Math.min(pos,docText.length));
+  if(pos===docText.length)return pos;
+  const result=graphemes.segment(docText).containing?.(pos);
+  if(result)return result.index+result.segment.length;
+  return pos+(units(docText.slice(pos))[0]?.segment.length||0);
+}
 let rendering=false;
-// iPad Safari may drop auto-repeat keystrokes if every native insertion
-// immediately rebuilds the contenteditable cells and replaces the caret.
-// Keep the browser's live editing DOM while characters arrive, and normalize
-// layout only after the burst of input stops. This timer never owns the text;
-// docText/localStorage are synchronized on every non-composing input.
-const LAYOUT_IDLE_MS=260;
+// Committed inputs are partitioned synchronously. Keep the timer token only
+// for older event-handler cancellation; no delayed reflow is scheduled.
 let layoutIdleTimer=0;
-function scheduleIdleLayout(ta){
-  clearTimeout(layoutIdleTimer);
-  layoutIdleTimer=setTimeout(()=>{
-    layoutIdleTimer=0;
-    if(isComposing || !ta.isConnected || ta._selecting)return;
-    const focused=document.activeElement===ta;
-    if(focused){
-      // Read native selection now, never restore the pre-long-press caret.
-      syncCaret(ta);
-      if(ta.selectionStart!==ta.selectionEnd)return;
-      const next=paginate(docText);
-      // Ordinary typing does not need any input value assignment or layout.
-      if(next.length===chunks.length && next.every((c,i)=>c.start===chunks[i].start && c.end===chunks[i].end && c.text===chunks[i].text))return;
-    }
-    renderPages(globalCaret,globalSelEnd,focused,true);
-  },LAYOUT_IDLE_MS);
-}
-function scheduleCompositionPreview(ta){
-  if(ta._previewFrame)return;
-  ta._previewFrame=requestAnimationFrame(()=>{
-    ta._previewFrame=0;
-    if(isComposing && ta.isConnected)paintComposition(ta);
-  });
-}
 let revealFrame=0;
 // The IME's native textarea scroll and our workspace may disagree on iPad.
 // Never restore a pre-composition scroll snapshot after the candidate commits:
@@ -562,7 +548,8 @@ function scheduleReveal(){
     if(!ta?.classList.contains('page-editor')||!ta.isConnected)return;
     const workspace=document.querySelector('.workspace');
     if(!workspace)return;
-    const caret=editorCaretRect(ta);if(!caret)return;
+    const provisional=compositionCaretRect(ta);
+    const caret=provisional||editorCaretRect(ta);if(!caret)return;
     const view=workspace.getBoundingClientRect();
     const comfortY=Math.min(84,Math.max(32,view.height*.17));
     const comfortX=Math.min(70,Math.max(20,view.width*.08));
@@ -572,7 +559,7 @@ function scheduleReveal(){
       right>view.right-comfortX?right-view.right+comfortX:0;
     let dy=top<view.top+comfortY?top-view.top-comfortY:
       bottom>view.bottom-comfortY?bottom-view.bottom+comfortY:0;
-    if(getSettings().writingMode==='vertical' && revealColumnTop){
+    if(getSettings().writingMode==='vertical' && revealColumnTop && !provisional){
       // When the next column begins, put its FIRST cell below a safe top margin.
       // One correction, not a timer that repeatedly fights native touch scroll.
       const sheet=ta.closest('.page');
@@ -580,6 +567,7 @@ function scheduleReveal(){
       if(Number.isFinite(paperTop))dy=paperTop-(view.top+comfortY);
       revealColumnTop=false;
     }
+    if(provisional)revealColumnTop=false;
     if(Math.abs(dx)>.8||Math.abs(dy)>.8)
       workspace.scrollBy({left:dx,top:dy,behavior:'instant'});
   });
@@ -932,15 +920,80 @@ function bindGridPointer(ta){
   });
   ta.addEventListener('pointercancel',()=>{clearSelectionPointer(ta);ta._selecting=false});
 }
+// IME text belongs to the native textarea until committed. A provisional
+// extra line must NEVER appear below the manuscript's last permitted row.
+// Show any overflow in a temporary continuation *sheet* without changing
+// docText/localStorage, replacing the focused textarea or ending conversion.
+function clearCompositionGhosts(ta=null){
+  if(ta){
+    for(const node of ta._compositionGhosts||[])node.remove();
+    ta._compositionGhosts=[];ta._compositionParts=null;
+  }else{
+    for(const node of document.querySelectorAll('#pages > .composition-ghost'))node.remove();
+  }
+}
+function paintCompositionContinuation(ta,parts){
+  const page=ta.closest('.page');if(!page)return;
+  const old=ta._compositionGhosts||[];
+  const added=[];
+  let cursor=page;
+  for(let i=1;i<parts.length;i++){
+    let ghost=old[i-1];
+    if(!ghost){
+      ghost=document.createElement('div');
+      ghost.className=pageClass()+' composition-ghost';
+      const preview=document.createElement('div');preview.className='page-preview';
+      preview.setAttribute('aria-hidden','true');ghost.append(preview);
+    }
+    ghost.style.width=page.offsetWidth+'px';
+    ghost.style.height=page.offsetHeight+'px';
+    cursor.after(ghost);cursor=ghost;
+    const preview=ghost.querySelector('.page-preview');
+    if(preview._paintedValue!==parts[i].text){
+      writeEditorText(preview,parts[i].text);
+      preview._paintedValue=parts[i].text;
+    }
+    added.push(ghost);
+  }
+  for(const ghost of old.slice(added.length))ghost.remove();
+  ta._compositionGhosts=added;
+  ta._compositionParts=parts;
+}
+function compositionCaretRect(ta){
+  if(!isComposing||!ta._compositionGhosts?.length)return null;
+  const parts=ta._compositionParts||[];
+  const local=ta.selectionStart;
+  let idx=parts.findIndex((part,i)=>local<part.end||i===parts.length-1);
+  if(idx<=0)return null;
+  const ghost=ta._compositionGhosts[idx-1],preview=ghost?.querySelector('.page-preview');
+  if(!preview)return null;
+  const part=parts[idx];
+  const stop=gridStopForText(part.text,Math.max(0,local-part.start));
+  const rect=preview.getBoundingClientRect(),s=getSettings();
+  const fs=Number(s.fontSize),advance=fs*Number(s.lineHeight);
+  if(s.writingMode==='vertical'){
+    return{left:rect.right-(stop.row+1)*advance+(advance-fs)/2,
+      top:rect.top+stop.col*fs,width:fs,height:fs};
+  }
+  return{left:rect.left+stop.col*fs,
+    top:rect.top+stop.row*advance,width:2,height:fs};
+}
 function paintVertical(ta,previewOnly=false){
   const page=ta.closest('.page');
   if(!page)return;
   const preview=page.querySelector('.page-preview');
   if(!preview)return;
   // Rendering the preview cannot change textarea.value, selection or IME.
-  if(preview._paintedValue!==ta.value){
-    writeEditorText(preview,ta.value);
-    preview._paintedValue=ta.value;
+  // Split UNCOMMITTED preedit text using the same page limits as committed
+  // text. Ghost pages disappear when the conversion ends; no saved bytes move.
+  const composing=isComposing && document.activeElement===ta;
+  const parts=composing?paginate(ta.value):null;
+  const visibleValue=parts?.[0]?.text??ta.value;
+  if(composing)paintCompositionContinuation(ta,parts);
+  else if(ta._compositionGhosts?.length)clearCompositionGhosts(ta);
+  if(preview._paintedValue!==visibleValue){
+    writeEditorText(preview,visibleValue);
+    preview._paintedValue=visibleValue;
     preview._layoutKey=''; // Rebuild from canonical page text on blur/reflow.
   }
   if(!previewOnly)paintGridSelection(ta);
@@ -989,7 +1042,10 @@ function replaceSelection(ta,text){
   save();renderPages(start+text.length,start+text.length,true,true);
 }
 function syncCaret(ta){
-  if(!ta.isConnected || document.activeElement!==ta)return;
+  // Calling focus() while renderPages() is restoring a position may synchronously
+  // emit focus/select notifications with the PREVIOUS selection of this textarea.
+  // They must not override the caller's intended absolute manuscript offset.
+  if(rendering || !ta.isConnected || document.activeElement!==ta)return;
   const c=chunks[+ta.dataset.index];if(!c)return;
   globalCaret=c.start+ta.selectionStart;
   globalSelEnd=c.start+ta.selectionEnd;
@@ -1001,39 +1057,48 @@ function syncFromPage(ta,focus,deferLayout=false){
   const localStart=ta.selectionStart,localEnd=ta.selectionEnd;
   const newText=ta.value.replace(/\r\n?/g,'\n');
   if(newText!==c.text)forgetArrowGoal();
-  const oldLength=c.end-c.start;
-  // Never overwrite newer data from a stale page/blur callback.
+  // Never overwrite a newer edit with an old textarea or a delayed blur event.
   if(docText.slice(c.start,c.end)!==c.text){
     if(!isComposing)renderPages(globalCaret,globalSelEnd,false,false);
     return;
   }
   if(newText===c.text){
-    if(document.activeElement!==ta)return;
-    globalCaret=c.start+Math.min(localStart,newText.length);
-    globalSelEnd=c.start+Math.min(localEnd,newText.length);
-    updateStatus();paintVertical(ta);noteVerticalColumn(ta);
+    if(document.activeElement===ta){
+      globalCaret=c.start+Math.min(localStart,newText.length);
+      globalSelEnd=c.start+Math.min(localEnd,newText.length);
+      updateStatus();paintVertical(ta);noteVerticalColumn(ta);
+    }
     return;
   }
-  docText=docText.slice(0,c.start)+newText+docText.slice(c.end);
+  const oldText=docText;
+  docText=oldText.slice(0,c.start)+newText+oldText.slice(c.end);
   globalCaret=c.start+localStart;globalSelEnd=c.start+localEnd;
   save();
-  // The native textarea must never hold an overfull page for 260 ms.
-  // Splitting immediately also keeps deletion/reflow across pages consistent.
-  if(deferLayout && !isComposing &&
-     (paginate(newText).length>1 ||
-      // Any edit affecting an earlier page must immediately reflow its neighbor.
-      (i<chunks.length-1 && newText.length!==oldLength)))
-    deferLayout=false;
-  if(deferLayout){
-    const delta=newText.length-oldLength;
-    c.text=newText;c.end+=delta;
-    if(delta)for(let j=i+1;j<chunks.length;j++){
-      chunks[j].start+=delta;chunks[j].end+=delta;
-    }
-    updateStatus();paintVertical(ta);noteVerticalColumn(ta);scheduleReveal();scheduleIdleLayout(ta);
-  }else{
-    paintVertical(ta);noteVerticalColumn(ta);
+  // Even a single keystroke can shift the beginning of the following page.
+  // Recompute the entire partition NOW. No 260ms period of inconsistent
+  // cursor, visible grid and manuscript pagination is permitted.
+  const planned=paginate(docText);
+  const changed=planned.length!==chunks.length ||
+    planned.some((x,j)=>!chunks[j]||x.start!==chunks[j].start||x.end!==chunks[j].end);
+  if(changed){
     renderPages(globalCaret,globalSelEnd,focus,true);
+  }else{
+    chunks.forEach((chunk,j)=>{chunk.text=planned[j].text});
+    navigationRowsCache.clear();
+    updateStatus();paintVertical(ta);noteVerticalColumn(ta);scheduleReveal();
+    // Refresh PREVIEWS without touching the active native IME textarea.
+    // Only pages whose contents changed need to be repainted.
+    for(let j=0;j<chunks.length;j++){
+      if(j===i)continue;
+      const editor=$('pages').children[j]?.firstElementChild;
+      const preview=editor?.closest('.page')?.querySelector('.page-preview');
+      if(preview && preview._paintedValue!==chunks[j].text){
+        writeEditorText(preview,chunks[j].text);
+        preview._paintedValue=chunks[j].text;
+        preview._layoutKey='';
+        if(editor && document.activeElement!==editor && editor.value!==chunks[j].text)editor.value=chunks[j].text;
+      }
+    }
   }
 }
 // A single pending Safari edit transaction can receive several rapid key
@@ -1103,7 +1168,7 @@ function bindEditor(ta){
     ta._selecting=true;clearTimeout(layoutIdleTimer);layoutIdleTimer=0;
   });
   for(const type of ['pointerup','pointercancel'])ta.addEventListener(type,()=>{ta._selecting=false;});
-  ta.addEventListener('focus',()=>{ta.closest('.page').classList.add('editing');if(!isComposing)syncCaret(ta);paintVertical(ta);if(getSettings().writingMode==='vertical')ta._lastVerticalRow=gridStopAt(ta,ta.selectionStart).row});
+  ta.addEventListener('focus',()=>{ta.closest('.page').classList.add('editing');if(!isComposing&&!rendering)syncCaret(ta);if(!rendering)paintVertical(ta);if(!rendering && getSettings().writingMode==='vertical')ta._lastVerticalRow=gridStopAt(ta,ta.selectionStart).row});
   for(const type of ['click','select','keyup'])ta.addEventListener(type,()=>{
     if(!rendering&&!isComposing){syncCaret(ta);paintVertical(ta)}
   });
@@ -1120,8 +1185,9 @@ function bindEditor(ta){
     // No provisional paragraphs or temporary spaces have ever been read from
     // contenteditable. The committed textarea string is the only source.
     isComposing=false;
+    clearCompositionGhosts(ta);
     ta.closest('.page')?.classList.remove('composing');
-    syncFromPage(ta,true,true);paintVertical(ta);noteVerticalColumn(ta);
+    syncFromPage(ta,true,false);paintVertical(ta);noteVerticalColumn(ta);
     scheduleReveal();
   });
   // iPad context-menu pastes may report either a paste event or insertFromPaste.
@@ -1151,16 +1217,10 @@ function bindEditor(ta){
   ta.addEventListener('input',e=>{
     if(ta._boundaryEditPending)return;
     if(isComposing||e.isComposing){paintVertical(ta,true);noteVerticalColumn(ta);scheduleReveal();return;}
-    // On iPad a paste can exceed the current page. Re-page synchronously so
-    // there is no overfull native textarea that captures subsequent swipes.
-    // Length-change fallback covers Safari variants with inputType='insertText'.
-    const c=chunks[+ta.dataset.index];
-    const bulkEdit=!!ta._pastePending || e.inputType==='insertFromPaste' ||
-      e.inputType==='insertFromDrop' || e.inputType==='insertLineBreak' ||
-      e.inputType==='insertParagraph' ||
-      (c && Math.abs(ta.value.length-c.text.length)>1);
+    // Every committed edit, including iPad paste and single keystrokes, is
+    // laid out immediately. Never let a hidden textarea contain extra rows.
     ta._pastePending=false;
-    syncFromPage(ta,true,!bulkEdit);
+    syncFromPage(ta,true,false);
   });
   ta.addEventListener('blur',()=>{
     // A page-mode switch or pagination may replace the textarea while its
@@ -1168,7 +1228,7 @@ function bindEditor(ta){
     if(rendering){ta.closest('.page')?.classList.remove('editing');return;}
     if(isComposing)return;
     // Committed text comes only from native textarea.value.
-    if(ta.isConnected)syncFromPage(ta,false,true);
+    if(ta.isConnected)syncFromPage(ta,false,false);
     ta.closest('.page')?.classList.remove('editing');
     const caret=ta.closest('.page')?.querySelector('.grid-caret');if(caret)caret.style.display='';
     clearTimeout(layoutIdleTimer);layoutIdleTimer=0;
@@ -1213,6 +1273,28 @@ function gridRows(value){
   }
   return rows;
 }
+// Most novels exceed 100,000 characters. Arrow keys MUST NOT rebuild
+// the grid of every page on every keypress; cache only nearby pages.
+const navigationRowsCache=new Map();
+function getNavigationRows(pageIndex){
+  const piece=chunks[pageIndex];if(!piece)return new Map();
+  const cached=navigationRowsCache.get(pageIndex);
+  if(cached && cached.text===piece.text)return cached.rows;
+  const rows=gridRows(piece.text);
+  // A page boundary offset belongs to the NEXT page (unless this is the last).
+  if(pageIndex<chunks.length-1){
+    for(const [row,points] of rows){
+      const filtered=points.filter(point=>point.offset<piece.text.length);
+      if(filtered.length)rows.set(row,filtered);
+      else rows.delete(row);
+    }
+  }
+  navigationRowsCache.set(pageIndex,{text:piece.text,rows});
+  while(navigationRowsCache.size>6){
+    navigationRowsCache.delete(navigationRowsCache.keys().next().value);
+  }
+  return rows;
+}
 function nearestVisualOffset(points,desiredCol){
   if(!points?.length)return null;
   let winner=points[0],distance=Math.abs(winner.col-desiredCol);
@@ -1227,89 +1309,100 @@ function nearestVisualOffset(points,desiredCol){
 }
 function moveArrow(ta,e){
   if(!/^Arrow(Up|Down|Left|Right)$/.test(e.key) || e.altKey||e.metaKey||e.ctrlKey)return;
-  const i=+ta.dataset.index,c=chunks[i];if(!c)return;
+  const source=chunks[+ta.dataset.index];if(!source)return;
   const vertical=getSettings().writingMode==='vertical';
-  const backwards=vertical?(e.key==='ArrowUp'||e.key==='ArrowRight'):
-    (e.key==='ArrowLeft'||e.key==='ArrowUp');
   const blockDirection=vertical?
     (e.key==='ArrowRight'?-1:e.key==='ArrowLeft'?1:0):
     (e.key==='ArrowUp'?-1:e.key==='ArrowDown'?1:0);
+  const backwards=vertical?(e.key==='ArrowUp'||e.key==='ArrowRight'):
+    (e.key==='ArrowLeft'||e.key==='ArrowUp');
   const extend=e.shiftKey;
   e.preventDefault();
-  const selected=ta.selectionStart!==ta.selectionEnd;
-  const absoluteStart=c.start+ta.selectionStart;
-  const absoluteEnd=c.start+ta.selectionEnd;
-  // Arrow without Shift first collapses an existing selection, like a native editor.
-  if(selected && !extend){
-    const collapse=backwards?absoluteStart:absoluteEnd;
+  const selBegin=source.start+ta.selectionStart;
+  const selEnd=source.start+ta.selectionEnd;
+  if(selBegin!==selEnd && !extend){
+    const collapse=backwards?selBegin:selEnd;
     forgetArrowGoal();
-    ta.setSelectionRange(collapse-c.start,collapse-c.start);
-    syncCaret(ta);paintVertical(ta);scheduleReveal();return;
+    applyGridCursor(collapse,ta);
+    return;
   }
-  const focus=c.start+activeSelectionOffset(ta);
+  const focus=Math.max(0,Math.min(source.start+activeSelectionOffset(ta),docText.length));
+  // pageForOffset owns boundary affinity, regardless of which textarea is
+  // still dispatching WebKit's last keyup/blur notification.
+  const page=pageForOffset(focus),piece=chunks[page];
   const anchor=extend
     ?(arrowAnchor && arrowAnchor.focus===focus ? arrowAnchor.anchor :
-      (ta.selectionDirection==='backward'?absoluteEnd:absoluteStart))
+      (ta.selectionDirection==='backward'?selEnd:selBegin))
     :focus;
   let target=focus,desired=null;
   if(blockDirection){
-    const stop=gridStopForText(c.text,focus-c.start);
-    // The goal survives short rows, including when the next arrow reverses.
-    desired=(arrowGoal && arrowGoal.focus===focus &&
-      arrowGoal.vertical===vertical ?arrowGoal.desired:stop.col);
-    let index=i,row=stop.row+blockDirection;
-    let candidates=gridRows(chunks[index].text);
-    const maxRow=()=>Math.max(...candidates.keys());
-    if(blockDirection<0 && row<0){
-      if(index===0){forgetArrowGoal();return;}
-      index--;candidates=gridRows(chunks[index].text);row=maxRow();
-    }else if(blockDirection>0 && row>maxRow()){
-      if(index>=chunks.length-1){forgetArrowGoal();return;}
-      index++;candidates=gridRows(chunks[index].text);row=0;
+    const here=gridStopForText(piece.text,focus-piece.start);
+    desired=arrowGoal && arrowGoal.focus===focus && arrowGoal.vertical===vertical
+      ?arrowGoal.desired:here.col;
+    // Move to the closest real row, including its immediate neighboring page.
+    // The same global row/cell goal works for horizontal and vertical writing.
+    let destinationPage=page,row=here.row+blockDirection;
+    let points=null;
+    while(destinationPage>=0 && destinationPage<chunks.length){
+      const candidates=getNavigationRows(destinationPage);
+      const addresses=[...candidates.keys()].sort((a,b)=>a-b);
+      const next=blockDirection>0?addresses.find(n=>n>=row):
+        addresses.slice().reverse().find(n=>n<=row);
+      if(next!==undefined){
+        points=candidates.get(next);break;
+      }
+      destinationPage+=blockDirection;
+      row=blockDirection>0?0:getSettings().lineCount-1;
     }
-    const local=nearestVisualOffset(candidates.get(row),desired);
-    if(local===null){forgetArrowGoal();return;}
-    target=chunks[index].start+local;
+    if(points?.length){
+      const dest=chunks[destinationPage];
+      let best=points[0],score=Math.abs(best.col-desired);
+      for(const candidate of points.slice(1)){
+        const d=Math.abs(candidate.col-desired);
+        if(d<score||(d===score&&candidate.col<best.col)){
+          best=candidate;score=d;
+        }
+      }
+      target=dest.start+best.offset;
+    }
   }else{
-    const local=focus-c.start;
-    const boundaries=[...new Set(gridStops(c.text).map(p=>p.offset))].sort((a,b)=>a-b);
-    if(backwards){
-      const prior=boundaries.filter(n=>n<local);
-      target=prior.length?c.start+prior[prior.length-1]:previousOffset(focus);
-    }else{
-      const following=boundaries.find(n=>n>local);
-      target=following!==undefined?c.start+following:nextOffset(focus);
-    }
+    // Advance one complete grapheme, including over page boundaries.
+    target=backwards?previousOffset(focus):nextOffset(focus);
   }
   target=Math.max(0,Math.min(target,docText.length));
   if(target===focus){if(!blockDirection)forgetArrowGoal();return;}
   if(extend){
-    // Native selections cannot span separate textareas. Do not silently lose
-    // the selected text when an extended arrow reaches a page boundary.
-    if(target<c.start||target>c.end){forgetArrowGoal();return;}
-    const begin=Math.min(anchor,target)-c.start;
-    const end=Math.max(anchor,target)-c.start;
-    ta.setSelectionRange(begin,end,target<anchor?'backward':'forward');
+    // Each native textarea can select only its own page. Leave the existing
+    // selection unchanged rather than silently selecting unrelated text.
+    if(target<source.start||target>source.end){forgetArrowGoal();return;}
+    const a=Math.min(anchor,target)-source.start;
+    const b=Math.max(anchor,target)-source.start;
+    ta.setSelectionRange(a,b,target<anchor?'backward':'forward');
     arrowAnchor={anchor,focus:target};
     syncCaret(ta);paintVertical(ta);scheduleReveal();
   }else{
     arrowAnchor=null;
-    const p=pageForOffset(target);
-    if(p!==i){
-      // Focus and selection must be set on the destination page, not the stale
-      // textarea. renderPages also updates status/preview atomically.
-      renderPages(target,target,true,true);
-    }else{
-      ta.setSelectionRange(target-c.start,target-c.start);
-      syncCaret(ta);paintVertical(ta);noteVerticalColumn(ta);scheduleReveal();
-    }
+    applyGridCursor(target,ta);
   }
   arrowGoal=blockDirection?{desired,focus:target,vertical}:null;
+}
+function applyGridCursor(target,origin){
+  const newPage=pageForOffset(target),oldPage=+origin.dataset.index;
+  if(newPage!==oldPage){
+    // Never let the old textarea's blur overwrite the newly selected page.
+    renderPages(target,target,true,true);
+  }else{
+    const n=target-chunks[newPage].start;
+    origin.setSelectionRange(n,n);
+    syncCaret(origin);paintVertical(origin);noteVerticalColumn(origin);scheduleReveal();
+  }
 }
 
 function renderPages(caret=globalCaret,selEnd=globalSelEnd,focus=false,scroll=false){
   clearTimeout(layoutIdleTimer);layoutIdleTimer=0;
   rendering=true;
+  navigationRowsCache.clear();
+  if(!isComposing)clearCompositionGhosts();
   chunks=paginate(docText);
   // The underlying manuscript is never edited by pagination. If the joined
   // sheet slices differ from TXT, fail safely rather than display shifted text.
@@ -1360,6 +1453,9 @@ function renderPages(caret=globalCaret,selEnd=globalSelEnd,focus=false,scroll=fa
     ta.closest('.page').classList.add('editing');
     // Preserve native selection on ordinary keystrokes. No delayed caret reset.
     if(ta._valueChanged||ta.selectionStart!==start||ta.selectionEnd!==end)ta.setSelectionRange(start,end);
+    // Establish the scrolling baseline from the RESTORED selection, not the
+    // stale caret present during the synchronous focus event.
+    if(getSettings().writingMode==='vertical')ta._lastVerticalRow=gridStopAt(ta,ta.selectionStart).row;
     paintVertical(ta);
     if(scroll){
       scheduleReveal();
