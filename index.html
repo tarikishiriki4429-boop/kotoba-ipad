@@ -146,6 +146,9 @@ button:disabled{opacity:.45}
 }
 /* Print one physical A4 sheet for each manuscript page. Pagination is shared with
    the editor rather than delegated to the browser's flowing-text layout. */
+/* iOS Safari: avoid explicit page-break-after on fixed-height sheets.
+   It can introduce one blank printed page between manuscript pages.
+   Each 252mm sheet naturally occupies a separate A4 printable area (261mm). */
 @media print{
   @page{size:A4 portrait;margin:18mm}
   html,body{display:block!important;position:static!important;inset:auto!important;
@@ -156,8 +159,7 @@ button:disabled{opacity:.45}
     margin:0!important;padding:0!important;background:white!important}
   #printArea .print-sheet{position:relative;display:block;box-sizing:border-box;
     width:170mm;height:252mm;margin:0;padding:0;background:white;color:#171717;
-    overflow:hidden;break-after:page;page-break-after:always;break-inside:avoid;page-break-inside:avoid}
-  #printArea .print-sheet:last-child{break-after:auto;page-break-after:auto}
+    overflow:hidden;break-inside:avoid;page-break-inside:avoid}
   #printArea .print-preview{display:block;position:relative;overflow:visible;margin:0;padding:0;border:0;
     width:calc(var(--chars) * var(--print-font-size));
     height:calc(var(--lines) * var(--print-font-size) * var(--line-height));
@@ -323,7 +325,7 @@ button:disabled{opacity:.45}
 <div id="printArea"></div>
 
 <script type="module">
-const BUILD=43;
+const BUILD=44;
 const $=id=>document.getElementById(id);
 $('buildVersion').textContent='Kotoba Writer build '+BUILD;
 const STORAGE='kotoba-writer-draft-v1';
