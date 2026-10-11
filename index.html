@@ -70,6 +70,11 @@ button:disabled{opacity:.45}
   display:inline-block;inline-size:1em;text-align:center;
   white-space:pre;vertical-align:baseline;
 }
+/* Preedit appears AT its actual vertical cells instead of at the hidden
+   native input position. Text is provisional until the IME commits it. */
+.page.vertical .editor-char.ime-preedit{
+  box-shadow:inset -2px 0 0 #2676d4;background:rgba(38,118,212,.065);
+}
 .editor-line > br{display:none}
 .hanging-char{position:relative;z-index:2;overflow:visible}
 .hanging-char::selection{background:Highlight;color:HighlightText}
@@ -106,13 +111,43 @@ button:disabled{opacity:.45}
 /* build47: The native textarea continues to own text and IME, but WebKit's
    vertical wrapping cannot be used as our manuscript layout. Draw the visible
    glyphs and caret on the exact same grapheme grid, even while composing. */
+/* build48: iPad needs its REAL IME input caret at the visible vertical
+   writing position. A full-page horizontal textarea pinned to the top left
+   makes the Japanese conversion bar appear on the wrong side of the paper.
+   Instead the vertical textarea is a compact native composition proxy,
+   positioned at the grid caret. The canonical manuscript stays in docText. */
 .page.vertical .page-editor,
 .page.vertical.editing .page-editor{
-  opacity:1!important;color:transparent!important;-webkit-text-fill-color:transparent!important;
-  caret-color:transparent!important;z-index:3;
-  /* Use predictable native input geometry; the reader sees .page-preview. */
-  writing-mode:horizontal-tb!important;
+  position:absolute!important;z-index:3!important;
+  width:calc(var(--font-size) * 1.4)!important;
+  height:calc(var(--font-size) * 10)!important;
+  min-width:0!important;max-width:none!important;
+  min-height:0!important;
+  overflow:hidden!important;
+  writing-mode:vertical-rl!important;text-orientation:mixed!important;
+  color:transparent!important;-webkit-text-fill-color:transparent!important;
+  background:transparent!important;caret-color:transparent!important;
+  pointer-events:none!important;opacity:1!important;
+  font-size:var(--font-size)!important;line-height:1!important;
+  box-sizing:border-box!important;
+  white-space:pre!important;overflow-wrap:normal!important;word-break:normal!important;
 }
+.page.manuscript.vertical .page-preview{
+  background-image:
+    linear-gradient(to right,rgba(0,0,0,.065) 1px,transparent 1px),
+    linear-gradient(to bottom,rgba(0,0,0,.065) 1px,transparent 1px);
+  background-size:calc(var(--font-size) * var(--line-height)) 1em;
+}
+.page.manuscript.vertical .page-editor{background-image:none!important}
+.page.vertical{cursor:text;box-sizing:border-box;
+  width:calc(var(--lines) * var(--font-size) * var(--line-height) + 116px);
+  height:calc(var(--chars) * var(--font-size) + 112px);
+}
+@media(max-width:700px){.page.vertical{
+  width:calc(var(--lines) * var(--font-size) * var(--line-height) + 48px);
+  height:calc(var(--chars) * var(--font-size) + 76px);
+}}
+.page.vertical.editing .page-preview{visibility:visible!important}
 .page.vertical.editing .page-preview{visibility:visible!important}
 .page .grid-caret{
   position:absolute;display:none;pointer-events:none;z-index:6;
@@ -171,8 +206,9 @@ button:disabled{opacity:.45}
 /* iPad Safari may reserve additional room for print headers, footers and
    page margins. A 252mm print sheet may fragment on the very last page.
    Keep each sheet safely below A4's 261mm nominal printable height, and
-   keep the actual manuscript grid smaller than the sheet itself. Never
-   use break-after:page; natural page fragmentation places one sheet/page. */
+   keep the actual manuscript grid smaller than the sheet itself. Force
+   break BEFORE each subsequent sheet (not after the last), to prevent both
+   2-up printing and a dangling extra last page. */
 @media print{
   @page{size:A4 portrait;margin:18mm}
   html,body{display:block!important;position:static!important;inset:auto!important;
@@ -184,6 +220,11 @@ button:disabled{opacity:.45}
   #printArea .print-sheet{position:relative;display:block;box-sizing:border-box;
     width:170mm;height:220mm;margin:0;padding:0;background:white;color:#171717;
     overflow:hidden;break-inside:avoid;page-break-inside:avoid}
+  /* One manuscript page per PHYSICAL sheet. Without a forced new sheet here,
+     iPad Safari scales landscape content and packs two short sheets on a page. */
+  #printArea .print-sheet + .print-sheet{
+    break-before:page!important;page-break-before:always!important;
+  }
   /* Vertical text uses a landscape A4 page and a landscape manuscript grid.
      Safari may ignore CSS @page orientation; its native dialog must then be
      set to Landscape by the user. A shorter fixed sheet avoids blank tail pages. */
@@ -350,7 +391,7 @@ button:disabled{opacity:.45}
   <textarea id="fullText" aria-label="全文（編集・選択・コピー用）"></textarea>
 </div>
 <div id="licensesPanel" class="panel" role="dialog" aria-label="利用条件・ライセンス">
-  <div id="licensesHeader"><button id="closeLicenses">閉じる</button><a id="licensesDirectLink" href="./licenses.html?view=build42" target="_blank" rel="noopener noreferrer">利用条件を別タブで開く</a></div>
+  <div id="licensesHeader"><button id="closeLicenses">閉じる</button><a id="licensesDirectLink" href="./licenses.html?view=build48" target="_blank" rel="noopener noreferrer">利用条件を別タブで開く</a></div>
   <div id="licensesStatus" role="status" aria-live="polite"></div>
   <div id="licensesContent" role="document" aria-label="利用条件の本文" tabindex="0"></div>
 </div>
@@ -358,7 +399,7 @@ button:disabled{opacity:.45}
 <div id="printArea"></div>
 
 <script type="module">
-const BUILD=47;
+const BUILD=48;
 const $=id=>document.getElementById(id);
 $('buildVersion').textContent='Kotoba Writer build '+BUILD;
 const STORAGE='kotoba-writer-draft-v1';
@@ -405,7 +446,7 @@ function scheduleCompositionPreview(ta){
   if(ta._previewFrame)return;
   ta._previewFrame=requestAnimationFrame(()=>{
     ta._previewFrame=0;
-    if(isComposing && ta.isConnected)paintComposition(ta);
+    if(isComposing && ta.isConnected)paintVertical(ta);
   });
 }
 let revealFrame=0;
@@ -460,6 +501,10 @@ function scheduleReveal(){
   });
 }
 function editorCaretRect(ta){
+  if(ta.dataset.proxy==='1'){
+    const visual=ta.closest('.page')?.querySelector('.grid-caret');
+    if(visual && visual.style.display!=='none')return visual.getBoundingClientRect();
+  }
   const c=chunks[+ta.dataset.index];if(!c)return null;
   const pos=Math.max(0,Math.min(ta.selectionStart,ta.value.length));
   const rc=ta.getBoundingClientRect(),lc=lineCol(ta.value,pos);
@@ -610,7 +655,7 @@ function pageClass(){
 // Each visual line uses the same cells as paginate(). No browser soft-wrap can
 // move a hanging character away from its completed line. Only source newlines
 // have BR nodes; visual wraps never add text to the saved/copyable document.
-function writeEditorText(el,value){
+function writeEditorText(el,value,imeStart=-1,imeEnd=-1){
   const {charCount:cols}=getSettings();
   const fragment=document.createDocumentFragment();
   let col=0,row=-1,line;
@@ -625,7 +670,7 @@ function writeEditorText(el,value){
     end.textContent='\u200b';line.append(end);
   }
   newLine();
-  for(const {segment:ch} of units(value)){
+  for(const {segment:ch,index} of units(value)){
     if(ch==='\n'){
       emptyCaret();line.append(document.createElement('br'));
       if(row+1<rowLimit)newLine();
@@ -634,7 +679,8 @@ function writeEditorText(el,value){
     const hanging=col>=cols && isHangingChar(ch);
     if(col>=cols && !hanging)newLine();
     const cell=document.createElement('span');
-    cell.className='editor-char'+(hanging?' hanging-char':'');
+    cell.className='editor-char'+(hanging?' hanging-char':'')+
+      (index>=imeStart && index<imeEnd?' ime-preedit':'');
     if(hanging)cell.dataset.hanging='1';
     cell.textContent=ch;line.append(cell);
     if(!hanging)col++;
@@ -664,7 +710,8 @@ function gridStops(value){
   return stops;
 }
 function gridOffsetAt(ta,targetRow,targetCol){
-  const stops=gridStops(ta.value);
+  const c=chunks[+ta.dataset.index];
+  const stops=gridStops(ta.dataset.proxy==='1'?(c?.text||''):ta.value);
   let chosen=stops[0],best=Infinity;
   for(const pos of stops){
     const distance=Math.abs(pos.row-targetRow)*1000+Math.abs(pos.col-targetCol);
@@ -673,7 +720,8 @@ function gridOffsetAt(ta,targetRow,targetCol){
   return chosen.offset;
 }
 function gridStopAt(ta,offset){
-  const stops=gridStops(ta.value);
+  const c=chunks[+ta.dataset.index];
+  const stops=gridStops(ta.dataset.proxy==='1'?(c?.text||''):ta.value);
   const choices=stops.filter(p=>p.offset===offset);
   // At a visual wrap, the new column is where the next glyph is entered.
   return choices[choices.length-1]||stops.reduce((best,p)=>
@@ -683,36 +731,70 @@ function paintVertical(ta,previewOnly=false){
   const page=ta.closest('.page');
   if(!page?.classList.contains('vertical'))return;
   const preview=page.querySelector('.page-preview');
-  if(!preview)return;
-  // Rendering the preview cannot change textarea.value, selection or IME.
-  if(preview._paintedValue!==ta.value){
-    writeEditorText(preview,ta.value);
-    preview._paintedValue=ta.value;
-    preview._layoutKey=''; // Rebuild from canonical page text on blur/reflow.
+  const c=chunks[+ta.dataset.index];
+  if(!preview||!c)return;
+  const proxy=ta.dataset.proxy==='1';
+  const localCaret=Math.max(0,Math.min(c.text.length,
+    (isComposing && proxy && document.activeElement===ta
+      ? (ta._compositionAnchor??globalCaret) : globalCaret)-c.start));
+  let previewValue=proxy?c.text:ta.value;
+  if(proxy && isComposing && document.activeElement===ta){
+    previewValue=c.text.slice(0,localCaret)+ta.value+c.text.slice(localCaret);
+  }
+  const imeStart=proxy && isComposing && document.activeElement===ta?localCaret:-1;
+  const imeEnd=imeStart<0?-1:imeStart+ta.value.length;
+  const imeKey=imeStart+':'+imeEnd;
+  if(preview._paintedValue!==previewValue||preview._paintedIme!==imeKey){
+    writeEditorText(preview,previewValue,imeStart,imeEnd);
+    preview._paintedValue=previewValue;
+    preview._paintedIme=imeKey;
+    preview._layoutKey='';
   }
   const caret=page.querySelector('.grid-caret');
   if(!caret || previewOnly)return;
-  const selecting=ta.selectionStart!==ta.selectionEnd;
+  const selecting=!proxy && ta.selectionStart!==ta.selectionEnd ||
+    proxy && globalCaret!==globalSelEnd;
   caret.classList.toggle('selected',selecting);
   if(selecting)return;
-  const pos=gridStopAt(ta,ta.selectionStart), s=getSettings();
-  const font=Number(s.fontSize),advance=font*Number(s.lineHeight);
-  if(pos.row>=s.lineCount){caret.style.display='none';return;}
+  let offset=proxy?localCaret:ta.selectionStart;
+  if(proxy && isComposing && document.activeElement===ta) offset+=ta.value.length;
+  // Derive coordinates from the displayed manuscript, not native WebKit wraps.
+  const pos=gridStopAtText(previewValue,offset),settings=getSettings();
+  const font=Number(settings.fontSize),advance=font*Number(settings.lineHeight);
+  if(pos.row>=settings.lineCount){caret.style.display='none';return;}
   caret.style.display='';
-  caret.style.left=(preview.offsetLeft+preview.offsetWidth-(pos.row*advance+font))+'px';
-  caret.style.top=(preview.offsetTop+pos.col*font)+'px';
-  caret.style.width=font+'px';
+  const left=preview.offsetLeft+preview.offsetWidth-(pos.row*advance+font);
+  const top=preview.offsetTop+pos.col*font;
+  caret.style.left=left+'px';caret.style.top=top+'px';caret.style.width=font+'px';
+  // Keep the native candidate window at the START of the uncommitted text.
+  // As WebKit types it vertically, the native caret advances downward here.
+  if(proxy && !isComposing){
+    ta.style.left=left+'px';ta.style.top=top+'px';
+  }
+}
+function gridStopAtText(value,offset){
+  const stops=gridStops(value);
+  const choices=stops.filter(p=>p.offset===offset);
+  return choices[choices.length-1]||stops.reduce((best,p)=>
+    Math.abs(p.offset-offset)<Math.abs(best.offset-offset)?p:best,stops[0]);
 }
 function verticalTap(ta,e){
-  if(isComposing || e.detail===0)return;
-  const page=ta.closest('.page'), preview=page?.querySelector('.page-preview');
-  if(!preview)return;
+  if(isComposing || ta._composeFinishing || e.detail===0)return;
+  const page=ta.closest('.page'),preview=page?.querySelector('.page-preview');
+  const c=chunks[+ta.dataset.index];
+  if(!preview||!c)return;
   const rect=preview.getBoundingClientRect(),settings=getSettings();
   const font=Number(settings.fontSize),advance=font*Number(settings.lineHeight);
   const row=Math.max(0,Math.min(settings.lineCount-1,Math.floor((rect.right-e.clientX)/advance)));
   const col=Math.max(0,Math.min(settings.charCount,Math.round((e.clientY-rect.top)/font)));
   const offset=gridOffsetAt(ta,row,col);
-  ta.setSelectionRange(offset,offset);syncCaret(ta);paintVertical(ta);
+  if(ta.dataset.proxy==='1'){
+    globalCaret=c.start+offset;globalSelEnd=globalCaret;
+    ta.focus({preventScroll:true});ta.closest('.page').classList.add('editing');
+    updateStatus();paintVertical(ta);scheduleReveal();
+  }else{
+    ta.setSelectionRange(offset,offset);syncCaret(ta);paintVertical(ta);
+  }
 }
 // A real textarea is used for typing. A separate page-preview shows the
 // strict grid when inactive; changing CSS while Japanese IME is active cannot
@@ -723,6 +805,7 @@ function createEditor(vertical){
   ta.setAttribute('aria-label',vertical?'縦書き本文':'横書き本文');
   ta.setAttribute('autocorrect','off');ta.setAttribute('autocapitalize','off');
   ta.setAttribute('autocomplete','off');ta.setAttribute('wrap','soft');
+  if(vertical)ta.dataset.proxy='1';
   return ta;
 }
 function replaceSelection(ta,text){
@@ -765,7 +848,111 @@ function syncFromPage(ta,focus,deferLayout=false){
     updateStatus();paintVertical(ta);scheduleIdleLayout(ta);
   }else renderPages(globalCaret,globalSelEnd,focus,true);
 }
+// Vertical writing's native IME control contains ONLY pending input, never the
+// full manuscript. Its real caret is positioned at our on-paper grid caret.
+// This avoids horizontal native caret/blue underline being drawn at top-left.
+function proxyReplace(ta,text,at=globalCaret){
+  const c=chunks[+ta.dataset.index];
+  if(!c || !ta.isConnected)return;
+  const insertion=Math.max(0,Math.min(at,docText.length));
+  const start=insertion===globalCaret?Math.min(globalCaret,globalSelEnd):insertion;
+  const end=insertion===globalCaret?Math.max(globalCaret,globalSelEnd):insertion;
+  text=String(text).replace(/\r\n?/g,'\n');
+  if(start===end && !text)return;
+  remember();
+  docText=docText.slice(0,start)+text+docText.slice(end);
+  const next=start+text.length;
+  globalCaret=globalSelEnd=next;
+  save();renderPages(next,next,true,true);
+}
+function proxyDelete(ta,backward=true){
+  const c=chunks[+ta.dataset.index];if(!c)return;
+  const a=Math.min(globalCaret,globalSelEnd),b=Math.max(globalCaret,globalSelEnd);
+  const from=a!==b?a:(backward?previousOffset(a):a);
+  const to=a!==b?b:(backward?a:nextOffset(a));
+  if(from===to)return;
+  remember();docText=docText.slice(0,from)+docText.slice(to);
+  globalCaret=globalSelEnd=from;save();renderPages(from,from,true,true);
+}
+function proxyArrow(ta,e){
+  if(e.metaKey||e.ctrlKey||e.altKey)return;
+  const c=chunks[+ta.dataset.index];if(!c)return;
+  const stops=gridStops(c.text),offset=Math.max(0,Math.min(c.text.length,globalCaret-c.start));
+  const pos=gridStopAtText(c.text,offset);
+  let next=globalCaret;
+  if(e.key==='ArrowUp')next=previousOffset(globalCaret);
+  if(e.key==='ArrowDown')next=nextOffset(globalCaret);
+  if(e.key==='ArrowLeft'||e.key==='ArrowRight'){
+    next=c.start+gridOffsetAt(ta,pos.row+(e.key==='ArrowLeft'?1:-1),pos.col);
+  }
+  next=Math.max(0,Math.min(docText.length,next));
+  if(e.shiftKey){globalSelEnd=next}else{globalCaret=globalSelEnd=next}
+  updateStatus();paintVertical(ta);scheduleReveal();
+}
+function bindProxyEditor(ta){
+  if(ta.dataset.bound)return;ta.dataset.bound='1';
+  ta.addEventListener('focus',()=>{
+    ta.closest('.page')?.classList.add('editing');paintVertical(ta);
+  });
+  ta.addEventListener('compositionstart',()=>{
+    isComposing=true;ta._compositionAnchor=globalCaret;
+    ta._composeFinishing=false;remember();captureInputScroll();
+    compositionScroll={...inputScroll};paintVertical(ta);
+  });
+  ta.addEventListener('compositionupdate',()=>{paintVertical(ta)});
+  ta.addEventListener('compositionend',e=>{
+    const fallback=e.data||'';
+    ta._composeFinishing=true;
+    // Safari may dispatch the final input AFTER compositionend.
+    setTimeout(()=>{
+      const value=ta.value.replace(/\r\n?/g,'\n')||fallback;
+      ta.value='';isComposing=false;compositionScroll=null;
+      ta._composeFinishing=false;
+      if(value)proxyReplace(ta,value,ta._compositionAnchor??globalCaret);
+      else paintVertical(ta);
+    },0);
+  });
+  ta.addEventListener('beforeinput',e=>{
+    if(isComposing||e.isComposing||ta._composeFinishing)return;
+    if(e.inputType==='deleteContentBackward'||e.inputType==='deleteContentForward'||
+       e.inputType==='deleteWordBackward'||e.inputType==='deleteWordForward'){
+      e.preventDefault();proxyDelete(ta,!e.inputType.endsWith('Forward'));return;
+    }
+    if(e.inputType==='insertLineBreak'||e.inputType==='insertParagraph'){
+      e.preventDefault();proxyReplace(ta,'\n');return;
+    }
+    if(e.inputType==='historyUndo'){e.preventDefault();$('undoBtn').click();return;}
+  });
+  ta.addEventListener('input',e=>{
+    if(isComposing||e.isComposing||ta._composeFinishing){paintVertical(ta);return;}
+    const text=ta.value.replace(/\r\n?/g,'\n');
+    ta.value='';
+    if(text)proxyReplace(ta,text);
+    else paintVertical(ta);
+  });
+  ta.addEventListener('keydown',e=>{
+    if(isComposing||ta._composeFinishing||e.isComposing)return;
+    if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='a'){
+      e.preventDefault();$('selectAllBtn').click();return;
+    }
+    if(/^Arrow(Up|Down|Left|Right)$/.test(e.key)){
+      e.preventDefault();proxyArrow(ta,e);return;
+    }
+    if(e.key==='Backspace'||e.key==='Delete'){
+      e.preventDefault();proxyDelete(ta,e.key==='Backspace');return;
+    }
+  });
+  ta.addEventListener('blur',()=>{
+    ta.closest('.page')?.classList.remove('editing');
+    if(!isComposing && !ta._composeFinishing && ta.value){
+      const text=ta.value;ta.value='';proxyReplace(ta,text);
+    }
+    const caret=ta.closest('.page')?.querySelector('.grid-caret');
+    if(caret)caret.style.display='none';
+  });
+}
 function bindEditor(ta){
+  if(ta.dataset.proxy==='1'){bindProxyEditor(ta);return;}
   if(ta.dataset.bound)return;ta.dataset.bound='1';
   ta.addEventListener('pointerdown',()=>{
     ta._selecting=true;clearTimeout(layoutIdleTimer);layoutIdleTimer=0;
@@ -901,14 +1088,23 @@ function renderPages(caret=globalCaret,selEnd=globalSelEnd,focus=false,scroll=fa
       preview.setAttribute('aria-hidden','true');
       const gridCaret=document.createElement('span');gridCaret.className='grid-caret';
       page.replaceChildren(ta,preview,gridCaret);bindEditor(ta);
+      page.addEventListener('click',e=>{
+        if(page.classList.contains('vertical'))verticalTap(page.firstElementChild,e);
+      });
     }
     ta.dataset.index=i;
     const layoutKey=c.text+'\u0000'+getSettings().charCount+'\u0000'+(vertical?'v':'h');
-    ta._valueChanged=ta.value!==c.text;
-    if(ta._valueChanged){ta.value=c.text;ta.scrollTop=0;ta.scrollLeft=0;}
+    if(ta.dataset.proxy==='1'){
+      ta._valueChanged=false;
+      // Never replace the proxy textarea during an active IME conversion.
+      if(!isComposing || document.activeElement!==ta)ta.value='';
+    }else{
+      ta._valueChanged=ta.value!==c.text;
+      if(ta._valueChanged){ta.value=c.text;ta.scrollTop=0;ta.scrollLeft=0;}
+    }
     ta._layoutKey=layoutKey;
     const preview=page.querySelector('.page-preview');
-    if(preview && preview._layoutKey!==layoutKey){writeEditorText(preview,c.text);preview._paintedValue=c.text;preview._layoutKey=layoutKey;}
+    if(preview && preview._layoutKey!==layoutKey){writeEditorText(preview,c.text);preview._paintedValue=c.text;preview._paintedIme='-1:-1';preview._layoutKey=layoutKey;}
   });
 
   globalCaret=Math.max(0,Math.min(caret,docText.length));
@@ -921,10 +1117,11 @@ function renderPages(caret=globalCaret,selEnd=globalSelEnd,focus=false,scroll=fa
     const start=Math.min(globalCaret-c.start,ta.value.length);
     const end=Math.min(globalSelEnd-c.start,ta.value.length);
     if(document.activeElement!==ta)ta.focus({preventScroll:true});
-    // The focused textarea owns IME conversion and selection.
     ta.closest('.page').classList.add('editing');
-    // Preserve native selection on ordinary keystrokes. No delayed caret reset.
-    if(ta._valueChanged||ta.selectionStart!==start||ta.selectionEnd!==end)ta.setSelectionRange(start,end);
+    // The native vertical proxy has only uncommitted IME text. The manuscript
+    // caret lives in globalCaret and is drawn over the paper separately.
+    if(ta.dataset.proxy!=='1' &&
+      (ta._valueChanged||ta.selectionStart!==start||ta.selectionEnd!==end))ta.setSelectionRange(start,end);
     paintVertical(ta);
     if(scroll){
       if(inputScroll)restoreInputScroll();
