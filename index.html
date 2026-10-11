@@ -146,9 +146,11 @@ button:disabled{opacity:.45}
 }
 /* Print one physical A4 sheet for each manuscript page. Pagination is shared with
    the editor rather than delegated to the browser's flowing-text layout. */
-/* iOS Safari: avoid explicit page-break-after on fixed-height sheets.
-   It can introduce one blank printed page between manuscript pages.
-   Each 252mm sheet naturally occupies a separate A4 printable area (261mm). */
+/* iPad Safari may reserve additional room for print headers, footers and
+   page margins. A 252mm print sheet may fragment on the very last page.
+   Keep each sheet safely below A4's 261mm nominal printable height, and
+   keep the actual manuscript grid smaller than the sheet itself. Never
+   use break-after:page; natural page fragmentation places one sheet/page. */
 @media print{
   @page{size:A4 portrait;margin:18mm}
   html,body{display:block!important;position:static!important;inset:auto!important;
@@ -158,7 +160,7 @@ button:disabled{opacity:.45}
   #printArea{display:block!important;position:static!important;width:170mm!important;
     margin:0!important;padding:0!important;background:white!important}
   #printArea .print-sheet{position:relative;display:block;box-sizing:border-box;
-    width:170mm;height:252mm;margin:0;padding:0;background:white;color:#171717;
+    width:170mm;height:220mm;margin:0;padding:0;background:white;color:#171717;
     overflow:hidden;break-inside:avoid;page-break-inside:avoid}
   #printArea .print-preview{display:block;position:relative;overflow:visible;margin:0;padding:0;border:0;
     width:calc(var(--chars) * var(--print-font-size));
@@ -325,7 +327,7 @@ button:disabled{opacity:.45}
 <div id="printArea"></div>
 
 <script type="module">
-const BUILD=44;
+const BUILD=45;
 const $=id=>document.getElementById(id);
 $('buildVersion').textContent='Kotoba Writer build '+BUILD;
 const STORAGE='kotoba-writer-draft-v1';
@@ -890,7 +892,9 @@ function preparePrintPages(){
   const pages=paginate(docText);
   const el=$('printArea');
   const mmPx=96/25.4;
-  const maxWidth=166*mmPx,maxHeight=243*mmPx;
+  // Allow a safety margin for the iPad print engine while preserving
+  // exactly the same column/row cells and screen-page boundaries.
+  const maxWidth=165*mmPx,maxHeight=201*mmPx;
   const vertical=s.writingMode==='vertical';
   const widthUnits=vertical?s.lineCount*Number(s.lineHeight):s.charCount;
   const heightUnits=vertical?s.charCount:s.lineCount*Number(s.lineHeight);
