@@ -1,6 +1,6 @@
-// Kotoba Writer: build48 staging vertical IME and print isolation candidate; license view reliability.
+// Kotoba Writer: build49 staging native-editor regression rollback; license view reliability.
 // No AI libraries, workers, models, or external AI endpoints are requested.
-const CACHE='kotoba-writer-shell-v49';
+const CACHE='kotoba-writer-shell-v50';
 const PRIVACY_FLAG='kotoba-writer-privacy-lock-v1';
 const SHELL=['./','./index.html','./manifest.webmanifest','./licenses.html'];
 
