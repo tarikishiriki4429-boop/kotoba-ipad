@@ -343,6 +343,14 @@ html.kw-dark .page-preview .editor-char.search-target{color:#231f1c;background:#
 #licensesContent details{margin:10px 0}
 #licensesContent a{color:#075caa;text-decoration:underline}
 
+#dictionaryPanel,#voicePanel,#backupsPanel{max-height:80dvh;overflow:auto}
+.kw58-field{display:block;margin:8px 0}.kw58-field input,.kw58-field select{max-width:100%}
+#voiceDraft{width:100%;min-height:120px;box-sizing:border-box;font-size:17px}
+#dictionaryList button,#backupList button,#wordCandidates button{margin:4px}
+#wordCandidates{position:fixed;bottom:40px;left:10px;right:10px;z-index:80;background:#fff;padding:8px;border:1px solid #999;box-shadow:0 2px 8px #0003}
+html.kw-dark #wordCandidates{background:#26211e;color:#eee}
+@media print{#wordCandidates{display:none!important}}
+
 </style>
 </head>
 <body>
@@ -357,7 +365,7 @@ html.kw-dark .page-preview .editor-char.search-target{color:#231f1c;background:#
   <button id="fileNameBtn">名前変更</button>
   <button id="pdfBtn" title="ルビは（本文（よみ））と入力するとPDFで変換されます。TXTにはそのまま保存されます。">PDF / 印刷</button>
   <div class="spacer"></div>
-  <button id="findBtn">検索・置換</button>
+  <button id="dictionaryBtn">創作辞書</button><button id="voiceBtn">音声執筆</button><button id="backupsBtn">保存履歴</button><button id="findBtn">検索・置換</button>
   <button id="formatBtn">体裁を整える</button>
   <button id="trimLeadingBtn" title="原稿先頭に残った空行だけを確認のうえ削除します">先頭空行を削除</button>
   <button id="selectAllBtn">全文を選択</button>
@@ -402,7 +410,7 @@ html.kw-dark .page-preview .editor-char.search-target{color:#231f1c;background:#
 <div class="workspace"><div id="pages" class="pages"></div></div>
 
 <div class="statusbar">
-  <span id="saveStatus">自動保存</span>
+  <span id="saveStatus">自動保存</span><button id="saveHelpBtn" type="button">保存について</button>
   <span id="count">0文字</span>
   <span id="cursor">1ページ 1行 1列</span>
   <span id="pageInfo">40字 × 30行</span>
@@ -411,6 +419,39 @@ html.kw-dark .page-preview .editor-char.search-target{color:#231f1c;background:#
   <span id="documentName"></span>
   <span class="build" id="buildVersion">Kotoba Writer build 37</span>
 </div>
+
+<div id="dictionaryPanel" class="panel" role="dialog" aria-label="創作辞書">
+<h3>創作辞書</h3><div class="row"><label>作品 <select id="dictionaryWork"></select></label><button id="addWork">作品を追加</button><button id="closeDictionary">閉じる</button></div>
+<p class="note">辞書は端末内に保存。表記・読み・誤認識される言葉を登録すると、候補表示と音声補正に使えます。iPadのキーボード辞書への登録ではありません。</p>
+<label class="kw58-field">表記 <input id="wordSpelling" maxlength="100" placeholder="アスタロト・マギア"></label>
+<label class="kw58-field">読み <input id="wordReading" maxlength="100" placeholder="あすたろとまぎあ"></label>
+<label class="kw58-field">別名・誤認識（1行に1つ） <textarea id="wordAliases" rows="3" placeholder="アスタロトマギア"></textarea></label>
+<div class="row"><button id="saveWord">登録</button><button id="cancelWordEdit">編集を解除</button><label><input id="predictionEnabled" type="checkbox" checked>入力中の候補</label></div>
+<label class="kw58-field">辞書を引く <input id="dictionarySearch" placeholder="表記・読み・別名で検索"></label><div id="dictionaryList"></div>
+<div class="row"><button id="exportDictionary">辞書を書き出す</button><button id="importDictionary">辞書を読み込む</button><input id="dictionaryImportFile" type="file" accept=".json,application/json" hidden></div><p id="dictionaryStatus" role="status"></p>
+</div>
+<div id="voicePanel" class="panel" role="dialog" aria-label="音声執筆">
+<h3>音声執筆</h3><p class="note">オンライン音声認識を使用します。音声はブラウザーの認識サービスへ送られる可能性があります。創作辞書による補正は端末内で行います。秘匿モードONでは開始できず、切り替えると停止します。</p>
+<div class="row"><button id="startVoice">認識開始</button><button id="stopVoice" disabled>停止</button><button id="closeVoice">閉じる</button></div>
+<label class="kw58-field"><input id="voiceConsent" type="checkbox">オンライン音声認識を許可する</label>
+<label class="kw58-field"><input id="voiceAuto" type="checkbox" checked>確定した文章をカーソル位置へ順次追加</label>
+<label class="kw58-field"><input id="voiceCorrection" type="checkbox" checked>選択中の作品辞書で補正する</label>
+<label class="kw58-field"><input id="voiceCommands" type="checkbox" checked>音声コマンド（「コマンド改行」「コマンド句点」「コマンド読点」「コマンドかぎ括弧開く／閉じる」）</label>
+<p id="voiceStatus" role="status">停止中</p><p id="voiceInterim" aria-live="polite"></p>
+<label class="kw58-field">未反映の音声下書き（編集できます）<textarea id="voiceDraft"></textarea></label>
+<div class="row"><button id="insertVoiceDraft">下書きを本文へ追加</button><button id="discardVoiceDraft">下書きを消す</button></div>
+<p class="note">未確定の認識は本文へ追加しません。認識が切れた場合は自動再開を試みます。音声の録音ファイルは保存しません。</p>
+</div>
+<div id="backupsPanel" class="panel" role="dialog" aria-label="保存履歴"><h3>自動保存・保存履歴</h3>
+<p class="note">本文は変更時に端末内へ保存。履歴は変更があるとき約1分ごと、また大量削除の前に保存し、最大10世代を保持します。復元前の本文も履歴に残します。TXTファイルへの自動上書きではありません。Webサイトデータを削除すると履歴も失われます。</p>
+<div class="note" id="localSaveNotice">
+<p><strong>自動保存は、この端末・このブラウザー内の、このサイト専用の保存領域に行います。</strong>同じ公開URLを別の端末で開いても、本文・辞書・保存履歴は共有されず、他の利用者の編集があなたの原稿に反映されることもありません。自動保存で原稿をサーバーへ送信することはありません。</p>
+<p><strong>同じ端末の同じブラウザーを複数人で共有すると、保存された原稿も共有されます。</strong>共有端末での利用にご注意ください。</p>
+<p>別の端末・別のブラウザー・プライベートブラウズ・別のサイトには、自動保存データは引き継がれません。Safariとホーム画面に追加したアプリでも、保存領域が分かれる場合があります。</p>
+<p>作品を個別に保管したいときや「新規」で次の作品を書く前は「TXT保存」を使い、戻るときは「TXTを開く」で選んでください。Webサイトデータを削除すると、自動保存データと保存履歴も失われます。</p>
+</div>
+<div class="row"><button id="snapshotNow">今の状態を履歴に残す</button><button id="closeBackups">閉じる</button></div><p id="backupStatus" role="status"></p><div id="backupList"></div></div>
+<div id="wordCandidates" hidden aria-label="辞書の予測候補"></div>
 
 <div id="fileNamePanel" class="panel">
   <h3>保存するファイル名</h3>
@@ -458,7 +499,7 @@ html.kw-dark .page-preview .editor-char.search-target{color:#231f1c;background:#
   <textarea id="fullText" aria-label="全文（編集・選択・コピー用）"></textarea>
 </div>
 <div id="licensesPanel" class="panel" role="dialog" aria-label="利用条件・ライセンス">
-  <div id="licensesHeader"><button id="closeLicenses">閉じる</button><a id="licensesDirectLink" href="./licenses.html?view=build57" target="_blank" rel="noopener noreferrer">利用条件を別タブで開く</a></div>
+  <div id="licensesHeader"><button id="closeLicenses">閉じる</button><a id="licensesDirectLink" href="./licenses.html?view=build58" target="_blank" rel="noopener noreferrer">利用条件を別タブで開く</a></div>
   <div id="licensesStatus" role="status" aria-live="polite"></div>
   <div id="licensesContent" role="document" aria-label="利用条件の本文" tabindex="0"></div>
 </div>
@@ -466,7 +507,7 @@ html.kw-dark .page-preview .editor-char.search-target{color:#231f1c;background:#
 <div id="printArea"></div>
 
 <script type="module">
-const BUILD=57;
+const BUILD=58;
 const $=id=>document.getElementById(id);
 $('buildVersion').textContent='Kotoba Writer build '+BUILD;
 const STORAGE='kotoba-writer-draft-v1';
@@ -624,8 +665,10 @@ function loadSettings(){
   }catch{}
 }
 function save(){
-  try{localStorage.setItem(STORAGE,docText);$('saveStatus').textContent='端末内に保存済み'}
-  catch{$('saveStatus').textContent='保存エラー'}
+  $('saveStatus').textContent='保存中…';
+  let localOK=false;
+  try{localStorage.setItem(STORAGE,docText);localOK=true}catch{}
+  saveRecovery(localOK);
 }
 function remember(){
   if(history.length && history[history.length-1]===docText)return;
@@ -2062,6 +2105,8 @@ $('pasteFullText').onclick=async()=>{
 };
 /* 秘匿モード */
 function syncPrivacy(){
+  if(privacyMode)stopVoiceRecognition("秘匿モードONのため停止しました");
+  $("startVoice").disabled=privacyMode;
   $('privacyBtn').textContent=privacyMode?'秘匿モード ON':'秘匿モード OFF';
   $('privacyBtn').classList.toggle('on',privacyMode);
   $('privacyBanner').classList.toggle('show',privacyMode);
@@ -2177,6 +2222,270 @@ document.querySelectorAll('[data-preset]').forEach(b=>b.onclick=()=>{
 window.addEventListener('pagehide',()=>{if(!isComposing)save()});
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&!isComposing)save()});
 
+/* build58: local recovery; no network or microphone use on startup. */
+const DICT_KEY='kotoba-writer-dictionary-v1',VOICE_KEY='kotoba-writer-voice-draft-v1',RECOVERY_KEY='kotoba-writer-current-v58';
+let recoveryDB=null,recoveryState={current:null,backups:[]},recoveryQueue=Promise.resolve(),saveSerial=0;
+let previousSaved=null,lastBackupAt=0;
+function captureRecovery(){return {text:docText,name:documentFileName,settings:getSettings(),voiceDraft:$('voiceDraft').value,time:Date.now()};}
+function retainBackup(item){
+  if(!item)return;
+  const last=recoveryState.backups.at(-1);
+  if(last?.text===item.text&&last?.name===item.name)return;
+  recoveryState.backups.push({...item,time:Date.now()});
+  recoveryState.backups=recoveryState.backups.slice(-10);lastBackupAt=Date.now();
+}
+function persistRecovery(){
+  const value=structuredClone(recoveryState);
+  recoveryQueue=recoveryQueue.catch(()=>{}).then(()=>new Promise((resolve,reject)=>{
+    if(!recoveryDB){reject(Error('保存履歴を利用できません'));return;}
+    const tx=recoveryDB.transaction('recovery','readwrite');tx.objectStore('recovery').put(value,'state');
+    tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error||Error('保存中断'));
+  }));return recoveryQueue;
+}
+function saveRecovery(localOK){
+  const serial=++saveSerial,item=captureRecovery();
+  try{localStorage.setItem(RECOVERY_KEY,JSON.stringify(item));localOK=true;}catch{}
+  if(previousSaved&&(previousSaved.name!==item.name||previousSaved.text.length-item.text.length>=Math.max(100,previousSaved.text.length*.2)))retainBackup(previousSaved);
+  recoveryState.current=item;previousSaved=item;
+  if(!recoveryState.backups.length)retainBackup(item);
+  persistRecovery().then(()=>{
+    if(serial===saveSerial)$('saveStatus').textContent='端末内に保存済み '+new Date(item.time).toLocaleTimeString('ja-JP');
+  }).catch(()=>{
+    if(serial===saveSerial)$('saveStatus').textContent=localOK?'本文保存済み／保存履歴の保存失敗':'保存失敗：TXTで保存してください';
+  });
+}
+async function initializeRecovery(){
+  try{
+    recoveryDB=await new Promise((resolve,reject)=>{
+      const req=indexedDB.open('kotoba-writer-recovery-v1',1);
+      req.onupgradeneeded=()=>req.result.createObjectStore('recovery');req.onsuccess=()=>resolve(req.result);
+      req.onerror=()=>reject(req.error);req.onblocked=()=>reject(Error('保存領域が使用中です'));
+    });
+    const stored=await new Promise((resolve,reject)=>{
+      const tx=recoveryDB.transaction('recovery');const r=tx.objectStore('recovery').get('state');
+      r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);
+    });
+    if(stored&&typeof stored.current?.text==='string'&&Array.isArray(stored.backups)){
+      recoveryState=stored;recoveryState.backups=stored.backups.slice(-10);
+      if(stored.current.text!==docText){
+        // Legacy localStorage draft remains authoritative when present. Preserve
+        // the other copy for review rather than silently overriding either one.
+        if(localStorage.getItem(STORAGE)===null){docText=stored.current.text;documentFileName=stored.current.name||documentFileName;}
+        else retainBackup(stored.current);
+      }
+    }
+  }catch{$('backupStatus').textContent='保存履歴を開けませんでした。TXT保存をご利用ください。';}
+  let envelope=null;try{envelope=JSON.parse(localStorage.getItem(RECOVERY_KEY)||'null');}catch{}
+  const durable=recoveryState.current;
+  const chosen=durable&&(!envelope||durable.time>envelope.time)?durable:envelope;
+  if(chosen&&typeof chosen.text==='string'){
+    docText=chosen.text;documentFileName=chosen.name||documentFileName;
+    if(typeof chosen.voiceDraft==='string')$('voiceDraft').value=chosen.voiceDraft;
+    try{localStorage.setItem(STORAGE,docText);localStorage.setItem(FILE_NAME_KEY,documentFileName);}catch{}
+  }
+  previousSaved=captureRecovery();lastBackupAt=Date.now();
+  if(!recoveryState.backups.length)retainBackup(previousSaved);
+}
+setInterval(()=>{
+  if(isComposing||fullTextComposing||Date.now()-lastBackupAt<60000)return;
+  const last=recoveryState.backups.at(-1),current=captureRecovery();
+  if(last?.text===current.text&&last?.name===current.name)return;
+  retainBackup(current);persistRecovery().catch(()=>{$('saveStatus').textContent='本文の保存状態を確認してください／履歴保存失敗';});
+},10000);
+function renderBackups(){
+  const list=$('backupList');list.replaceChildren();
+  [...recoveryState.backups].reverse().forEach(item=>{
+    const row=document.createElement('div'),label=document.createElement('span'),restore=document.createElement('button'),exportBtn=document.createElement('button');
+    label.textContent=new Date(item.time).toLocaleString('ja-JP')+' / '+item.name+' / '+item.text.length+'文字 ';
+    restore.textContent='復元';exportBtn.textContent='TXT保存';
+    exportBtn.onclick=()=>downloadText(item.text,cleanFileName(item.name));
+    restore.onclick=async()=>{
+      if(isComposing||fullTextComposing){$('backupStatus').textContent='変換を確定してから復元してください';return;}
+      if(!confirm('この履歴を復元しますか？現在の本文は復元前に履歴へ保存します。'))return;
+      stopVoiceRecognition('履歴の復元のため停止しました');retainBackup(captureRecovery());
+      try{await persistRecovery();}catch{$('backupStatus').textContent='復元前の本文を保存できないため復元を中止しました';return;}
+      documentFileHandle=null;setFileName(item.name);setDoc(item.text,0,0,true,false);renderBackups();
+      $('backupStatus').textContent='復元しました。取り消しも利用できます。';
+    };
+    row.append(label,restore,exportBtn);list.append(row);
+  });
+}
+$('backupsBtn').onclick=()=>{renderBackups();$('backupsPanel').classList.add('show');};
+$('saveHelpBtn').onclick=$('backupsBtn').onclick;
+$('closeBackups').onclick=()=>$('backupsPanel').classList.remove('show');
+$('snapshotNow').onclick=async()=>{
+  if(isComposing||fullTextComposing){$('backupStatus').textContent='変換を確定してください';return;}
+  retainBackup(captureRecovery());try{await persistRecovery();$('backupStatus').textContent='履歴に保存しました';}catch{$('backupStatus').textContent='履歴保存失敗：TXT保存をご利用ください';}renderBackups();
+};
+let dictionary={works:[{id:'default',name:'共通',words:[]}],active:'default',predict:true},editingWord=null;
+function validateDictionary(d){
+  if(!d||!Array.isArray(d.works)||!d.works.length||d.works.length>100)throw Error('辞書の形式が違います');
+  const ids=new Set();
+  for(const w of d.works){
+    if(typeof w.id!=='string'||ids.has(w.id)||typeof w.name!=='string'||!w.name||!Array.isArray(w.words)||w.words.length>5000)throw Error('作品の形式が違います');ids.add(w.id);
+    for(const x of w.words)if(typeof x.spelling!=='string'||!x.spelling||x.spelling.length>100||typeof x.reading!=='string'||x.reading.length>100||!Array.isArray(x.aliases)||x.aliases.length>30||x.aliases.some(a=>typeof a!=='string'||!a||a.length>100))throw Error('単語の形式が違います');
+  }
+  return {works:d.works.map(w=>({id:w.id,name:w.name.slice(0,100),words:w.words.map(x=>({spelling:x.spelling,reading:x.reading,aliases:x.aliases}))})),active:ids.has(d.active)?d.active:d.works[0].id,predict:d.predict!==false};
+}
+try{const raw=localStorage.getItem(DICT_KEY);if(raw)dictionary=validateDictionary(JSON.parse(raw));}catch{$('dictionaryStatus').textContent='辞書を読み込めませんでした。保存データを上書きする前に書き出し元を確認してください。';}
+const activeWords=()=>dictionary.works.find(w=>w.id===dictionary.active).words;
+function saveDictionary(next){
+  try{localStorage.setItem(DICT_KEY,JSON.stringify(next));dictionary=next;$('dictionaryStatus').textContent='辞書を端末内に保存済み';return true;}
+  catch{$('dictionaryStatus').textContent='辞書保存失敗。辞書を書き出してください。';return false;}
+}
+function resetWordForm(){editingWord=null;$('wordSpelling').value='';$('wordReading').value='';$('wordAliases').value='';$('saveWord').textContent='登録';}
+function drawDictionary(){
+  const select=$('dictionaryWork');select.replaceChildren();
+  for(const w of dictionary.works){const o=document.createElement('option');o.value=w.id;o.textContent=w.name;select.append(o);}select.value=dictionary.active;
+  $('predictionEnabled').checked=dictionary.predict;
+  const q=$('dictionarySearch').value.trim(),list=$('dictionaryList');list.replaceChildren();
+  activeWords().forEach((w,i)=>{
+    if(q&&![w.spelling,w.reading,...w.aliases].some(s=>s.includes(q)))return;
+    const row=document.createElement('div'),label=document.createElement('span');label.textContent=w.spelling+'（'+w.reading+'）';
+    const insert=document.createElement('button');insert.textContent='本文へ挿入';insert.onclick=()=>insertAtCaret(w.spelling);
+    const edit=document.createElement('button');edit.textContent='編集';edit.onclick=()=>{editingWord=i;$('wordSpelling').value=w.spelling;$('wordReading').value=w.reading;$('wordAliases').value=w.aliases.join('\n');$('saveWord').textContent='変更を保存';};
+    const del=document.createElement('button');del.textContent='削除';del.onclick=()=>{if(!confirm(w.spelling+'を辞書から削除しますか？'))return;const next=structuredClone(dictionary);next.works.find(w=>w.id===next.active).words.splice(i,1);if(saveDictionary(next)){resetWordForm();drawDictionary();}};
+    row.append(label,insert,edit,del);list.append(row);
+  });
+}
+$('dictionaryBtn').onclick=()=>{drawDictionary();$('dictionaryPanel').classList.add('show');};
+$('closeDictionary').onclick=()=>$('dictionaryPanel').classList.remove('show');
+$('cancelWordEdit').onclick=resetWordForm;
+$('dictionarySearch').oninput=drawDictionary;
+$('dictionaryWork').onchange=()=>{const next=structuredClone(dictionary);next.active=$('dictionaryWork').value;if(saveDictionary(next)){resetWordForm();drawDictionary();}};
+$('addWork').onclick=()=>{const name=prompt('作品名');if(!name?.trim())return;const next=structuredClone(dictionary);const id=crypto.randomUUID();next.works.push({id,name:name.trim().slice(0,100),words:[]});next.active=id;if(saveDictionary(next)){resetWordForm();drawDictionary();}};
+$('predictionEnabled').onchange=()=>{const next=structuredClone(dictionary);next.predict=$('predictionEnabled').checked;if(!saveDictionary(next))$('predictionEnabled').checked=dictionary.predict;};
+$('saveWord').onclick=()=>{
+  const word={spelling:$('wordSpelling').value.trim(),reading:$('wordReading').value.trim(),aliases:[...new Set($('wordAliases').value.split('\n').map(x=>x.trim()).filter(Boolean))]};
+  if(!word.spelling){$('dictionaryStatus').textContent='表記を入力してください';return;}
+  const next=structuredClone(dictionary),words=next.works.find(w=>w.id===next.active).words;
+  if(words.some((x,i)=>x.spelling===word.spelling&&i!==editingWord)){$('dictionaryStatus').textContent='同じ表記は登録済みです。編集してください。';return;}
+  if(editingWord===null)words.push(word);else words[editingWord]=word;
+  try{validateDictionary(next);}catch(e){$('dictionaryStatus').textContent=e.message;return;}
+  if(saveDictionary(next)){resetWordForm();drawDictionary();}
+};
+$('exportDictionary').onclick=()=>downloadText(JSON.stringify(dictionary,null,2),'kotoba-dictionary.json');
+$('importDictionary').onclick=()=>$('dictionaryImportFile').click();
+$('dictionaryImportFile').onchange=async e=>{
+  const file=e.target.files[0];if(!file)return;
+  try{if(file.size>5000000)throw Error('辞書が大きすぎます');const d=validateDictionary(JSON.parse(await file.text()));if(confirm('現在の辞書を読み込んだ辞書で置き換えますか？必要なら先に辞書を書き出してください。')&&saveDictionary(d)){resetWordForm();drawDictionary();}}catch(e){$('dictionaryStatus').textContent='読み込み失敗：'+e.message;}finally{e.target.value='';}
+};
+function kanaKey(s){return s.normalize('NFKC').replace(/[ァ-ヶ]/g,c=>String.fromCharCode(c.charCodeAt(0)-0x60));}
+function correctVoice(text){
+  if(!$('voiceCorrection').checked)return text;
+  const tokens=new Map();
+  for(const w of activeWords())for(const token of [w.spelling,w.reading,...w.aliases].filter(Boolean)){
+    const key=kanaKey(token);if(!tokens.has(key))tokens.set(key,new Set());tokens.get(key).add(w.spelling);
+  }
+  const keys=[...tokens.keys()].sort((a,b)=>b.length-a.length);let out='';
+  // Exact normalized matches only. Ambiguous aliases remain unchanged.
+  for(let i=0;i<text.length;){let hit=false;
+    for(const key of keys){let end=i;let normalized='';while(end<text.length&&normalized.length<key.length){normalized+=kanaKey(text[end++]);}
+      if(normalized!==key)continue;
+      const values=tokens.get(key);out+=values.size===1?[...values][0]:text.slice(i,end);i=end;hit=true;break;
+    }
+    if(!hit)out+=text[i++];
+  }return out;
+}
+function insertAtCaret(text){
+  if(isComposing||fullTextComposing||$('fullTextPanel').classList.contains('show')){$('voiceStatus').textContent='変換を確定し、全文編集を閉じてから本文へ追加してください';return false;}
+  const start=Math.min(globalCaret,globalSelEnd),end=Math.max(globalCaret,globalSelEnd);
+  setDoc(docText.slice(0,start)+text+docText.slice(end),start+text.length,start+text.length,true,false);
+  $('wordCandidates').hidden=true;return true;
+}
+function showWordCandidates(e){
+  const ta=e.target;if(!ta.classList?.contains('page-editor'))return;
+  const box=$('wordCandidates');box.hidden=true;
+  if(!dictionary.predict||isComposing||ta.selectionStart!==ta.selectionEnd)return;
+  const c=chunks[+ta.dataset.index];if(!c)return;const end=c.start+ta.selectionStart;
+  const prefix=docText.slice(Math.max(0,end-100),end),matches=[];
+  for(const w of activeWords()){
+    let len=0;for(const token of [w.reading,...w.aliases].filter(Boolean)){
+      for(let n=Math.min(prefix.length,token.length);n>=1;n--){const tail=prefix.slice(-n);if(kanaKey(token).startsWith(kanaKey(tail))){len=Math.max(len,n);break;}}
+    }if(len)matches.push({w,len});
+  }
+  if(!matches.length)return;box.replaceChildren();const snap=docText;
+  matches.sort((a,b)=>b.len-a.len).slice(0,5).forEach(({w,len})=>{
+    const b=document.createElement('button');b.textContent=w.spelling;b.onpointerdown=e=>e.preventDefault();
+    b.onclick=()=>{if(docText!==snap||isComposing)return;setDoc(docText.slice(0,end-len)+w.spelling+docText.slice(end),end-len+w.spelling.length,end-len+w.spelling.length,true,true);box.hidden=true;};box.append(b);
+  });const close=document.createElement('button');close.textContent='閉じる';close.onclick=()=>box.hidden=true;box.append(close);box.hidden=false;
+}
+document.addEventListener('input',e=>setTimeout(()=>showWordCandidates(e),0));
+document.addEventListener('compositionend',e=>setTimeout(()=>showWordCandidates(e),0));
+document.addEventListener('selectionchange',()=>{$('wordCandidates').hidden=true;});
+let voiceRecognition=null,voiceWanted=false,voiceGeneration=0,voiceRestartTimer=null,voiceEmptyEnds=0;
+try{$('voiceDraft').value=localStorage.getItem(VOICE_KEY)||'';}catch{}
+function persistVoiceDraft(){try{const state=captureRecovery();localStorage.setItem(RECOVERY_KEY,JSON.stringify(state));localStorage.setItem(VOICE_KEY,$('voiceDraft').value);recoveryState.current=state;persistRecovery().catch(()=>{});return true;}catch{$('voiceStatus').textContent='音声下書きの保存失敗。本文へ追加するかコピーしてください。';return false;}}
+function voiceCommand(text){
+  if(!$('voiceCommands').checked)return text;
+  const commands={'コマンド改行':'\n','コマンド句点':'。','コマンド読点':'、','コマンドかぎ括弧開く':'「','コマンドかぎ括弧閉じる':'」'};
+  const key=text.trim().replace(/[。．.!！?？]+$/,'');return commands[key]??correctVoice(text);
+}
+function acceptVoiceText(raw){
+  const text=voiceCommand(raw);if(!text)return;
+  // Persist the pending text before touching the manuscript. Do not pass
+  // interim hypotheses into setDoc or the undo stack.
+  $('voiceDraft').value+=text;persistVoiceDraft();
+  if($('voiceAuto').checked&&!isComposing&&!fullTextComposing&&!$('fullTextPanel').classList.contains('show'))insertPendingVoice();
+}
+function insertPendingVoice(){
+  const text=$('voiceDraft').value;if(!text)return;
+  if(isComposing||fullTextComposing||$('fullTextPanel').classList.contains('show')){insertAtCaret(text);return;}
+  $('voiceDraft').value='';
+  if(insertAtCaret(text)){persistVoiceDraft();$('voiceStatus').textContent=voiceWanted?'認識中：本文へ追加しました':'下書きを本文へ追加しました';}
+  else {$('voiceDraft').value=text;persistVoiceDraft();}
+}
+function stopVoiceRecognition(message='停止しました'){
+  voiceWanted=false;++voiceGeneration;clearTimeout(voiceRestartTimer);voiceRestartTimer=null;
+  const r=voiceRecognition;voiceRecognition=null;try{r?.abort();}catch{}
+  $('voiceInterim').textContent='';$('startVoice').disabled=privacyMode;$('stopVoice').disabled=true;$('voiceStatus').textContent=message;
+}
+function createVoiceSession(){
+  if(!voiceWanted||privacyMode||!navigator.onLine||document.visibilityState==='hidden'){stopVoiceRecognition('認識を停止しました');return;}
+  const C=window.SpeechRecognition||window.webkitSpeechRecognition;
+  const r=new C(),generation=++voiceGeneration;voiceRecognition=r;let hadResult=false;
+  r.lang='ja-JP';r.continuous=true;r.interimResults=true;r.maxAlternatives=1;const seen=new Set();
+  r.onresult=e=>{
+    if(generation!==voiceGeneration||privacyMode||!voiceWanted)return;
+    let interim='';
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      const result=e.results[i];if(result.isFinal){if(!seen.has(i)){seen.add(i);hadResult=true;voiceEmptyEnds=0;acceptVoiceText(result[0].transcript);}}
+      else interim+=result[0].transcript;
+    }$('voiceInterim').textContent=interim?'認識中（未確定）：'+interim:'';
+  };
+  r.onerror=e=>{
+    if(generation!==voiceGeneration)return;
+    const messages={'not-allowed':'マイク・音声認識の許可を確認してください','service-not-allowed':'音声認識サービスを利用できません。Safariで開き、Siri・音声入力の設定を確認してください','audio-capture':'マイクを利用できません','network':'音声認識の通信に失敗しました','language-not-supported':'日本語の音声認識を利用できません'};
+    if(e.error!=='no-speech')stopVoiceRecognition(messages[e.error]||'認識エラー：'+e.error);
+  };
+  r.onend=()=>{
+    if(generation!==voiceGeneration||!voiceWanted)return;voiceRecognition=null;$('voiceInterim').textContent='';
+    if(!hadResult&&++voiceEmptyEnds>=3){stopVoiceRecognition('認識が続かないため停止しました。認識開始で再開してください。');return;}
+    $('voiceStatus').textContent='認識を再開しています…';voiceRestartTimer=setTimeout(createVoiceSession,700);
+  };
+  r.onstart=()=>{if(generation===voiceGeneration)$('voiceStatus').textContent='認識中 / 辞書：'+dictionary.works.find(w=>w.id===dictionary.active).name;};
+  try{r.start();}catch(e){stopVoiceRecognition('認識を開始できません：'+e.message);}
+}
+$('voiceBtn').onclick=()=>{$('voicePanel').classList.add('show');};
+$('closeVoice').onclick=()=>{stopVoiceRecognition();$('voicePanel').classList.remove('show');};
+$('startVoice').onclick=()=>{
+  if(privacyMode){$('voiceStatus').textContent='秘匿モードONでは開始できません';return;}
+  if(!$('voiceConsent').checked){$('voiceStatus').textContent='オンライン音声認識の許可にチェックしてください';return;}
+  if(!(window.SpeechRecognition||window.webkitSpeechRecognition)){$('voiceStatus').textContent='このブラウザーは音声認識に対応していません。Safariでお試しください。';return;}
+  if(!navigator.onLine){$('voiceStatus').textContent='オンラインで開始してください';return;}
+  if(voiceWanted)return;voiceWanted=true;voiceEmptyEnds=0;$('startVoice').disabled=true;$('stopVoice').disabled=false;createVoiceSession();
+};
+$('stopVoice').onclick=()=>stopVoiceRecognition();
+$('voiceConsent').onchange=()=>{if(!$('voiceConsent').checked)stopVoiceRecognition('オンライン音声認識の許可を解除しました');};
+$('voiceDraft').oninput=persistVoiceDraft;
+$('insertVoiceDraft').onclick=insertPendingVoice;
+$('discardVoiceDraft').onclick=()=>{if(confirm('未反映の音声下書きを消しますか？')){$('voiceDraft').value='';persistVoiceDraft();}};
+window.addEventListener('offline',()=>stopVoiceRecognition('オフラインのため停止しました'));
+window.addEventListener('pagehide',()=>stopVoiceRecognition());
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')stopVoiceRecognition('画面を離れたため停止しました');});
+drawDictionary();
+
+await initializeRecovery();
 viewportChanged();
 syncFileName();
 loadSettings();

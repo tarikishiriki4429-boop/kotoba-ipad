@@ -1,6 +1,6 @@
-// Kotoba Writer: build57 staging scrolling and IME overlay fix; license view reliability.
+// Kotoba Writer: build58 dictionary, voice writing and local recovery; license view reliability.
 // No AI libraries, workers, models, or external AI endpoints are requested.
-const CACHE='kotoba-writer-shell-v58';
+const CACHE='kotoba-writer-shell-v60';
 const PRIVACY_FLAG='kotoba-writer-privacy-lock-v1';
 const SHELL=['./','./index.html','./manifest.webmanifest','./licenses.html'];
 
