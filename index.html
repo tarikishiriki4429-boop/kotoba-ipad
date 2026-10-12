@@ -399,8 +399,48 @@ html.kw-dark .voice-toggle.is-recording{background:#9e252d;color:#fff;border-col
 #dictionaryList button,#backupList button,#wordCandidates button{margin:4px}
 #wordCandidates{position:fixed;bottom:40px;left:10px;right:10px;z-index:80;background:#fff;padding:8px;border:1px solid #999;box-shadow:0 2px 8px #0003}
 html.kw-dark #wordCandidates{background:#26211e;color:#eee}
-@media print{#wordCandidates{display:none!important}}
+/* build60: unobtrusive speech recognition alternatives in a compact strip,
+   never as a panel covering the current manuscript. */
+#voiceCandidateBar[hidden]{display:none!important}
+#voiceCandidateBar{flex-shrink:0;display:flex;align-items:center;gap:7px;max-height:45px;
+ overflow-x:auto;white-space:nowrap;-webkit-overflow-scrolling:touch;padding:4px 10px;
+ border-top:1px solid #d6d0c8;background:#f2f0eb;color:#333;font-size:12px}
+#voiceCandidateBar .kw60-label{font-weight:700;flex-shrink:0}
+#voiceCandidateOptions{display:flex;align-items:center;gap:5px}
+#voiceCandidateBar button{flex-shrink:0;padding:5px 10px;border-radius:8px;font-size:12px;margin:0}
+#voiceCandidateDismiss{margin-left:auto!important}
+.kw60-privacy{padding:11px 12px;margin:12px 0;background:#f6f7f5;border:1px solid #d7dbd5;
+ border-radius:10px;line-height:1.6;font-size:12px}
+.kw60-privacy h4{font-size:14px;margin:0 0 6px}
+.kw60-privacy p{margin:6px 0}
+.kw60-privacy .kw60-privacy-highlight{font-weight:700}
+.kw60-hint{font-size:12px;color:#625c54;margin:6px 0 10px;line-height:1.55}
+html.kw-dark #voiceCandidateBar{background:#302a26;color:#ddd6ce;border-color:#595047}
+html.kw-dark .kw60-privacy{background:#302e29;border-color:#576057;color:#ddd6ce}
+html.kw-dark .kw60-hint{color:#c1b8af}
+@media print{#wordCandidates,#voiceCandidateBar{display:none!important}}
 
+/* build61: compact in-settings explanation of data flow and user controls. */
+.kw61-data-guide{margin-top:10px;border-top:1px solid #d1d6d0;padding-top:8px}
+.kw61-data-guide summary{font-size:13px;font-weight:700;cursor:pointer;line-height:1.5}
+.kw61-data-guide[open] summary{margin-bottom:6px}
+.kw61-subtitle{font-size:12px;font-weight:700;margin:12px 0 6px!important}
+.kw61-flow{display:flex;flex-direction:column;gap:3px;max-width:470px}
+.kw61-flow-step{background:#fff;border:1px solid #d4d8d2;border-radius:8px;padding:7px 10px;display:flex;flex-direction:column;gap:1px}
+.kw61-flow-step strong{font-size:12px}
+.kw61-flow-step span{font-size:12px}
+.kw61-flow-service{border-color:#bdad83;background:#fff9eb}
+.kw61-flow-local{border-color:#98b7a5;background:#f3faf4}
+.kw61-flow-arrow{margin-left:13px;font-size:14px;line-height:1.1;color:#656b66}
+.kw61-choice-grid{display:grid;gap:6px}
+.kw61-choice-grid>div{display:flex;flex-direction:column;gap:2px;padding:7px 9px;border-left:3px solid #7b9cac;background:#fff;border-radius:5px}
+.kw61-choice-grid strong,.kw61-choice-grid span{font-size:12px}
+.kw61-caution{font-size:11px;line-height:1.6;margin:9px 0 1px!important}
+html.kw-dark .kw61-data-guide{border-color:#59594f}
+html.kw-dark .kw61-flow-step,html.kw-dark .kw61-choice-grid>div{background:#37332e;border-color:#5c5c52;color:#e9e1d8}
+html.kw-dark .kw61-flow-service{background:#413a2c;border-color:#917b4d}
+html.kw-dark .kw61-flow-local{background:#304038;border-color:#577865}
+html.kw-dark .kw61-flow-arrow{color:#c0beb8}
 </style>
 </head>
 <body>
@@ -458,6 +498,10 @@ html.kw-dark #wordCandidates{background:#26211e;color:#eee}
 
 <div id="privacyBanner" class="privacy-banner">秘匿モードON：ネット取得をキャッシュ限定にしています。</div>
 <div class="workspace"><div id="pages" class="pages"></div></div>
+<div id="voiceCandidateBar" hidden role="group" aria-label="音声認識の変換候補">
+  <span class="kw60-label">音声候補</span><div id="voiceCandidateOptions"></div>
+  <button id="voiceCandidateDismiss" type="button" title="変換候補を閉じる">閉じる</button>
+</div>
 
 <div class="statusbar">
   <span id="saveStatus">自動保存</span><button id="saveHelpBtn" type="button">保存について</button><button id="voiceMiniToggle" type="button" class="voice-mini-toggle voice-toggle" aria-pressed="false" title="音声入力を開始・停止">🎙 音声：停止中</button>
@@ -502,7 +546,32 @@ html.kw-dark #wordCandidates{background:#26211e;color:#eee}
   <strong>⌨ 音声入力中も、本文をキーボードで編集できます</strong>
   <span>設定画面を閉じて原稿を表示したまま、<b>「」・句読点・改行の入力や文章の修正</b>ができます。手入力中も音声認識は継続します。日本語変換中に届いた音声結果は、いったん下書きに保持します。</span>
 </div>
-<p class="note">音声の開始・停止は、上部の「🎙音声入力開始／⏹音声入力停止」または下部の小さなボタンから操作できます。オンライン音声認識を使用し、音声がブラウザーの認識サービスへ送られる場合があります。創作辞書による補正は端末内で行います。秘匿モードONでは音声認識を開始できず、途中で切り替えると停止します。</p>
+<p class="note">音声の開始・停止は上部または下部の小さなマイクボタンから操作できます。設定を閉じても本文を見ながら音声入力できます。</p>
+<section class="kw60-privacy" aria-label="音声入力とプライバシー">
+<h4>🎙 音声入力とプライバシー</h4>
+<p class="kw60-privacy-highlight">Kotoba Writerは録音ファイルを保存せず、音声を独自サーバーに集めたり、独自のAI学習に使ったりしません。</p>
+<p>文字起こしにはブラウザーの音声認識機能を使います。<strong>話した音声が外部の認識サービスへ送られる場合があります。</strong>提供元での保存や学習利用は、提供元の方針によるため、Kotoba Writerから禁止・保証はできません。</p>
+<details class="kw61-data-guide" open>
+  <summary>データの流れと、自分で選べること</summary>
+  <p class="kw61-subtitle">音声入力を使うときのデータの流れ</p>
+  <div class="kw61-flow" aria-label="音声入力のデータの流れ">
+    <div class="kw61-flow-step"><strong>① あなたの声</strong><span>端末のマイクから入力</span></div>
+    <span class="kw61-flow-arrow" aria-hidden="true">↓</span>
+    <div class="kw61-flow-step kw61-flow-service"><strong>② ブラウザーの音声認識</strong><span>外部の認識サービスへ送られる場合があります</span></div>
+    <span class="kw61-flow-arrow" aria-hidden="true">↓</span>
+    <div class="kw61-flow-step"><strong>③ 認識された文字</strong><span>創作辞書による補正は端末内で実行</span></div>
+    <span class="kw61-flow-arrow" aria-hidden="true">↓</span>
+    <div class="kw61-flow-step kw61-flow-local"><strong>④ 原稿または音声下書き</strong><span>本文・下書きの自動保存先は端末内です</span></div>
+  </div>
+  <p class="kw61-subtitle">音声入力の使い方は自分で選べます</p>
+  <div class="kw61-choice-grid">
+    <div><strong>音声を使わない</strong><span>下の「オンライン音声認識を許可する」をOFFにするか、上部の「秘匿モード」をONにします。</span></div>
+    <div><strong>使うときだけ音声入力</strong><span>秘匿モードをOFFにし、オンライン音声認識を許可して「🎙音声入力開始」を押します。終わったら停止します。</span></div>
+    <div><strong>文字を直接入れるか選ぶ</strong><span>下の「認識結果を本文へ自動入力する」で選びます。OFFなら下書きへ。<strong>この設定は音声の外部送信の有無を変えません。</strong></span></div>
+  </div>
+  <p class="kw61-caution">※音声認識サービスの提供元・保存期間・学習利用の可否を、このアプリから指定する機能はありません。不安な場合は音声入力を使わず、通常のタイピングで執筆できます。</p>
+</details>
+</section>
 <div class="row"><button id="startVoice" type="button" hidden>認識開始</button><button id="stopVoice" type="button" disabled hidden>停止</button><button id="closeVoice">設定を閉じる</button></div>
 <label class="kw58-field"><input id="voiceConsent" type="checkbox">オンライン音声認識を許可する</label>
 <label class="kw58-field"><input id="voiceAuto" type="checkbox" checked>認識結果を本文へ自動入力する</label>
@@ -512,6 +581,8 @@ html.kw-dark #wordCandidates{background:#26211e;color:#eee}
   <div class="kw59-auto-tip">※どちらの設定でも、音声入力中に本文をキーボードで編集できます。</div>
 </div>
 <label class="kw58-field"><input id="voiceCorrection" type="checkbox" checked>選択中の作品辞書で補正する</label>
+<label class="kw58-field"><input id="voiceSuggestions" type="checkbox" checked>音声認識の変換候補を表示する</label>
+<p class="kw60-hint">音声認識サービスが返した別候補や、創作辞書の候補を原稿下の小さな欄に表示します。候補を押すと直前の認識結果を置き換えます。原稿が変わった場合は誤置換を防ぐため適用できません。認識エンジン自体の精度を変える機能ではありません。</p>
 <label class="kw58-field"><input id="voiceCommands" type="checkbox" checked>音声コマンド（「コマンド改行」「コマンド句点」「コマンド読点」「コマンドかぎ括弧開く／閉じる」）</label>
 <p id="voiceStatus" role="status">停止中</p><p id="voiceInterim" aria-live="polite"></p>
 <label class="kw58-field">未反映の音声下書き（編集できます）<textarea id="voiceDraft"></textarea></label>
@@ -583,7 +654,7 @@ html.kw-dark #wordCandidates{background:#26211e;color:#eee}
 <div id="printArea"></div>
 
 <script type="module">
-const BUILD=59;
+const BUILD=61;
 const $=id=>document.getElementById(id);
 $('buildVersion').textContent='Kotoba Writer build '+BUILD;
 const STORAGE='kotoba-writer-draft-v1';
@@ -2551,12 +2622,92 @@ function voiceCommand(text){
   const commands={'コマンド改行':'\n','コマンド句点':'。','コマンド読点':'、','コマンドかぎ括弧開く':'「','コマンドかぎ括弧閉じる':'」'};
   const key=text.trim().replace(/[。．.!！?？]+$/,'');return commands[key]??correctVoice(text);
 }
-function acceptVoiceText(raw){
+// Candidate words are based only on real recognizer alternatives and the
+// locally registered dictionary. We cannot improve the browser's raw ASR.
+function voiceAlternatives(raw,alternatives){
+  const options=[];
+  const add=value=>{if(value&&!options.includes(value)&&options.length<8)options.push(value);};
+  for(const value of [raw,...alternatives]){add(voiceCommand(value));}
+  // Allow restoring the original recognition when local dictionary corrected it.
+  if(voiceCommand(raw)!==raw)add(raw);
+  const key=kanaKey(raw.trim());
+  if(key.length>=3){
+    for(const w of activeWords()){
+      const hits=[w.reading,...w.aliases].filter(Boolean).some(token=>{
+        const k=kanaKey(token);
+        return k.startsWith(key)&&k!==key;
+      });
+      if(hits)add(w.spelling);
+    }
+  }
+  return options;
+}
+let latestVoiceCandidate=null;
+function clearVoiceCandidates(){
+  latestVoiceCandidate=null;$('voiceCandidateBar').hidden=true;
+  $('voiceCandidateOptions').replaceChildren();
+}
+function showVoiceCandidates(raw,alternatives,kind,start,primary,snapshot){
+  clearVoiceCandidates();
+  if(!$('voiceSuggestions').checked||!primary||primary.startsWith('\n'))return;
+  const variants=voiceAlternatives(raw,alternatives);
+  // Only display the strip if distinct alternatives or dictionary suggestions exist.
+  if(variants.length<2)return;
+  latestVoiceCandidate={kind,start,primary,snapshot};
+  const opts=$('voiceCandidateOptions');
+  for(const variant of variants.slice(0,5)){
+    const button=document.createElement('button');button.type='button';
+    button.textContent=variant.length>28?variant.slice(0,27)+'…':variant;
+    button.title=variant;
+    if(variant===primary){button.disabled=true;button.title='現在の認識結果';}
+    button.onpointerdown=e=>e.preventDefault();
+    button.onclick=()=>applyVoiceCandidate(variant);
+    opts.append(button);
+  }
+  $('voiceCandidateBar').hidden=false;
+}
+function applyVoiceCandidate(variant){
+  const c=latestVoiceCandidate;if(!c)return;
+  if(isComposing||fullTextComposing){$('voiceStatus').textContent='日本語変換を確定してから候補を選んでください';return;}
+  if(c.kind==='doc'){
+    if(docText!==c.snapshot || docText.slice(c.start,c.start+c.primary.length)!==c.primary){
+      $('voiceStatus').textContent='本文が変更されたため古い音声候補は適用しません';clearVoiceCandidates();return;
+    }
+    if(variant!==c.primary){
+      const next=docText.slice(0,c.start)+variant+docText.slice(c.start+c.primary.length);
+      const caret=c.start+variant.length;
+      remember();docText=next;globalCaret=globalSelEnd=caret;
+      save();renderPages(caret,caret,document.activeElement?.classList?.contains('page-editor')===true,false);
+    }
+  }else{
+    const draft=$('voiceDraft');
+    if(draft.value!==c.snapshot||draft.value.slice(c.start,c.start+c.primary.length)!==c.primary){
+      $('voiceStatus').textContent='下書きが変更されたため古い音声候補は適用しません';clearVoiceCandidates();return;
+    }
+    draft.value=draft.value.slice(0,c.start)+variant+draft.value.slice(c.start+c.primary.length);
+    persistVoiceDraft();
+  }
+  clearVoiceCandidates();
+}
+$('voiceCandidateDismiss').onclick=clearVoiceCandidates;
+$('voiceSuggestions').onchange=()=>{if(!$('voiceSuggestions').checked)clearVoiceCandidates();};
+$('pages').addEventListener('input',()=>{if(latestVoiceCandidate)clearVoiceCandidates();});
+function acceptVoiceText(raw,alternatives=[]){
   const text=voiceCommand(raw);if(!text)return;
   // Persist the pending text before touching the manuscript. Do not pass
   // interim hypotheses into setDoc or the undo stack.
-  $('voiceDraft').value+=text;persistVoiceDraft();
-  if($('voiceAuto').checked&&!isComposing&&!fullTextComposing&&!$('fullTextPanel').classList.contains('show'))insertPendingVoice();
+  const draft=$('voiceDraft'),oldDraft=draft.value;
+  const beforeDoc=docText,startDoc=Math.min(globalCaret,globalSelEnd);
+  draft.value+=text;persistVoiceDraft();
+  const canAuto=$('voiceAuto').checked&&!isComposing&&!fullTextComposing&&!$('fullTextPanel').classList.contains('show');
+  if(canAuto)insertPendingVoice();
+  if(!oldDraft){
+    if(canAuto && beforeDoc!==docText){
+      showVoiceCandidates(raw,alternatives,'doc',startDoc,text,docText);
+    }else if(!canAuto){
+      showVoiceCandidates(raw,alternatives,'draft',0,text,draft.value);
+    }
+  }else clearVoiceCandidates();
 }
 function insertPendingVoice(){
   const text=$('voiceDraft').value;if(!text)return;
@@ -2596,12 +2747,12 @@ function createVoiceSession(){
   if(!voiceWanted||privacyMode||!navigator.onLine||document.visibilityState==='hidden'){stopVoiceRecognition('認識を停止しました');return;}
   const C=window.SpeechRecognition||window.webkitSpeechRecognition;
   const r=new C(),generation=++voiceGeneration;voiceRecognition=r;let hadResult=false;
-  r.lang='ja-JP';r.continuous=true;r.interimResults=true;r.maxAlternatives=1;const seen=new Set();
+  r.lang='ja-JP';r.continuous=true;r.interimResults=true;r.maxAlternatives=3;const seen=new Set();
   r.onresult=e=>{
     if(generation!==voiceGeneration||privacyMode||!voiceWanted)return;
     let interim='';
     for(let i=e.resultIndex;i<e.results.length;i++){
-      const result=e.results[i];if(result.isFinal){if(!seen.has(i)){seen.add(i);hadResult=true;voiceEmptyEnds=0;acceptVoiceText(result[0].transcript);}}
+      const result=e.results[i];if(result.isFinal){if(!seen.has(i)){seen.add(i);hadResult=true;voiceEmptyEnds=0;acceptVoiceText(result[0].transcript,Array.from(result).map(a=>a.transcript));}}
       else interim+=result[0].transcript;
     }$('voiceInterim').textContent=interim?'認識中（未確定）：'+interim:'';
   };
@@ -2641,7 +2792,7 @@ function startVoiceRecognition(quick=false){
   if(!navigator.onLine){reportVoiceProblem('オンラインで開始してください');return;}
   if(!$('voiceConsent').checked){
     if(!quick){$('voiceStatus').textContent='オンライン音声認識の許可にチェックしてください';return;}
-    if(!confirm('オンライン音声認識を開始しますか？音声がブラウザーの外部認識サービスへ送信される可能性があります。'))return;
+    if(!confirm('音声入力を開始しますか？\n\nKotoba Writerは録音ファイルを保存せず、音声を独自のAI学習にも利用しません。\n\n文字起こしにはブラウザーの音声認識サービスを使用します。音声が提供元へ送られる場合があり、提供元による保存・学習の扱いはそのサービスの方針によります。\n\n詳しくは「音声入力設定」で確認できます。'))return;
     $('voiceConsent').checked=true;
   }
   if(voiceWanted)return;
