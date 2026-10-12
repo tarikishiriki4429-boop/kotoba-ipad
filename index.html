@@ -441,6 +441,24 @@ html.kw-dark .kw61-flow-step,html.kw-dark .kw61-choice-grid>div{background:#3733
 html.kw-dark .kw61-flow-service{background:#413a2c;border-color:#917b4d}
 html.kw-dark .kw61-flow-local{background:#304038;border-color:#577865}
 html.kw-dark .kw61-flow-arrow{color:#c0beb8}
+/* build62: persistent, obvious close control even when scrolling long privacy guidance. */
+#voicePanel .kw62-voice-header,.panel .kw62-panel-header{position:sticky;top:-14px;z-index:7;display:flex;
+ align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;
+ margin:-14px -14px 12px;background:#fff;border-bottom:1px solid #ded9d1;border-radius:13px 13px 0 0}
+#voicePanel .kw62-voice-header h3,.panel .kw62-panel-header h3{margin:0;font-size:18px;line-height:1.3}
+.panel .kw62-close{font-weight:700;font-size:15px;min-height:44px;
+ min-width:86px;border:2px solid #8c857e;background:#eeeae4;color:#24211e;flex-shrink:0}
+.kw62-consent-help{margin:3px 0 10px;padding:9px 11px;
+ border:1px solid #c8d4de;background:#eef5fb;color:#253b4a;
+ border-radius:9px;font-size:13px;line-height:1.65}
+#voiceCandidateBar .kw62-chosen{border:2px solid #5a8a6b!important;background:#ecf4ef;color:#173f29}
+html.kw-dark #voicePanel .kw62-voice-header,html.kw-dark .panel .kw62-panel-header{background:#2a2521;border-bottom-color:#514943}
+html.kw-dark .panel .kw62-close{background:#4e4540;color:#faf2ea;border-color:#998b81}
+/* Ensure long dialogs retain a visible close button during scrolling on iPad. */
+#licensesPanel{max-height:calc(100dvh - 24px);overflow-y:auto;-webkit-overflow-scrolling:touch}
+#dictionaryPanel,#voicePanel,#backupsPanel,#findPanel{ -webkit-overflow-scrolling:touch }
+html.kw-dark .kw62-consent-help{background:#273540;border-color:#536779;color:#d8e9f4}
+html.kw-dark #voiceCandidateBar .kw62-chosen{background:#33493b;color:#d8f5dc;border-color:#639174!important}
 </style>
 </head>
 <body>
@@ -498,8 +516,8 @@ html.kw-dark .kw61-flow-arrow{color:#c0beb8}
 
 <div id="privacyBanner" class="privacy-banner">秘匿モードON：ネット取得をキャッシュ限定にしています。</div>
 <div class="workspace"><div id="pages" class="pages"></div></div>
-<div id="voiceCandidateBar" hidden role="group" aria-label="音声認識の変換候補">
-  <span class="kw60-label">音声候補</span><div id="voiceCandidateOptions"></div>
+<div id="voiceCandidateBar" hidden role="group" aria-label="音声入力の予測・変換候補">
+  <span id="voiceCandidateLabel" class="kw60-label">音声候補</span><div id="voiceCandidateOptions"></div>
   <button id="voiceCandidateDismiss" type="button" title="変換候補を閉じる">閉じる</button>
 </div>
 
@@ -515,7 +533,8 @@ html.kw-dark .kw61-flow-arrow{color:#c0beb8}
 </div>
 
 <div id="dictionaryPanel" class="panel" role="dialog" aria-label="創作辞書">
-<h3>創作辞書</h3><div class="row"><label>作品 <select id="dictionaryWork"></select></label><button id="addWork">作品を追加</button><button id="closeDictionary">閉じる</button></div>
+<div class="kw62-panel-header"><h3>創作辞書</h3><button id="closeDictionary" class="kw62-close" type="button" aria-label="創作辞書を閉じる">× 閉じる</button></div>
+<div class="row"><label>作品 <select id="dictionaryWork"></select></label><button id="addWork">作品を追加</button></div>
 <p class="note">固有名詞を登録すると、文字入力時の候補と音声認識後の補正に使用できます。iPad本体のキーボード辞書は変更しません。</p>
 <section class="kw59-group" aria-labelledby="dictionaryRegisterTitle">
 <h4 id="dictionaryRegisterTitle">辞書に登録する単語</h4>
@@ -540,8 +559,11 @@ html.kw-dark .kw61-flow-arrow{color:#c0beb8}
 <p class="kw59-hint">JSONは登録した単語をまとめて保存するファイルです。別端末に移すときやバックアップに使えます。</p>
 </section>
 </div>
-<div id="voicePanel" class="panel" role="dialog" aria-label="音声執筆">
-<h3>音声入力設定・下書き</h3>
+<div id="voicePanel" class="panel" role="dialog" aria-label="音声入力設定・下書き">
+<div class="kw62-voice-header">
+  <h3>音声入力設定・下書き</h3>
+  <button id="closeVoice" class="kw62-close" type="button" aria-label="音声入力設定を閉じる">× 閉じる</button>
+</div>
 <div class="kw59-editing-notice" role="note" aria-label="音声入力中の手動編集">
   <strong>⌨ 音声入力中も、本文をキーボードで編集できます</strong>
   <span>設定画面を閉じて原稿を表示したまま、<b>「」・句読点・改行の入力や文章の修正</b>ができます。手入力中も音声認識は継続します。日本語変換中に届いた音声結果は、いったん下書きに保持します。</span>
@@ -566,14 +588,15 @@ html.kw-dark .kw61-flow-arrow{color:#c0beb8}
   <p class="kw61-subtitle">音声入力の使い方は自分で選べます</p>
   <div class="kw61-choice-grid">
     <div><strong>音声を使わない</strong><span>下の「オンライン音声認識を許可する」をOFFにするか、上部の「秘匿モード」をONにします。</span></div>
-    <div><strong>使うときだけ音声入力</strong><span>秘匿モードをOFFにし、オンライン音声認識を許可して「🎙音声入力開始」を押します。終わったら停止します。</span></div>
+    <div><strong>使うときだけ音声入力</strong><span>秘匿モードをOFFにして「🎙音声入力開始」を押します。オンライン利用の確認で「OK」を選ぶと許可チェックが自動でONになります。終わったら停止します。</span></div>
     <div><strong>文字を直接入れるか選ぶ</strong><span>下の「認識結果を本文へ自動入力する」で選びます。OFFなら下書きへ。<strong>この設定は音声の外部送信の有無を変えません。</strong></span></div>
   </div>
   <p class="kw61-caution">※音声認識サービスの提供元・保存期間・学習利用の可否を、このアプリから指定する機能はありません。不安な場合は音声入力を使わず、通常のタイピングで執筆できます。</p>
 </details>
 </section>
-<div class="row"><button id="startVoice" type="button" hidden>認識開始</button><button id="stopVoice" type="button" disabled hidden>停止</button><button id="closeVoice">設定を閉じる</button></div>
+<div class="row"><button id="startVoice" type="button" hidden>認識開始</button><button id="stopVoice" type="button" disabled hidden>停止</button></div>
 <label class="kw58-field"><input id="voiceConsent" type="checkbox">オンライン音声認識を許可する</label>
+<p class="kw62-consent-help">🎙「音声入力開始」を押すと、最初にオンライン利用の確認が出ます。<strong>「OK」を選ぶと、このチェックが自動でONになり、認識を開始します。</strong>「キャンセル」ならONにならず、開始もしません。チェックを外すと認識を停止します。</p>
 <label class="kw58-field"><input id="voiceAuto" type="checkbox" checked>認識結果を本文へ自動入力する</label>
 <div class="kw59-auto-help" role="note" aria-label="自動入力のオン・オフの違い">
   <div><strong>ON（初期設定）</strong>：音声認識で確定した文章を、カーソル位置へ自動的に追加します。</div>
@@ -581,15 +604,15 @@ html.kw-dark .kw61-flow-arrow{color:#c0beb8}
   <div class="kw59-auto-tip">※どちらの設定でも、音声入力中に本文をキーボードで編集できます。</div>
 </div>
 <label class="kw58-field"><input id="voiceCorrection" type="checkbox" checked>選択中の作品辞書で補正する</label>
-<label class="kw58-field"><input id="voiceSuggestions" type="checkbox" checked>音声認識の変換候補を表示する</label>
-<p class="kw60-hint">音声認識サービスが返した別候補や、創作辞書の候補を原稿下の小さな欄に表示します。候補を押すと直前の認識結果を置き換えます。原稿が変わった場合は誤置換を防ぐため適用できません。認識エンジン自体の精度を変える機能ではありません。</p>
+<label class="kw58-field"><input id="voiceSuggestions" type="checkbox" checked>音声入力中の予測・変換候補を表示する</label>
+<p class="kw60-hint">認識途中の言葉からも創作辞書の予測候補を表示します。<strong>話している途中で候補を選ぶと、認識が確定したときに一致部分だけを変換します。</strong>確定後は認識サービスの別候補からも選べます。原稿を変更した後の古い候補は適用されません。iPad標準キーボードの予測変換とは別機能で、マイク側の認識精度そのものは変わりません。</p>
 <label class="kw58-field"><input id="voiceCommands" type="checkbox" checked>音声コマンド（「コマンド改行」「コマンド句点」「コマンド読点」「コマンドかぎ括弧開く／閉じる」）</label>
 <p id="voiceStatus" role="status">停止中</p><p id="voiceInterim" aria-live="polite"></p>
 <label class="kw58-field">未反映の音声下書き（編集できます）<textarea id="voiceDraft"></textarea></label>
 <div class="row"><button id="insertVoiceDraft">下書きを本文へ追加</button><button id="discardVoiceDraft">下書きを消す</button></div>
-<p class="note">未確定の認識は本文へ追加しません。認識が切れた場合は自動再開を試みます。音声の録音ファイルは保存しません。</p>
+<p class="note">予測候補は認識途中にも表示されますが、候補を選んでも未確定の文字は本文へ追加されません。認識が確定して一致した部分だけが置き換わります。ブラウザーが途中経過を返さない場合は候補が出ないことがあります。音声の録音ファイルは保存しません。</p>
 </div>
-<div id="backupsPanel" class="panel" role="dialog" aria-label="保存履歴"><h3>自動保存・保存履歴</h3>
+<div id="backupsPanel" class="panel" role="dialog" aria-label="保存履歴"><div class="kw62-panel-header"><h3>自動保存・保存履歴</h3><button id="closeBackups" class="kw62-close" type="button" aria-label="保存履歴を閉じる">× 閉じる</button></div>
 <p class="note">本文は変更時に端末内へ保存。履歴は変更があるとき約1分ごと、また大量削除の前に保存し、最大10世代を保持します。復元前の本文も履歴に残します。TXTファイルへの自動上書きではありません。Webサイトデータを削除すると履歴も失われます。</p>
 <div class="note" id="localSaveNotice">
 <p><strong>自動保存は、この端末・このブラウザー内の、このサイト専用の保存領域に行います。</strong>同じ公開URLを別の端末で開いても、本文・辞書・保存履歴は共有されず、他の利用者の編集があなたの原稿に反映されることもありません。自動保存で原稿をサーバーへ送信することはありません。</p>
@@ -597,21 +620,21 @@ html.kw-dark .kw61-flow-arrow{color:#c0beb8}
 <p>別の端末・別のブラウザー・プライベートブラウズ・別のサイトには、自動保存データは引き継がれません。Safariとホーム画面に追加したアプリでも、保存領域が分かれる場合があります。</p>
 <p>作品を個別に保管したいときや「新規」で次の作品を書く前は「TXT保存」を使い、戻るときは「TXTを開く」で選んでください。Webサイトデータを削除すると、自動保存データと保存履歴も失われます。</p>
 </div>
-<div class="row"><button id="snapshotNow">今の状態を履歴に残す</button><button id="closeBackups">閉じる</button></div><p id="backupStatus" role="status"></p><div id="backupList"></div></div>
+<div class="row"><button id="snapshotNow">今の状態を履歴に残す</button></div><p id="backupStatus" role="status"></p><div id="backupList"></div></div>
 <div id="wordCandidates" hidden aria-label="辞書の予測候補"></div>
 
-<div id="fileNamePanel" class="panel">
-  <h3>保存するファイル名</h3>
+<div id="fileNamePanel" class="panel" role="dialog" aria-label="名前変更">
+  <div class="kw62-panel-header"><h3>保存するファイル名</h3><button id="closeFileName" class="kw62-close" type="button" aria-label="名前変更を閉じる">× 閉じる</button></div>
   <div class="row">
     <input id="fileName" type="text" aria-label="保存するファイル名" autocomplete="off" spellcheck="false">
-    <button id="applyFileName">名前を変更</button><button id="closeFileName">閉じる</button>
+    <button id="applyFileName">名前を変更</button>
   </div>
   <div class="note" id="fileSaveInfo"></div>
   <div class="note">名前の変更は次のTXT保存に使います。元ファイルの名前は、この操作だけでは変わりません。</div>
 </div>
 
-<div id="findPanel" class="panel">
-  <h3>検索・置換</h3>
+<div id="findPanel" class="panel" role="dialog" aria-label="検索・置換">
+  <div class="kw62-panel-header"><h3>検索・置換</h3><button id="closeFind" class="kw62-close" type="button" aria-label="検索・置換を閉じる">× 閉じる</button></div>
   <div class="row">
     <input id="findText" type="text" placeholder="検索する文字">
     <button id="prevBtn" type="button">前へ</button><button id="nextBtn" type="button">次へ</button><span id="findInfo" class="note"></span>
@@ -621,7 +644,6 @@ html.kw-dark .kw61-flow-arrow{color:#c0beb8}
     <button id="replaceOneBtn" disabled>選択した1件を置換</button>
     <button id="replaceAllBtn">すべて置換</button>
     <button id="goMatchBtn" disabled>本文で確認</button>
-    <button id="closeFind">閉じる</button>
   </div>
   <div id="searchPreview" class="result">一覧から選ぶと、その場所へ移動します。</div>
   <div id="searchResultsSummary" class="note" role="status">検索語を入力してください。</div>
@@ -630,7 +652,7 @@ html.kw-dark .kw61-flow-arrow{color:#c0beb8}
 </div>
 
 <div id="fullTextPanel" class="panel" role="dialog" aria-label="全文選択">
-  <h3>全文選択</h3>
+  <div class="kw62-panel-header"><h3>全文選択</h3><button id="closeFullText" class="kw62-close" type="button" aria-label="全文編集を閉じる">× 閉じる</button></div>
   <div class="row">
     <button id="reselectAll">すべて選択</button>
     <button id="copyFullText">コピー</button>
@@ -638,15 +660,14 @@ html.kw-dark .kw61-flow-arrow{color:#c0beb8}
     <button id="pasteFullText">貼り付け</button>
     <button id="deleteFullText">選択範囲を削除</button>
     <button id="undoFullText">取り消し</button>
-    
-    <button id="closeFullText">閉じる</button>
   </div>
   <p class="note">全ページをまとめて編集できます。変更は本文に反映・端末内に保存されます。</p>
   <p id="fullTextStatus" class="note" role="status"></p>
   <textarea id="fullText" aria-label="全文（編集・選択・コピー用）"></textarea>
 </div>
 <div id="licensesPanel" class="panel" role="dialog" aria-label="利用条件・ライセンス">
-  <div id="licensesHeader"><button id="closeLicenses">閉じる</button><a id="licensesDirectLink" href="./licenses.html?view=build58" target="_blank" rel="noopener noreferrer">利用条件を別タブで開く</a></div>
+  <div class="kw62-panel-header"><h3>利用条件・ライセンス</h3><button id="closeLicenses" class="kw62-close" type="button" aria-label="利用条件を閉じる">× 閉じる</button></div>
+  <div id="licensesHeader"><a id="licensesDirectLink" href="./licenses.html?view=build58" target="_blank" rel="noopener noreferrer">利用条件を別タブで開く</a></div>
   <div id="licensesStatus" role="status" aria-live="polite"></div>
   <div id="licensesContent" role="document" aria-label="利用条件の本文" tabindex="0"></div>
 </div>
@@ -654,7 +675,7 @@ html.kw-dark .kw61-flow-arrow{color:#c0beb8}
 <div id="printArea"></div>
 
 <script type="module">
-const BUILD=61;
+const BUILD=62;
 const $=id=>document.getElementById(id);
 $('buildVersion').textContent='Kotoba Writer build '+BUILD;
 const STORAGE='kotoba-writer-draft-v1';
@@ -2643,15 +2664,88 @@ function voiceAlternatives(raw,alternatives){
   return options;
 }
 let latestVoiceCandidate=null;
+let pendingVoicePrediction=null; // accepted interim candidate, never inserted before final result
 function clearVoiceCandidates(){
   latestVoiceCandidate=null;$('voiceCandidateBar').hidden=true;
   $('voiceCandidateOptions').replaceChildren();
+  $('voiceCandidateLabel').textContent='音声候補';
+}
+// Match a dictation fragment against the start of a registered reading/alias,
+// including a fragment at the end of a longer spoken sentence. This is local
+// dictionary lookup, not an attempt to retrain the browser recognizer.
+function interimDictionaryCandidates(raw){
+  const recognized=kanaKey(raw.trim());if(recognized.length<2)return [];
+  const candidates=[];
+  for(const w of activeWords()){
+    let score=0;
+    for(const token of [w.reading,...w.aliases].filter(Boolean)){
+      const target=kanaKey(token);if(!target)continue;
+      const minimum=target.length<=2?target.length:Math.min(3,target.length);
+      for(let n=Math.min(recognized.length,target.length);n>=minimum;n--){
+        if(recognized.endsWith(target.slice(0,n))){score=Math.max(score,n);break;}
+      }
+    }
+    if(score&&w.spelling!==raw.trim())candidates.push({w,score});
+  }
+  return candidates.sort((a,b)=>b.score-a.score||a.w.spelling.localeCompare(b.w.spelling,'ja')).slice(0,5);
+}
+// When a prediction was tapped during speech, replace only a matching part
+// of the following final transcript. Mismatches are preserved verbatim.
+function applyPendingVoicePrediction(text,word){
+  if(!word)return text;
+  const tokens=[word.spelling,word.reading,...word.aliases].filter(Boolean);
+  const spans=[];
+  for(const token of tokens){
+    const key=kanaKey(token);if(!key)continue;
+    const min=key.length<=2?key.length:3;
+    for(let i=0;i<text.length;i++){
+      let normalized='',end=i;
+      while(end<text.length&&normalized.length<key.length){
+        normalized+=kanaKey(text[end]);end++;
+        if(normalized.length>=min&&key.startsWith(normalized)){
+          spans.push({i,end,len:normalized.length});
+        }
+      }
+    }
+  }
+  if(!spans.length)return text;
+  spans.sort((a,b)=>b.len-a.len||b.i-a.i);
+  const match=spans[0];
+  return text.slice(0,match.i)+word.spelling+text.slice(match.end);
+}
+function showInterimVoiceCandidates(interim){
+  if(!$('voiceSuggestions').checked||!voiceWanted||!interim.trim()){
+    if(latestVoiceCandidate?.kind==='interim')clearVoiceCandidates();
+    return;
+  }
+  const matches=interimDictionaryCandidates(interim);
+  if(!matches.length){
+    if(latestVoiceCandidate?.kind==='interim')clearVoiceCandidates();
+    return;
+  }
+  clearVoiceCandidates();
+  latestVoiceCandidate={kind:'interim'};
+  $('voiceCandidateLabel').textContent='認識中の予測';
+  const opts=$('voiceCandidateOptions');
+  for(const {w} of matches){
+    const b=document.createElement('button');b.type='button';
+    b.textContent=w.spelling;b.title='確定後に一致した部分をこの単語へ変換する';
+    b.classList.toggle('kw62-chosen',pendingVoicePrediction?.spelling===w.spelling);
+    b.onpointerdown=e=>e.preventDefault();
+    b.onclick=()=>{
+      pendingVoicePrediction=structuredClone(w);
+      $('voiceStatus').textContent='「'+w.spelling+'」を選択しました。認識確定時に一致する部分を変換します';
+      for(const item of opts.querySelectorAll('button'))item.classList.toggle('kw62-chosen',item===b);
+    };
+    opts.append(b);
+  }
+  $('voiceCandidateBar').hidden=false;
 }
 function showVoiceCandidates(raw,alternatives,kind,start,primary,snapshot){
   clearVoiceCandidates();
   if(!$('voiceSuggestions').checked||!primary||primary.startsWith('\n'))return;
-  const variants=voiceAlternatives(raw,alternatives);
-  // Only display the strip if distinct alternatives or dictionary suggestions exist.
+  const variants=[...new Set([primary,...voiceAlternatives(raw,alternatives)])];
+  // Do not show an inert strip when the recognizer offered only one reading.
   if(variants.length<2)return;
   latestVoiceCandidate={kind,start,primary,snapshot};
   const opts=$('voiceCandidateOptions');
@@ -2689,11 +2783,16 @@ function applyVoiceCandidate(variant){
   }
   clearVoiceCandidates();
 }
-$('voiceCandidateDismiss').onclick=clearVoiceCandidates;
-$('voiceSuggestions').onchange=()=>{if(!$('voiceSuggestions').checked)clearVoiceCandidates();};
+$('voiceCandidateDismiss').onclick=()=>{pendingVoicePrediction=null;clearVoiceCandidates();};
+$('voiceSuggestions').onchange=()=>{if(!$('voiceSuggestions').checked){pendingVoicePrediction=null;clearVoiceCandidates();}};
 $('pages').addEventListener('input',()=>{if(latestVoiceCandidate)clearVoiceCandidates();});
 function acceptVoiceText(raw,alternatives=[]){
-  const text=voiceCommand(raw);if(!text)return;
+  let text=voiceCommand(raw);
+  if(pendingVoicePrediction){
+    text=applyPendingVoicePrediction(text,pendingVoicePrediction);
+    pendingVoicePrediction=null;
+  }
+  if(!text)return;
   // Persist the pending text before touching the manuscript. Do not pass
   // interim hypotheses into setDoc or the undo stack.
   const draft=$('voiceDraft'),oldDraft=draft.value;
@@ -2741,7 +2840,9 @@ $('fullText').addEventListener('compositionend',()=>{
 function stopVoiceRecognition(message='停止しました'){
   voiceWanted=false;++voiceGeneration;clearTimeout(voiceRestartTimer);voiceRestartTimer=null;
   const r=voiceRecognition;voiceRecognition=null;try{r?.abort();}catch{}
-  $('voiceInterim').textContent='';$('voiceStatus').textContent=message;refreshVoiceIndicators();
+  $('voiceInterim').textContent='';pendingVoicePrediction=null;
+  if(latestVoiceCandidate?.kind==='interim')clearVoiceCandidates();
+  $('voiceStatus').textContent=message;refreshVoiceIndicators();
 }
 function createVoiceSession(){
   if(!voiceWanted||privacyMode||!navigator.onLine||document.visibilityState==='hidden'){stopVoiceRecognition('認識を停止しました');return;}
@@ -2755,6 +2856,8 @@ function createVoiceSession(){
       const result=e.results[i];if(result.isFinal){if(!seen.has(i)){seen.add(i);hadResult=true;voiceEmptyEnds=0;acceptVoiceText(result[0].transcript,Array.from(result).map(a=>a.transcript));}}
       else interim+=result[0].transcript;
     }$('voiceInterim').textContent=interim?'認識中（未確定）：'+interim:'';
+    if(interim)showInterimVoiceCandidates(interim);
+    else if(latestVoiceCandidate?.kind==='interim')clearVoiceCandidates();
   };
   r.onerror=e=>{
     if(generation!==voiceGeneration)return;
@@ -2766,7 +2869,9 @@ function createVoiceSession(){
     }
   };
   r.onend=()=>{
-    if(generation!==voiceGeneration||!voiceWanted)return;voiceRecognition=null;$('voiceInterim').textContent='';
+    if(generation!==voiceGeneration||!voiceWanted)return;
+    voiceRecognition=null;$('voiceInterim').textContent='';pendingVoicePrediction=null;
+    if(latestVoiceCandidate?.kind==='interim')clearVoiceCandidates();
     if(!hadResult&&++voiceEmptyEnds>=3){stopVoiceRecognition('認識が続かないため停止しました。認識開始で再開してください。');return;}
     $('voiceStatus').textContent='認識を再開しています…';voiceRestartTimer=setTimeout(createVoiceSession,700);
   };
