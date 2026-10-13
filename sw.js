@@ -1,6 +1,6 @@
-// Kotoba Writer: build62 dictionary, voice writing and local recovery; license view reliability.
-// No AI libraries, workers, models, or external AI endpoints are requested.
-const CACHE='kotoba-writer-shell-v66';
+// Kotoba Writer: build73 hide caret on writing-mode switch, dictionary, voice writing and local recovery; license view reliability.
+// Online thesaurus lookups require explicit user consent; cached results stay in browser storage.
+const CACHE='kotoba-writer-shell-v74';
 const PRIVACY_FLAG='kotoba-writer-privacy-lock-v1';
 const SHELL=['./','./index.html','./manifest.webmanifest','./licenses.html'];
 
