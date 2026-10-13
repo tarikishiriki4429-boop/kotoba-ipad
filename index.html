@@ -160,6 +160,8 @@ button:disabled{opacity:.45}
 @keyframes kwCaretBlink{0%,49%{opacity:1}50%,100%{opacity:0}}
 .page.caret-current .grid-caret{display:block;animation:kwCaretBlink 1.06s step-end infinite}
 .page.composing .grid-caret{animation:none!important;opacity:1!important}
+/* IME may report its preedit range as a selection. Keep insertion marker visible. */
+.page.composing.caret-current .grid-caret.selected{display:block!important;opacity:1!important}
 .page .grid-caret:not(.selected){animation-play-state:running}
 .page .grid-caret.selected{display:none!important}
 .page.composing.caret-current .grid-caret{display:block}
@@ -826,7 +828,7 @@ Technology and LICENSEE agrees to preserve same.
 <div id="printArea"></div>
 
 <script type="module">
-const BUILD=71;
+const BUILD=72;
 const $=id=>document.getElementById(id);
 $('buildVersion').textContent='Kotoba Writer build '+BUILD;
 const STORAGE='kotoba-writer-draft-v1';
@@ -1450,7 +1452,7 @@ function showCompositionCaret(ta,parts){
     const marker=sheet.querySelector('.grid-caret');if(marker){marker.classList.remove('composition-current');marker.style.display='none';}
   }
   if(!parts||!sheets.length)return false;
-  const pos=ta.selectionStart;
+  const pos=ta.selectionEnd;
   const index=parts.findIndex((part,i)=>pos<part.end || i===parts.length-1);
   if(index<1)return false;
   const sheet=sheets[index-1];if(!sheet)return false;
@@ -1483,12 +1485,14 @@ function paintVertical(ta,previewOnly=false){
   if(!previewOnly)paintGridSelection(ta);
   const caret=page.querySelector('.grid-caret');
   if(!caret)return;
-  const selecting=ta.selectionStart!==ta.selectionEnd;
+  const selecting=!composing && ta.selectionStart!==ta.selectionEnd;
   caret.classList.toggle('selected',selecting);
   if(selecting){caret.style.display='none';return;}
   const overflown=composing && showCompositionCaret(ta,parts);
   if(overflown){caret.style.display='none';return;}
-  const stop=gridStopAt(ta,ta.selectionStart);
+  // While converting, Safari often selects the whole uncommitted preedit.
+  // The insertion point is its END, not selectionStart (which is its start).
+  const stop=gridStopForText(visibleValue,composing?ta.selectionEnd:ta.selectionStart);
   if(!placeGridCaret(caret,preview,getSettings(),stop))caret.style.display='none';
 }
 function verticalTap(ta,e){
@@ -1688,6 +1692,7 @@ function bindEditor(ta){
     clearTimeout(layoutIdleTimer);layoutIdleTimer=0;
   });
   ta.addEventListener('compositionupdate',()=>{
+    manuscriptCaretActivated=true;showManuscriptCaret();
     paintVertical(ta,true);noteVerticalColumn(ta,true);scheduleReveal();
   });
   ta.addEventListener('compositionend',()=>{
@@ -1730,7 +1735,7 @@ function bindEditor(ta){
   ta.addEventListener('input',e=>{
     manuscriptCaretActivated=true;
     if(ta._boundaryEditPending)return;
-    if(isComposing||e.isComposing){paintVertical(ta,true);noteVerticalColumn(ta,true);scheduleReveal();return;}
+    if(isComposing||e.isComposing){showManuscriptCaret();paintVertical(ta,true);noteVerticalColumn(ta,true);scheduleReveal();return;}
     // Every committed edit, including iPad paste and single keystrokes, is
     // laid out immediately. Never let a hidden textarea contain extra rows.
     ta._pastePending=false;
