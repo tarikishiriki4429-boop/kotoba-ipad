@@ -716,19 +716,19 @@ html.kw-dark .kw67-tabs button,html.kw-dark .kw67-provider{background:#273329;co
   <div class="kw67-tabs"><button type="button" class="kw67-selected">言い換えを探す</button><button type="button" id="kw67SwitchToDictionary">固有名詞を登録する</button></div>
   <p class="kw63-banner"><strong>本文の言葉を選択してから開く</strong>と、候補をタップするだけでその言葉を置換し、自動的に画面が閉じます。変更は「取り消し」で戻せます。</p>
   <div class="kw64-online-settings">
-    <label class="kw64-online-switch"><input type="checkbox" id="thesaurusOnline" autocomplete="off"><span>🌐 オンライン辞書</span><strong id="thesaurusOnlineState">OFF</strong></label>
+    <label class="kw64-online-switch"><input type="checkbox" id="thesaurusOnline" autocomplete="off"><span>🌐 オンライン辞書（日本語版ウィクショナリー）</span><strong id="thesaurusOnlineState">OFF</strong></label>
     <div class="kw64-guidance" id="thesaurusOnlineHelp">
-      <strong>オンライン辞書と履歴の使い方</strong>
+      <strong>オンライン辞書（日本語版ウィクショナリー）は外部サービスです。全単語の類語検索には対応していません。</strong>
       <p><b>OFF（初期設定）：</b>内蔵辞書と保存済みの検索結果だけを表示します。外部に検索語を送りません。</p>
-      <p><b>ON：</b>選択した言葉を調べるとき、または「検索」を押したときに、その単語だけを日本語版ウィクショナリーへ送信し、提供される場合は類義語を追加表示します。原稿全体は送信しません。</p>
+      <p><b>ON：</b>外部サービス（日本語版ウィクショナリー）に検索する単語だけを送信します。選択した言葉を調べるとき、または「検索」を押したときに候補を取得します。原稿全体は送信しません。サービスの利用条件やプライバシーの取扱いは提供元に従います。</p>
       <p><b>2回目からは：</b>オンライン辞書の結果を取得できた単語は、下の<strong>「言い換え履歴」からタップすればオフラインでも前回の候補を見られます</strong>（同じ端末・ブラウザー・URLで保存データが残っている場合）。履歴から見るだけなら再通信しません。</p>
       <p>秘匿モードONではオンライン辞書を利用できません。外部サービス側の保存・利用方針はKotoba Writerから制御できません。ONにする際に確認画面を表示します。</p>
     </div>
   </div>
-  <p class="kw67-provider">オンライン辞書の提供：<a href="https://ja.wiktionary.org/" target="_blank" rel="noopener noreferrer">日本語版ウィクショナリー</a>（運営：ウィキメディア財団）。<a href="https://foundation.wikimedia.org/wiki/Policy:Terms_of_Use" target="_blank" rel="noopener noreferrer">利用規約</a>・<a href="https://foundation.wikimedia.org/wiki/Policy:Privacy_policy" target="_blank" rel="noopener noreferrer">プライバシーポリシー</a>。辞書に類義語の記載がない場合は候補を表示できません。</p>
+  <p class="kw67-provider">オンライン辞書（日本語版ウィクショナリー）の提供元：<a href="https://ja.wiktionary.org/" target="_blank" rel="noopener noreferrer">日本語版ウィクショナリー</a>（運営：ウィキメディア財団）。<a href="https://foundation.wikimedia.org/wiki/Policy:Terms_of_Use" target="_blank" rel="noopener noreferrer">利用規約</a>・<a href="https://foundation.wikimedia.org/wiki/Policy:Privacy_policy" target="_blank" rel="noopener noreferrer">プライバシーポリシー</a>。オンライン辞書の利用条件・プライバシー取扱いは、この外部サービスの規定に従います。ウィクショナリーは類語専用辞書ではありません。類義語が載っていない単語も多く、候補の表示は保証できません。</p>
   <div class="kw66-genre"><span>内蔵辞書：<strong id="kw66HeadwordCount">―</strong>見出し語</span><label>小説向けジャンル <select id="kw66Category"><option value="">選んで探す</option></select></label></div>
   <div id="kw66CategoryEntries" class="kw66-category-entries" hidden aria-label="ジャンル別の検索語"></div>
-  <p class="kw63-help">候補には意味が近い言葉・文章表現も含みます。<strong>すべてがそのまま置き換えられる類語とは限りません。</strong>ニュアンスを確かめてください。</p>
+  <p class="kw63-help">内蔵辞書には実際に登録済みの語だけが検索可能です。日本語の全語彙には対応していません。候補には意味が近い言葉・文章表現も含みます。<strong>すべてがそのまま置き換えられる類語とは限りません。</strong>ニュアンスを確かめてください。</p>
   <div class="kw63-search"><input id="thesaurusSearch" type="search" placeholder="例：見る、静か、怒る" maxlength="60" aria-label="類語を調べる言葉"><button id="thesaurusLookup" type="button" class="primary">検索</button></div>
   <p id="thesaurusStatus" role="status" aria-live="polite">調べたい言葉を入力してください。</p>
   <div id="thesaurusResults" role="group" aria-label="言い換え候補"></div>
@@ -823,7 +823,7 @@ Technology and LICENSEE agrees to preserve same.
 <div id="printArea"></div>
 
 <script type="module">
-const BUILD=68;
+const BUILD=70;
 const $=id=>document.getElementById(id);
 $('buildVersion').textContent='Kotoba Writer build '+BUILD;
 const STORAGE='kotoba-writer-draft-v1';
@@ -3214,6 +3214,15 @@ THESAURUS_DATA.push(
    {term:'心を揺さぶる',hint:'感情を強く動かす'}
  ]}
 );
+
+/* build69: 80 editorially authored offline headwords (no third-party scraped text). */
+const KW69_ORIGINAL_DATA=[{"word":"憂鬱","category":"心理・感情","items":[{"term":"気が重い","hint":"気分が沈む"},{"term":"陰鬱","hint":"暗く晴れない"},{"term":"ふさぎ込む","hint":"外へ出ない気分"}]},{"word":"焦燥","category":"心理・感情","items":[{"term":"焦り","hint":"落ち着きのなさ"},{"term":"苛立ち","hint":"思い通りにならない"},{"term":"気を急く","hint":"急ぎたい思い"}]},{"word":"動揺","category":"心理・感情","items":[{"term":"うろたえ","hint":"心が乱れる"},{"term":"取り乱す","hint":"冷静さを失う"},{"term":"狼狽","hint":"予想外に慌てる"}]},{"word":"安堵","category":"心理・感情","items":[{"term":"ほっとする","hint":"緊張が解ける"},{"term":"胸をなで下ろす","hint":"安心が表れる"},{"term":"安心感","hint":"危険が去った感覚"}]},{"word":"羞恥","category":"心理・感情","items":[{"term":"恥ずかしさ","hint":"人目が気になる"},{"term":"面映ゆさ","hint":"照れくさい気持ち"},{"term":"赤面","hint":"羞恥が表情に出る"}]},{"word":"嫉妬","category":"心理・感情","items":[{"term":"妬み","hint":"相手を羨む"},{"term":"焼きもち","hint":"親しい人への妬み"},{"term":"羨望","hint":"憧れが混じる"}]},{"word":"羨望","category":"心理・感情","items":[{"term":"憧れ","hint":"目標として仰ぐ"},{"term":"羨ましさ","hint":"持たないものを欲する"},{"term":"敬慕","hint":"敬い慕う"}]},{"word":"恐怖","category":"心理・感情","items":[{"term":"おそれ","hint":"危険への気持ち"},{"term":"戦慄","hint":"震えるほどの恐怖"},{"term":"怯え","hint":"不安が表に出る"}]},{"word":"不快","category":"心理・感情","items":[{"term":"嫌悪","hint":"強い拒否感"},{"term":"不愉快","hint":"心地よくない"},{"term":"むかつき","hint":"怒りが混じる"}]},{"word":"混乱","category":"心理・感情","items":[{"term":"錯乱","hint":"判断が入り乱れる"},{"term":"困惑","hint":"理解や判断に迷う"},{"term":"取り乱し","hint":"落ち着きを失う"}]},{"word":"期待","category":"心理・感情","items":[{"term":"心待ち","hint":"来る時を楽しみにする"},{"term":"予感","hint":"これからを感じる"},{"term":"望み","hint":"実現を願う"}]},{"word":"失意","category":"心理・感情","items":[{"term":"落胆","hint":"期待外れの悲しさ"},{"term":"気落ち","hint":"元気を失う"},{"term":"挫折感","hint":"目標を阻まれた感覚"}]},{"word":"後悔","category":"心理・感情","items":[{"term":"悔恨","hint":"過ちを深く悔いる"},{"term":"心残り","hint":"未練が残る"},{"term":"悔やむ","hint":"過去を惜しむ"}]},{"word":"決心","category":"心理・感情","items":[{"term":"腹をくくる","hint":"覚悟を定める"},{"term":"意を決する","hint":"行動を決める"},{"term":"心を決める","hint":"迷いを断つ"}]},{"word":"諦念","category":"心理・感情","items":[{"term":"諦め","hint":"望みを手放す"},{"term":"観念","hint":"抵抗をやめる"},{"term":"達観","hint":"とらわれから離れる"}]},{"word":"不信","category":"心理・感情","items":[{"term":"疑念","hint":"信じられない気持ち"},{"term":"疑心","hint":"疑いが続く"},{"term":"警戒","hint":"用心する態度"}]},{"word":"戸惑い","category":"心理・感情","items":[{"term":"当惑","hint":"判断に困る"},{"term":"困惑","hint":"どうするか迷う"},{"term":"面食らう","hint":"突然の事態に驚く"}]},{"word":"切迫感","category":"心理・感情","items":[{"term":"差し迫る","hint":"余裕がない"},{"term":"緊迫","hint":"危機が迫る"},{"term":"焦燥","hint":"気持ちが急く"}]},{"word":"感慨","category":"心理・感情","items":[{"term":"しみじみと思う","hint":"深く感じ入る"},{"term":"万感","hint":"複雑な思い"},{"term":"感慨深さ","hint":"経験を思い返す"}]},{"word":"慈しみ","category":"心理・感情","items":[{"term":"愛おしさ","hint":"大切に思う"},{"term":"いたわり","hint":"弱い者に心を寄せる"},{"term":"思いやり","hint":"相手を気遣う"}]},{"word":"見送る","category":"動作・会話","items":[{"term":"送り出す","hint":"去る人を見守る"},{"term":"後ろ姿を追う","hint":"視線で追いかける"},{"term":"別れを告げる","hint":"言葉で送り出す"}]},{"word":"見渡す","category":"動作・会話","items":[{"term":"一望する","hint":"広く見える"},{"term":"見回す","hint":"周囲へ視線を動かす"},{"term":"目を走らせる","hint":"素早く視界を巡らす"}]},{"word":"見守る","category":"動作・会話","items":[{"term":"静観する","hint":"動かず様子を見る"},{"term":"気にかける","hint":"相手を案じる"},{"term":"目を離さない","hint":"注意を向け続ける"}]},{"word":"俯く","category":"動作・会話","items":[{"term":"うなだれる","hint":"頭を下げる"},{"term":"目を伏せる","hint":"視線を落とす"},{"term":"視線を落とす","hint":"下を見る"}]},{"word":"仰ぐ","category":"動作・会話","items":[{"term":"見上げる","hint":"高い位置を見る"},{"term":"仰ぎ見る","hint":"敬う気持ちが混じる"},{"term":"空を見やる","hint":"上方へ目を向ける"}]},{"word":"息を吐く","category":"動作・会話","items":[{"term":"息をつく","hint":"呼吸を整える"},{"term":"溜息をつく","hint":"疲れや落胆を示す"},{"term":"呼気を漏らす","hint":"静かに息を出す"}]},{"word":"息を潜める","category":"動作・会話","items":[{"term":"呼吸を殺す","hint":"気配を消す"},{"term":"身を隠す","hint":"姿を見せない"},{"term":"じっと待つ","hint":"動きを抑える"}]},{"word":"立ちすくむ","category":"動作・会話","items":[{"term":"足が止まる","hint":"驚きで動けない"},{"term":"硬直する","hint":"体が固まる"},{"term":"動けなくなる","hint":"行動が止まる"}]},{"word":"よろめく","category":"動作・会話","items":[{"term":"ふらつく","hint":"足取りが不安定"},{"term":"つまずく","hint":"足を取られる"},{"term":"体勢を崩す","hint":"姿勢を保てない"}]},{"word":"踏み出す","category":"動作・会話","items":[{"term":"一歩進む","hint":"新たに動き出す"},{"term":"足を踏み入れる","hint":"場所へ入る"},{"term":"前へ出る","hint":"位置を変える"}]},{"word":"忍び寄る","category":"動作・会話","items":[{"term":"そっと近づく","hint":"気付かれず近づく"},{"term":"接近する","hint":"距離を詰める"},{"term":"歩み寄る","hint":"相手に近づく"}]},{"word":"後ずさる","category":"動作・会話","items":[{"term":"たじろぐ","hint":"驚いて引く"},{"term":"身を引く","hint":"距離を取る"},{"term":"後退する","hint":"後ろへ下がる"}]},{"word":"振り払う","category":"動作・会話","items":[{"term":"払いのける","hint":"邪魔なものを除く"},{"term":"はねのける","hint":"力で退ける"},{"term":"解き放つ","hint":"拘束を解く"}]},{"word":"手を伸ばす","category":"動作・会話","items":[{"term":"差し伸べる","hint":"相手の方へ伸ばす"},{"term":"伸ばしかける","hint":"途中でためらう"},{"term":"指先を向ける","hint":"軽く伸ばす"}]},{"word":"頷く","category":"動作・会話","items":[{"term":"首を縦に振る","hint":"同意を示す"},{"term":"うなずき返す","hint":"相手に応じる"},{"term":"肯く","hint":"了解の仕草"}]},{"word":"首を振る","category":"動作・会話","items":[{"term":"否定する","hint":"拒絶を示す"},{"term":"左右に振る","hint":"不同意の仕草"},{"term":"かぶりを振る","hint":"強く否定する"}]},{"word":"問い返す","category":"動作・会話","items":[{"term":"聞き返す","hint":"質問を繰り返す"},{"term":"問いただす","hint":"厳しく確かめる"},{"term":"確認する","hint":"内容を確かめる"}]},{"word":"言い淀む","category":"動作・会話","items":[{"term":"口ごもる","hint":"言葉がつかえる"},{"term":"言葉に詰まる","hint":"続けられない"},{"term":"ためらいがちに話す","hint":"迷いが見える"}]},{"word":"言い募る","category":"動作・会話","items":[{"term":"畳みかける","hint":"続けて主張する"},{"term":"食い下がる","hint":"引かずに言う"},{"term":"まくし立てる","hint":"勢いよく話す"}]},{"word":"言い切る","category":"動作・会話","items":[{"term":"断言する","hint":"言葉を明確にする"},{"term":"言い放つ","hint":"強く述べる"},{"term":"きっぱり告げる","hint":"迷いなく伝える"}]},{"word":"薄闇","category":"情景・空気","items":[{"term":"ほの暗さ","hint":"わずかな光が残る"},{"term":"薄暗がり","hint":"明かりの少ない所"},{"term":"闇の端","hint":"暗さの境目"}]},{"word":"夕暮れ","category":"情景・空気","items":[{"term":"日暮れ","hint":"日が沈むころ"},{"term":"黄昏","hint":"明暗が混じるころ"},{"term":"夕刻","hint":"夕方の時刻"}]},{"word":"夜明け","category":"情景・空気","items":[{"term":"暁","hint":"夜が明けるころ"},{"term":"曙","hint":"東の空が明るむ"},{"term":"朝ぼらけ","hint":"明け方の薄明かり"}]},{"word":"静けさ","category":"情景・空気","items":[{"term":"静寂","hint":"物音のない状態"},{"term":"しんとした空気","hint":"周囲が静かな様子"},{"term":"物音のなさ","hint":"音を感じない"}]},{"word":"物音","category":"情景・空気","items":[{"term":"気配","hint":"何かがある感じ"},{"term":"足音","hint":"歩く音"},{"term":"かすかな響き","hint":"弱く届く音"}]},{"word":"気温","category":"情景・空気","items":[{"term":"寒暖","hint":"暖かさと寒さ"},{"term":"気候","hint":"長期的な気象"},{"term":"肌に触れる空気","hint":"体感として表す"}]},{"word":"寒気","category":"情景・空気","items":[{"term":"冷気","hint":"冷たい空気"},{"term":"悪寒","hint":"体内から感じる寒さ"},{"term":"冷え","hint":"温度が下がる感じ"}]},{"word":"熱気","category":"情景・空気","items":[{"term":"むっとする空気","hint":"暑さがこもる"},{"term":"暑気","hint":"暑さを伴う空気"},{"term":"ほてり","hint":"熱を帯びる感じ"}]},{"word":"余韻","category":"情景・空気","items":[{"term":"後味","hint":"出来事のあとに残る印象"},{"term":"名残","hint":"過ぎたものの気配"},{"term":"残響","hint":"消えずに続く音"}]},{"word":"残響","category":"情景・空気","items":[{"term":"反響","hint":"跳ね返る音"},{"term":"こだま","hint":"繰り返し響く"},{"term":"余音","hint":"音の終わりに残る響き"}]},{"word":"影法師","category":"情景・空気","items":[{"term":"人影","hint":"人の姿の輪郭"},{"term":"長い影","hint":"夕日で伸びる影"},{"term":"黒い輪郭","hint":"光を遮る形"}]},{"word":"陽光","category":"情景・空気","items":[{"term":"日差し","hint":"太陽からの光"},{"term":"日の光","hint":"自然な光"},{"term":"日光","hint":"太陽の照明"}]},{"word":"月光","category":"情景・空気","items":[{"term":"月明かり","hint":"月が照らす光"},{"term":"青白い光","hint":"冷たい印象の光"},{"term":"夜の明かり","hint":"闇の中の光"}]},{"word":"水面","category":"情景・空気","items":[{"term":"水のおもて","hint":"水の表面"},{"term":"波間","hint":"波の隙間"},{"term":"みなも","hint":"水面の和語"}]},{"word":"波紋","category":"情景・空気","items":[{"term":"水の輪","hint":"水面に広がる円"},{"term":"さざ波","hint":"小さな波"},{"term":"揺らぎ","hint":"広がる動き"}]},{"word":"砂埃","category":"情景・空気","items":[{"term":"土煙","hint":"舞い上がる土砂"},{"term":"粉塵","hint":"細かな粒子"},{"term":"舞い散る砂","hint":"飛び散る砂"}]},{"word":"土砂降り","category":"情景・空気","items":[{"term":"豪雨","hint":"強く降る雨"},{"term":"激しい雨","hint":"雨量が多い"},{"term":"叩きつける雨","hint":"雨の勢い"}]},{"word":"霧雨","category":"情景・空気","items":[{"term":"細雨","hint":"細かな雨"},{"term":"小雨","hint":"弱い雨"},{"term":"しとしと降る雨","hint":"音が小さい雨"}]},{"word":"突風","category":"情景・空気","items":[{"term":"一陣の風","hint":"瞬間的な風"},{"term":"強風","hint":"力の強い風"},{"term":"吹きつける風","hint":"強く当たる風"}]},{"word":"そよ風","category":"情景・空気","items":[{"term":"微風","hint":"弱い風"},{"term":"柔らかな風","hint":"刺激の少ない風"},{"term":"風のそよぎ","hint":"風の動き"}]},{"word":"真実","category":"物語・抽象","items":[{"term":"事実","hint":"起きたこと"},{"term":"実相","hint":"本当の姿"},{"term":"本当のこと","hint":"嘘でない内容"}]},{"word":"虚偽","category":"物語・抽象","items":[{"term":"嘘","hint":"事実でないこと"},{"term":"偽り","hint":"真実を隠す"},{"term":"作り話","hint":"事実を装う"}]},{"word":"矛盾","category":"物語・抽象","items":[{"term":"食い違い","hint":"一致しない"},{"term":"不整合","hint":"整合が取れない"},{"term":"相反","hint":"互いに反する"}]},{"word":"理由","category":"物語・抽象","items":[{"term":"わけ","hint":"事情を示す"},{"term":"根拠","hint":"判断の支え"},{"term":"動機","hint":"行動のきっかけ"}]},{"word":"因果","category":"物語・抽象","items":[{"term":"原因と結果","hint":"つながりを示す"},{"term":"因縁","hint":"過去とのつながり"},{"term":"巡り合わせ","hint":"出来事の重なり"}]},{"word":"可能性","category":"物語・抽象","items":[{"term":"見込み","hint":"実現しそうな度合い"},{"term":"余地","hint":"残る選択肢"},{"term":"公算","hint":"成立しそうな割合"}]},{"word":"必然","category":"物語・抽象","items":[{"term":"不可避","hint":"避けられない"},{"term":"当然の帰結","hint":"理由のある結果"},{"term":"成り行き","hint":"流れの行き着く先"}]},{"word":"偶然","category":"物語・抽象","items":[{"term":"たまたま","hint":"意図せず起きる"},{"term":"不意の出来事","hint":"予期しないこと"},{"term":"思いがけず","hint":"想定外に"}]},{"word":"裏切り","category":"物語・抽象","items":[{"term":"背信","hint":"信頼に背く"},{"term":"反目","hint":"関係が対立する"},{"term":"寝返り","hint":"味方を変える"}]},{"word":"対立","category":"物語・抽象","items":[{"term":"衝突","hint":"ぶつかり合う"},{"term":"反目","hint":"仲が悪くなる"},{"term":"いがみ合い","hint":"敵意を向け合う"}]},{"word":"決着","category":"物語・抽象","items":[{"term":"終結","hint":"物事が終わる"},{"term":"けりがつく","hint":"区切りがつく"},{"term":"結末","hint":"最後の結果"}]},{"word":"契機","category":"物語・抽象","items":[{"term":"きっかけ","hint":"始まる原因"},{"term":"転機","hint":"方向が変わる時"},{"term":"端緒","hint":"始まりの手掛かり"}]},{"word":"兆候","category":"物語・抽象","items":[{"term":"きざし","hint":"何かが始まる感じ"},{"term":"前触れ","hint":"起こる前の変化"},{"term":"予兆","hint":"未来の気配"}]},{"word":"境界","category":"物語・抽象","items":[{"term":"境目","hint":"分かれる所"},{"term":"区切り","hint":"区分の線"},{"term":"分水嶺","hint":"行方を分ける地点"}]},{"word":"余地","category":"物語・抽象","items":[{"term":"可能性","hint":"まだ残る選択肢"},{"term":"隙間","hint":"空いている所"},{"term":"ゆとり","hint":"余裕のある状態"}]},{"word":"代償","category":"物語・抽象","items":[{"term":"引き換え","hint":"得るために払う"},{"term":"犠牲","hint":"失うもの"},{"term":"報い","hint":"行いの結果"}]},{"word":"痕跡","category":"物語・抽象","items":[{"term":"跡","hint":"残されたもの"},{"term":"手掛かり","hint":"推理の材料"},{"term":"形跡","hint":"存在を示す証拠"}]},{"word":"面影","category":"物語・抽象","items":[{"term":"昔の姿","hint":"記憶に残る姿"},{"term":"名残","hint":"過去の気配"},{"term":"記憶の片鱗","hint":"断片的な印象"}]},{"word":"希求","category":"物語・抽象","items":[{"term":"切望","hint":"強く望む"},{"term":"渇望","hint":"満たされない欲求"},{"term":"願い求める","hint":"熱心に望む"}]},{"word":"覚悟","category":"物語・抽象","items":[{"term":"決意","hint":"決めた意志"},{"term":"腹をくくる","hint":"受け入れる覚悟"},{"term":"心構え","hint":"準備した姿勢"}]}];
+for(const e of KW69_ORIGINAL_DATA){
+  const old=THESAURUS_DATA.find(x=>x.word===e.word);
+  if(!old){THESAURUS_DATA.push(e);continue;}
+  const used=new Set(old.items.map(x=>x.term));
+  for(const item of e.items)if(!used.has(item.term)){old.items.push(item);used.add(item.term);}
+}
 const THESAURUS_HISTORY_KEY='kotoba-writer-thesaurus-history-v1';
 const THESAURUS_HISTORY_LIMIT=80;
 let thesaurusHistory=[];
@@ -3289,8 +3298,10 @@ kw66SetupGenres();
 function thesaurusEntries(term){
   let exact=THESAURUS_DATA.filter(x=>x.word===term);
   if(exact.length)return exact;
-  exact=THESAURUS_DATA.filter(x=>x.items.some(i=>i.term===term));
-  if(exact.length)return exact;
+  // If a search word appears among a headword's alternatives, surface the
+  // *headwords* as related expressions without treating all their items as synonyms.
+  const reverse=THESAURUS_DATA.filter(x=>x.items.some(i=>i.term===term)&&x.word!==term).slice(0,9);
+  if(reverse.length)return [{word:term,category:'関連表現（文脈により意味が異なります）',items:reverse.map(x=>({term:x.word,hint:'「'+x.word+'」の言い換え候補として収録されています'}))}];
   const includes=THESAURUS_DATA.filter(x=>x.word.includes(term)).slice(0,6);
   if(includes.length)return includes;
   // Partial expression search can suggest headwords; tapping the headword is required
@@ -3332,7 +3343,7 @@ function renderThesaurusResults(term){
   }
   const seen=new Set();
   for(const entry of data){
-    const header=document.createElement('h4');header.className='kw63-result-title';header.textContent='「'+entry.word+'」の言い換え'+(entry.category?' ／ '+entry.category:'');results.append(header);
+    const header=document.createElement('h4');header.className='kw63-result-title';header.textContent='「'+entry.word+'」'+(entry.category?.startsWith('関連表現')?'の関連表現':'の言い換え')+(entry.category?' ／ '+entry.category:'');results.append(header);
     for(const item of entry.items){
       if(item.term===term||seen.has(item.term))continue;seen.add(item.term);
       const button=document.createElement('button');button.type='button';button.className='kw63-synonym';
@@ -3411,7 +3422,7 @@ function thesaurusSaveSnapshot(word,items,page){
 // Read the rendered Japanese synonym *section*, not raw wiki markup.
 // Wiktionary entries vary in template/heading syntax; the old raw-text parser
 // sometimes missed entries even when a visible "類義語" heading existed.
-function thesaurusRenderedItems(html, headword){
+function thesaurusRenderedItems(html, headword, labeledOnly=false){
   if(typeof html!=='string'||html.length>700000)return [];
   const doc=new DOMParser().parseFromString(html,'text/html');
   const found=[],seen=new Set();
@@ -3424,6 +3435,10 @@ function thesaurusRenderedItems(html, headword){
   for(const li of doc.querySelectorAll('li')){
     if(found.length>=24)break;
     if(li.closest('table,nav')||li.closest('.navbox'))continue;
+    // In a '関連語' section, *only* include explicitly tagged 類義語.
+    // Exclude 対義語, 派生語, 翻訳, 上位語, etc.; they are not synonyms.
+    const liText=(li.textContent||'').trim();
+    if(labeledOnly && !/^(?:[•*\s]*)?(?:類義語|同義語|近義語|類語)\s*[:：]/.test(liText))continue;
     // If a list item contains several linked terms, preserve them separately.
     const links=[...li.querySelectorAll('a')].filter(a=>{
       const href=a.getAttribute('href')||'';
@@ -3431,7 +3446,7 @@ function thesaurusRenderedItems(html, headword){
     });
     if(links.length){for(const link of links)add(link.textContent);}
     else{
-      const value=(li.textContent||'').replace(/^(?:語義|意味)\s*\d+\s*[:：]\s*/,'')
+      const value=(li.textContent||'').replace(/^(?:類義語|同義語|近義語|類語)\s*[:：]\s*/,'').replace(/^(?:語義|意味)\s*\d+\s*[:：]\s*/,'')
         .replace(/[（(][^）)]*[）)]/g,'');
       for(const token of value.split(/[、,，;；\n]/))add(token.trim());
     }
@@ -3469,13 +3484,15 @@ async function thesaurusRemoteSearch(word){
       for(const section of sections){
         const level=Number(section.level),title=thesaurusSectionTitle(section.line);
         if(level===2)inJapanese=/日本語|^(?:ja|jpn)$/i.test(title);
-        if(inJapanese&&level>=3&&/類義語|同義語|類語/.test(title))indices.push(section.index);
+        if(!inJapanese||level<3)continue;
+        if(/類義語|同義語|近義語|類語/.test(title))indices.push({index:section.index,labeledOnly:false});
+        else if(/^関連語$/.test(title))indices.push({index:section.index,labeledOnly:true});
       }
       const items=[],seen=new Set();
-      for(const index of indices.slice(0,4)){
-        const parsed=await callApi(page,'text',index);
+      for(const entrySection of indices.slice(0,6)){
+        const parsed=await callApi(page,'text',entrySection.index);
         const html=typeof parsed.text==='string'?parsed.text:parsed.text?.['*'];
-        for(const entry of thesaurusRenderedItems(html,page)){
+        for(const entry of thesaurusRenderedItems(html,page,entrySection.labeledOnly)){
           if(seen.has(entry.term))continue;
           seen.add(entry.term);items.push(entry);
         }
@@ -3538,7 +3555,12 @@ lookupThesaurus=function(raw,record,onlineRequest=false){
     try{
       const data=await thesaurusRemoteSearch(word);
       if(serial!==thesaurusFetchSerial||privacyMode||!$('thesaurusOnline').checked||!$('thesaurusPanel').classList.contains('show'))return;
-      if(!data.items.length){thesaurusNotice('オンライン辞書では、この単語の言い換え候補を確認できませんでした。辞書に類義語が登録されていない場合もあります。内蔵辞書・保存済み履歴は利用できます。');return;}
+      if(!data.items.length){
+        thesaurusNotice('ウィクショナリーの「'+word+'」には、抽出できる類義語がありませんでした。この辞書は類語専用ではありません。内蔵辞書の候補は引き続き表示しています。');
+        const link=document.createElement('a');link.href=THESAURUS_SOURCE+encodeURIComponent(data.page||word);
+        link.target='_blank';link.rel='noopener noreferrer';link.className='kw64-source';link.textContent='辞書の元ページを確認する ↗';
+        $('thesaurusResults').append(link);return;
+      }
       const saved=thesaurusSaveSnapshot(word,data.items,data.page);
       renderThesaurusResults(word);renderThesaurusHistory();
       thesaurusNotice('オンライン辞書の類義語を表示しました。'+(saved?'次回は履歴をタップするだけでオフラインでも見られます。':'端末への保存に失敗しました。オフライン再利用はできません。'));

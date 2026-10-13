@@ -1,6 +1,6 @@
-// Kotoba Writer: build66 online dictionary parsing, dictionary, voice writing and local recovery; license view reliability.
+// Kotoba Writer: build70 provider attribution update, dictionary, voice writing and local recovery; license view reliability.
 // Online thesaurus lookups require explicit user consent; cached results stay in browser storage.
-const CACHE='kotoba-writer-shell-v69';
+const CACHE='kotoba-writer-shell-v71';
 const PRIVACY_FLAG='kotoba-writer-privacy-lock-v1';
 const SHELL=['./','./index.html','./manifest.webmanifest','./licenses.html'];
 
