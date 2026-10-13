@@ -146,7 +146,7 @@ button:disabled{opacity:.45}
   width:var(--font-size);height:2px;background:#183d72;border-radius:2px;
   box-shadow:0 0 0 .2px #183d72;
 }
-.page.editing .grid-caret{display:block}
+.page.editing.caret-current .grid-caret{display:block}
 .page.editing .grid-caret.selected{display:none}
 /* Place the real grid above WebKit's native IME underline: the hidden
    textarea still receives input, but its different soft-wrap must not paint
@@ -154,15 +154,18 @@ button:disabled{opacity:.45}
 .page.composing .page-preview{z-index:4;background:var(--paper-bg,#fff)}
 .page.composition-ghost{position:absolute;z-index:8;pointer-events:none;
   box-sizing:border-box;margin:0!important;flex:none!important}
-/* build68: An always-visible manuscript position indicator (no blink).
+/* build71: Blink only after the manuscript is explicitly activated.
    It also remains on the current sheet when the editor loses focus to a toolbar.
    Selection highlighting takes priority while an extended range is selected. */
-.page.caret-current .grid-caret{display:block}
+@keyframes kwCaretBlink{0%,49%{opacity:1}50%,100%{opacity:0}}
+.page.caret-current .grid-caret{display:block;animation:kwCaretBlink 1.06s step-end infinite}
+.page.composing .grid-caret{animation:none!important;opacity:1!important}
+.page .grid-caret:not(.selected){animation-play-state:running}
 .page .grid-caret.selected{display:none!important}
-.page.composing .grid-caret{display:block}
+.page.composing.caret-current .grid-caret{display:block}
 .page.composition-ghost .grid-caret{display:none}
 .page.composition-ghost .grid-caret.composition-current{display:block}
-html.kw-dark .page .grid-caret{opacity:1}
+html.kw-dark .page .grid-caret{background:#d7c4ae}
 
 /* Build52: visible selected text follows the same per-character grid as the
    manuscript. Native WebKit selection rectangles use different soft-wraps. */
@@ -823,7 +826,7 @@ Technology and LICENSEE agrees to preserve same.
 <div id="printArea"></div>
 
 <script type="module">
-const BUILD=70;
+const BUILD=71;
 const $=id=>document.getElementById(id);
 $('buildVersion').textContent='Kotoba Writer build '+BUILD;
 const STORAGE='kotoba-writer-draft-v1';
@@ -1008,6 +1011,10 @@ function applySettings(){
     }
   }
   const s=getSettings();
+  // A writing-direction switch replaces editor nodes. Preserve the logical
+  // position, but never focus a detached editor during the switch.
+  const wasFocused=document.activeElement?.classList?.contains('page-editor')===true;
+  if(wasFocused){const ta=document.activeElement;if(ta.isConnected&&!isComposing)syncCaret(ta);}
   $('charCount').value=s.charCount;$('lineCount').value=s.lineCount;
   document.documentElement.style.setProperty('--font-size',s.fontSize+'px');
   document.documentElement.style.setProperty('--line-height',s.lineHeight);
@@ -1018,7 +1025,7 @@ function applySettings(){
   $('linesLabel').textContent=v?'列数':'行数';
   $('pageInfo').textContent=v?`${s.charCount}字 × ${s.lineCount}列`:`${s.charCount}字 × ${s.lineCount}行`;
   saveSettings();
-  renderPages(globalCaret,globalSelEnd,false);
+  renderPages(globalCaret,globalSelEnd,wasFocused && manuscriptCaretActivated);
 }
 
 /* 文字数と明示改行からページを決める。
@@ -1411,8 +1418,18 @@ function placeGridCaret(caret,preview,settings,stop){
   }
   caret.style.display='block';return true;
 }
+// Do not imply the page is focused on first load. Keep position visible only
+// after a deliberate page tap or keyboard insertion.
+let manuscriptCaretActivated=false;
 function showManuscriptCaret(){
   if(!chunks.length)return;
+  if(!manuscriptCaretActivated){
+    for(const page of document.querySelectorAll('#pages > .page:not(.composition-ghost)')){
+      page.classList.remove('caret-current');
+      const marker=page.querySelector('.grid-caret');if(marker)marker.style.display='none';
+    }
+    return;
+  }
   const currentPage=pageForOffset(globalCaret);
   for(const page of document.querySelectorAll('#pages > .page:not(.composition-ghost)')){
     const i=Number(page.querySelector('.page-editor')?.dataset.index);
@@ -1639,12 +1656,13 @@ function handlePageBoundaryInsert(ta,e){
 }
 function bindEditor(ta){
   if(ta.dataset.bound)return;ta.dataset.bound='1';
+  ta.addEventListener('pointerdown',()=>{manuscriptCaretActivated=true;});
   bindGridPointer(ta);
   ta.addEventListener('pointerdown',()=>{
     ta._selecting=true;clearTimeout(layoutIdleTimer);layoutIdleTimer=0;
   });
   for(const type of ['pointerup','pointercancel'])ta.addEventListener(type,()=>{ta._selecting=false;});
-  ta.addEventListener('focus',()=>{ta.closest('.page').classList.add('editing');if(!isComposing&&!rendering)syncCaret(ta);if(!rendering)paintVertical(ta);if(!rendering && getSettings().writingMode==='vertical')ta._lastVerticalRow=gridStopAt(ta,ta.selectionStart).row});
+  ta.addEventListener('focus',()=>{if(!ta.isConnected||rendering)return;ta.closest('.page').classList.add('editing');if(!isComposing&&!rendering)syncCaret(ta);if(!rendering)paintVertical(ta);if(!rendering && getSettings().writingMode==='vertical')ta._lastVerticalRow=gridStopAt(ta,ta.selectionStart).row});
   for(const type of ['select','keyup'])ta.addEventListener(type,()=>{
     if(rendering||isComposing)return;
     const guard=ta._gridTapGuard;
@@ -1660,11 +1678,12 @@ function bindEditor(ta){
   });
   ta.addEventListener('click',e=>verticalTap(ta,e));
   ta.addEventListener('compositionstart',()=>{
+    manuscriptCaretActivated=true;
     const guard=ta._gridTapGuard;
     if(guard&&guard.value===ta.value&&performance.now()<guard.until)
       ta.setSelectionRange(guard.offset,guard.offset);
     ta._gridTapGuard=null;
-    isComposing=true;forgetArrowGoal();ta.closest('.page')?.classList.add('composing');
+    isComposing=true;showManuscriptCaret();forgetArrowGoal();ta.closest('.page')?.classList.add('composing');
     remember();paintVertical(ta);scheduleReveal();
     clearTimeout(layoutIdleTimer);layoutIdleTimer=0;
   });
@@ -1709,6 +1728,7 @@ function bindEditor(ta){
     remember();
   });
   ta.addEventListener('input',e=>{
+    manuscriptCaretActivated=true;
     if(ta._boundaryEditPending)return;
     if(isComposing||e.isComposing){paintVertical(ta,true);noteVerticalColumn(ta,true);scheduleReveal();return;}
     // Every committed edit, including iPad paste and single keystrokes, is
@@ -1963,6 +1983,7 @@ function renderPages(caret=globalCaret,selEnd=globalSelEnd,focus=false,scroll=fa
 }
 
 function setDoc(text,caret=0,end=caret,rememberIt=true,focus=true){
+  if(focus)manuscriptCaretActivated=true;
   forgetArrowGoal();
   if(rememberIt)remember();
   docText=String(text??'').replace(/\r\n?/g,'\n');
