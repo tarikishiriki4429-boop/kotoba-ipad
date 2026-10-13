@@ -488,6 +488,25 @@ html.kw-dark .kw63-search input,html.kw-dark .kw63-synonym,html.kw-dark .kw63-hi
 html.kw-dark .kw63-help,html.kw-dark .kw63-synonym small,html.kw-dark .kw63-empty{color:#c2b8ad}
 html.kw-dark .kw63-replace-hint{color:#b6dac0}
 
+
+/* build64: consent-based online thesaurus + offline lookup snapshots */
+.kw64-online-settings{display:flex;flex-direction:column;gap:7px;margin:8px 0 10px}
+.kw64-online-switch{display:inline-flex;align-items:center;gap:8px;align-self:flex-start;
+ border:1px solid #bbb5ac;border-radius:17px;background:#f5f4f2;padding:7px 12px;
+ font-size:13px;font-weight:700;cursor:pointer}
+.kw64-online-switch input{width:18px;height:18px;accent-color:#205d89}
+#thesaurusOnlineState{font-size:12px;color:#305c7a}
+.kw64-guidance{font-size:12px;line-height:1.7;padding:10px 12px;background:#f1f6fa;
+ border:1px solid #c6d8e4;border-radius:10px}
+.kw64-guidance p{margin:4px 0}
+.kw64-source{font-size:12px;line-height:1.6;margin:7px 0 4px;color:#526677}
+.kw64-source a{color:#12629e;text-decoration:underline}
+.kw64-remote-heading{margin:13px 0 7px;font-size:14px}
+.kw64-history-tag{font-size:10px;margin-left:3px;opacity:.8}
+html.kw-dark .kw64-online-switch{background:#38332d;border-color:#766c60;color:#eee7dc}
+html.kw-dark .kw64-guidance{background:#263846;border-color:#456477;color:#dfe9ee}
+html.kw-dark .kw64-source{color:#b6c6d5}
+html.kw-dark .kw64-source a{color:#93c7ff}
 </style>
 </head>
 <body>
@@ -666,15 +685,25 @@ html.kw-dark .kw63-replace-hint{color:#b6dac0}
 <div id="thesaurusPanel" class="panel" role="dialog" aria-label="類語・言い換え検索" aria-modal="false">
   <div class="kw62-panel-header"><h3>類語・言い換え検索</h3><button id="closeThesaurus" class="kw62-close" type="button" aria-label="類語検索を閉じる">× 閉じる</button></div>
   <p class="kw63-banner"><strong>本文の言葉を選択してから開く</strong>と、候補をタップするだけでその言葉を置換し、自動的に画面が閉じます。変更は「取り消し」で戻せます。</p>
+  <div class="kw64-online-settings">
+    <label class="kw64-online-switch"><input type="checkbox" id="thesaurusOnline" autocomplete="off"><span>🌐 外部（オンライン）検索</span><strong id="thesaurusOnlineState">OFF</strong></label>
+    <div class="kw64-guidance" id="thesaurusOnlineHelp">
+      <strong>オンライン検索と履歴の使い方</strong>
+      <p><b>OFF（初期設定）：</b>内蔵辞書と保存済みの検索結果だけを表示します。外部に検索語を送りません。</p>
+      <p><b>ON：</b>「検索」を押すと検索した単語だけを日本語版ウィクショナリーへ送信し、提供される場合は類義語を追加表示します。原稿全体は送信しません。</p>
+      <p><b>2回目からは：</b>外部検索の結果を取得できた単語は、下の<strong>「言い換え履歴」からタップすればオフラインでも前回の候補を見られます</strong>（同じ端末・ブラウザー・URLで保存データが残っている場合）。履歴から見るだけなら再通信しません。</p>
+      <p>秘匿モードONでは外部検索できません。外部サービス側の保存・利用方針はKotoba Writerから制御できません。ONにする際に確認画面を表示します。</p>
+    </div>
+  </div>
   <div class="kw63-search"><input id="thesaurusSearch" type="search" placeholder="例：見る、静か、怒る" maxlength="60" aria-label="類語を調べる言葉"><button id="thesaurusLookup" type="button" class="primary">検索</button></div>
   <p id="thesaurusStatus" role="status" aria-live="polite">調べたい言葉を入力してください。</p>
   <div id="thesaurusResults" role="group" aria-label="言い換え候補"></div>
   <section class="kw59-group" aria-labelledby="thesaurusHistoryTitle">
     <div class="kw63-history-header"><h4 id="thesaurusHistoryTitle">言い換え履歴（<span id="thesaurusHistoryCount">0</span>件）</h4><button id="clearThesaurusHistory" type="button">履歴を削除</button></div>
-    <p class="kw63-help">調べた言葉を端末内に記録します。言葉をタップすると、候補をもう一度見られます。</p>
+    <p class="kw63-help">検索語と取得できた外部候補を端末内に保存します。<strong>一度取得した候補は、次回から外部検索OFF・オフラインでも履歴から再表示できます。</strong>（端末の保存データが残っている場合）</p>
     <div id="thesaurusHistory" aria-label="言い換え検索の履歴"></div>
   </section>
-  <p class="kw63-help">小説向けのオフライン類語集です。候補は文脈によって意味・活用が異なるため、置換後に文章を確認してください。履歴はこの端末・ブラウザー・URL内に保存され、同期や外部送信はしません。</p>
+  <p class="kw63-help">基本の類語集はオフラインで使えます。外部検索ONのときだけ、検索語が日本語版ウィクショナリーへ送られます。取得結果の出典は候補の下に表示します。履歴と取得結果はこの端末・ブラウザー・URL内に保存され、別の端末とは同期しません。置換後は文脈・活用を確認してください。</p>
 </div>
 
 <div id="findPanel" class="panel" role="dialog" aria-label="検索・置換">
@@ -719,7 +748,7 @@ html.kw-dark .kw63-replace-hint{color:#b6dac0}
 <div id="printArea"></div>
 
 <script type="module">
-const BUILD=63;
+const BUILD=64;
 const $=id=>document.getElementById(id);
 $('buildVersion').textContent='Kotoba Writer build '+BUILD;
 const STORAGE='kotoba-writer-draft-v1';
@@ -3060,7 +3089,7 @@ function renderThesaurusResults(term){
   const data=thesaurusEntries(term);
   if(!data.length){
     let message=document.createElement('p');message.className='kw63-empty';
-    message.textContent='収録辞書に候補がありません。今後の追加対象です（外部検索はしません）。';
+    message.textContent='収録辞書に候補がありません。内蔵辞書では見つかりませんでした。外部検索ONなら「検索」で追加候補を調べられます。';
     results.append(message);return;
   }
   const exact=data.some(x=>x.word===term||x.items.some(i=>i.term===term));
@@ -3118,6 +3147,186 @@ $('clearThesaurusHistory').onclick=()=>{
   try{localStorage.removeItem(THESAURUS_HISTORY_KEY);}catch{thesaurusNotice('履歴データを削除できませんでした。');return;}
   renderThesaurusHistory();thesaurusNotice('履歴を削除しました。本文や創作辞書は変更していません。');
 };
+
+/* build64 online lookup: opt-in, never background-fetch, cached snapshots retained locally.
+   External source: Japanese Wiktionary / Wikimedia Action API (CC BY-SA). */
+const THESAURUS_SNAPSHOT_KEY='kotoba-writer-thesaurus-snapshots-v1';
+const THESAURUS_SOURCE='https://ja.wiktionary.org/wiki/';
+let thesaurusSnapshots=Object.create(null);
+try{
+  const saved=JSON.parse(localStorage.getItem(THESAURUS_SNAPSHOT_KEY)||'{}');
+  if(saved&&typeof saved==='object'&&!Array.isArray(saved)){
+    for(const [word,obj] of Object.entries(saved).slice(0,THESAURUS_HISTORY_LIMIT)){
+      if(word.length>60||!obj||!Array.isArray(obj.items)||obj.items.length>30)continue;
+      const items=obj.items.filter(i=>i&&typeof i.term==='string'&&i.term.length<=30&&typeof i.hint==='string'&&i.hint.length<=120)
+        .map(i=>({term:i.term,hint:i.hint}));
+      if(items.length)thesaurusSnapshots[word]={items,page:String(obj.page||word).slice(0,60),time:Number(obj.time)||0};
+    }
+  }
+}catch{}
+let thesaurusFetchController=null;
+let thesaurusFetchSerial=0;
+function abortThesaurusFetch(){
+  ++thesaurusFetchSerial;
+  if(thesaurusFetchController){thesaurusFetchController.abort();thesaurusFetchController=null;}
+}
+function thesaurusSaveSnapshot(word,items,page){
+  thesaurusSnapshots[word]={items:items.slice(0,30),page,time:Date.now()};
+  // Evict older entries when keeping snapshots; history and cache share an 80-word cap.
+  const allowed=new Set(thesaurusHistory.slice(0,THESAURUS_HISTORY_LIMIT));
+  for(const k of Object.keys(thesaurusSnapshots))if(!allowed.has(k))delete thesaurusSnapshots[k];
+  try{localStorage.setItem(THESAURUS_SNAPSHOT_KEY,JSON.stringify(thesaurusSnapshots));return true;}
+  catch{return false;}
+}
+function thesaurusWiktionaryItems(wikitext){
+  if(typeof wikitext!=='string'||wikitext.length>900000)return [];
+  let text=wikitext;
+  // Avoid translating another language's entry into alleged Japanese synonyms.
+  const japanese=text.search(/^==\s*(?:日本語|\{\{(?:ja|jpn)\}\})\s*==\s*$/mi);
+  if(japanese>=0){
+    text=text.slice(japanese);
+    const next=text.slice(5).search(/^==[^=\n]+==\s*$/m);
+    if(next>=0)text=text.slice(0,next+5);
+  }else return [];
+  const lines=text.split(/\r?\n/),found=[],seen=new Set();
+  let active=false;
+  const clean=(raw)=>raw
+    .replace(/<!--[\s\S]*?-->/g,'')
+    .replace(/\{\{(?:l|link|m)\|ja\|([^}|]+)(?:\|[^}]*)?\}\}/gi,'$1')
+    .replace(/\[\[([^\]|]+)\|([^\]]+)\]\]/g,'$2')
+    .replace(/\[\[([^\]]+)\]\]/g,'$1')
+    .replace(/\{\{[^{}]*\}\}/g,'')
+    .replace(/<[^>]+>/g,'')
+    .replace(/'{2,5}/g,'')
+    .replace(/\s*(?:[（(][^）)]*[）)]|：.*)$/u,'')
+    .trim();
+  for(const line of lines){
+    const header=line.match(/^\s*(={3,6})\s*(.*?)\s*\1\s*$/);
+    if(header){active=/類義語|同義語/.test(header[2]);continue;}
+    if(!active||!/^[*#]+\s+/.test(line))continue;
+    let item=line.replace(/^[*#]+\s*/,''),first=item.split(/[、，,;；]/)[0];
+    let term=clean(first);
+    if(term.length<2||term.length>30||/[\n\r\[\]{}|=]/.test(term)||!/[\u3040-\u30ff\u3400-\u9fff]/u.test(term)||seen.has(term))continue;
+    seen.add(term);found.push({term,hint:'日本語版ウィクショナリーの類義語'});
+    if(found.length>=24)break;
+  }
+  return found;
+}
+async function thesaurusRemoteSearch(word){
+  let page=word;
+  // Wiktionary's inflected kanji spellings often have their content in the kana headword.
+  if(word==='見る')page='みる';
+  const params=new URLSearchParams({action:'parse',page,prop:'wikitext',format:'json',formatversion:'2',origin:'*'});
+  const url='https://ja.wiktionary.org/w/api.php?'+params.toString();
+  const controller=new AbortController();thesaurusFetchController=controller;
+  const timer=setTimeout(()=>controller.abort(),9500);
+  try{
+    const response=await fetch(url,{mode:'cors',credentials:'omit',signal:controller.signal,cache:'no-store'});
+    if(!response.ok)throw Error('HTTP '+response.status);
+    const data=await response.json();
+    if(data.error||!data.parse)throw Error('辞書に見出し語がありません');
+    const raw=data.parse.wikitext;
+    const text=typeof raw==='string'?raw:raw&&raw['*'];
+    return {items:thesaurusWiktionaryItems(text),page};
+  }finally{
+    clearTimeout(timer);
+    if(thesaurusFetchController===controller)thesaurusFetchController=null;
+  }
+}
+const originalThesaurusResults=renderThesaurusResults;
+renderThesaurusResults=function(term){
+  originalThesaurusResults(term);
+  const cached=thesaurusSnapshots[term];
+  if(!cached||!cached.items?.length)return;
+  const results=$('thesaurusResults');
+  const heading=document.createElement('h4');heading.className='kw64-remote-heading';
+  heading.textContent='外部辞書の保存済み候補（オフラインでも表示）';results.append(heading);
+  const seen=new Set([...results.querySelectorAll('.kw63-synonym strong')].map(el=>el.textContent));
+  for(const item of cached.items){
+    if(seen.has(item.term)||term===item.term)continue;
+    seen.add(item.term);
+    const b=document.createElement('button');b.className='kw63-synonym';b.type='button';
+    const name=document.createElement('strong');name.textContent=item.term;
+    const note=document.createElement('small');note.textContent=item.hint;
+    const hint=document.createElement('span');hint.className='kw63-replace-hint';hint.textContent='選んで置換 →';
+    b.append(name,note,hint);b.onclick=()=>chooseThesaurusTerm(item.term);results.append(b);
+  }
+  const citation=document.createElement('p');citation.className='kw64-source';
+  citation.append('出典：');
+  const link=document.createElement('a');link.href=THESAURUS_SOURCE+encodeURIComponent(cached.page);
+  link.target='_blank';link.rel='noopener noreferrer';link.textContent='日本語版ウィクショナリー';
+  citation.append(link,'（CC BY-SA 4.0）。この候補は端末内に保存済み。');
+  results.append(citation);
+};
+const originalThesaurusHistory=renderThesaurusHistory;
+renderThesaurusHistory=function(){
+  originalThesaurusHistory();
+  for(const button of $('thesaurusHistory').querySelectorAll('.kw63-history-chip')){
+    if(!thesaurusSnapshots[button.textContent]?.items?.length)continue;
+    const label=document.createElement('span');label.className='kw64-history-tag';
+    label.textContent='（保存済）';button.append(label);
+    button.title+='（オフラインで保存済み候補を再表示）';
+    // The closure in originalThesaurusHistory already binds the correct word, and only local lookup.
+  }
+};
+const originalThesaurusLookup=lookupThesaurus;
+lookupThesaurus=function(raw,record,onlineRequest=false){
+  const word=String(raw||'').normalize('NFKC').trim().slice(0,60);
+  abortThesaurusFetch();
+  originalThesaurusLookup(word,record);
+  if(!word||!onlineRequest||!$('thesaurusOnline').checked)return;
+  if(privacyMode){thesaurusNotice('秘匿モードONでは外部検索できません。内蔵辞書と保存済みの履歴をご利用ください。');return;}
+  if(navigator.onLine===false){thesaurusNotice('現在オフラインです。履歴の保存済み候補を表示しています。');return;}
+  const serial=thesaurusFetchSerial;
+  thesaurusNotice('日本語版ウィクショナリーを検索しています。検索語のみを送信します…');
+  (async()=>{
+    try{
+      const data=await thesaurusRemoteSearch(word);
+      if(serial!==thesaurusFetchSerial||privacyMode||!$('thesaurusOnline').checked||!$('thesaurusPanel').classList.contains('show'))return;
+      if(!data.items.length){thesaurusNotice('外部辞書に類義語が見つかりませんでした。内蔵辞書・履歴は引き続き利用できます。');return;}
+      const saved=thesaurusSaveSnapshot(word,data.items,data.page);
+      renderThesaurusResults(word);renderThesaurusHistory();
+      thesaurusNotice('外部辞書の類義語を表示しました。'+(saved?'次回は履歴をタップするだけでオフラインでも見られます。':'端末への保存に失敗しました。オフライン再利用はできません。'));
+    }catch(e){
+      if(serial!==thesaurusFetchSerial)return;
+      thesaurusNotice(e?.name==='AbortError'?'外部検索が時間切れになりました。内蔵辞書と保存済みの履歴をご利用ください。':'外部検索に接続できませんでした。内蔵辞書と保存済みの履歴は利用できます。');
+    }
+  })();
+};
+// Explicit consent only. Enabling is not itself a search.
+$('thesaurusOnline').addEventListener('change',()=>{
+  const checkbox=$('thesaurusOnline');
+  if(checkbox.checked){
+    if(privacyMode){checkbox.checked=false;thesaurusNotice('秘匿モード中は外部検索をONにできません。');}
+    else if(!confirm('外部検索をONにしますか？\n\n「検索」を押すと調べた単語だけが日本語版ウィクショナリーに送信されます。原稿全文は送りません。外部サービス側の保存・利用方針はKotoba Writerから制御できません。\n\n取得した候補は端末内の履歴に保存し、2回目からは外部検索OFF・オフラインでも履歴から確認できます（保存データが残る場合）。'))checkbox.checked=false;
+  }else abortThesaurusFetch();
+  $('thesaurusOnlineState').textContent=checkbox.checked?'ON':'OFF';
+});
+// A history chip only invokes lookupThesaurus(word,true): no third argument, so no online requests.
+$('thesaurusLookup').onclick=()=>lookupThesaurus($('thesaurusSearch').value,true,true);
+$('thesaurusSearch').addEventListener('keydown',e=>{
+  if(e.key==='Enter'){e.preventDefault();e.stopImmediatePropagation();lookupThesaurus($('thesaurusSearch').value,true,true);}
+},true);
+const oldThesaurusClose=$('closeThesaurus').onclick;
+$('closeThesaurus').onclick=()=>{abortThesaurusFetch();oldThesaurusClose();};
+const oldThesaurusClear=$('clearThesaurusHistory').onclick;
+$('clearThesaurusHistory').onclick=()=>{
+  const hadHistory=thesaurusHistory.length;
+  oldThesaurusClear();
+  if(hadHistory&&!thesaurusHistory.length){
+    thesaurusSnapshots=Object.create(null);
+    try{localStorage.removeItem(THESAURUS_SNAPSHOT_KEY);}catch{}
+  }
+};
+const oldSyncThesaurusPrivacy=syncPrivacy;
+syncPrivacy=function(){
+  if(privacyMode){abortThesaurusFetch();$('thesaurusOnline').checked=false;}
+  $('thesaurusOnline').disabled=privacyMode;
+  $('thesaurusOnlineState').textContent=$('thesaurusOnline').checked?'ON':'OFF';
+  oldSyncThesaurusPrivacy();
+};
+// syncPrivacy() was already called before this block; update the thesaurus switch without reopening.
+$('thesaurusOnline').disabled=privacyMode;
 
 </script>
 </body>
