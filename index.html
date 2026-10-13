@@ -828,7 +828,7 @@ Technology and LICENSEE agrees to preserve same.
 <div id="printArea"></div>
 
 <script type="module">
-const BUILD=72;
+const BUILD=73;
 const $=id=>document.getElementById(id);
 $('buildVersion').textContent='Kotoba Writer build '+BUILD;
 const STORAGE='kotoba-writer-draft-v1';
@@ -996,6 +996,9 @@ function remember(){
   history.push(docText); if(history.length>20)history.shift();
   $('undoBtn').disabled=!history.length;
 }
+// Track the last rendered orientation, not the value of the settings control.
+// Initial load and unrelated font/page-size changes must not clear the caret.
+let lastAppliedWritingMode=null;
 function applySettings(){
   forgetArrowGoal();
   // Composing text should be committed by the native IME before rebuilding
@@ -1013,10 +1016,25 @@ function applySettings(){
     }
   }
   const s=getSettings();
-  // A writing-direction switch replaces editor nodes. Preserve the logical
-  // position, but never focus a detached editor during the switch.
+  const writingModeSwitched=lastAppliedWritingMode!==null && lastAppliedWritingMode!==s.writingMode;
+  lastAppliedWritingMode=s.writingMode;
+  // A direction switch invalidates the previous paper insertion point.
+  // Preserve the logical document offset without keeping keyboard focus or
+  // a visible marker on a replaced (and therefore uneditable) textarea.
   const wasFocused=document.activeElement?.classList?.contains('page-editor')===true;
-  if(wasFocused){const ta=document.activeElement;if(ta.isConnected&&!isComposing)syncCaret(ta);}
+  if(wasFocused){
+    const ta=document.activeElement;
+    if(ta.isConnected&&!isComposing)syncCaret(ta);
+    if(writingModeSwitched && ta.isConnected)ta.blur();
+  }
+  if(writingModeSwitched){
+    manuscriptCaretActivated=false;
+    for(const page of document.querySelectorAll('#pages > .page')){
+      page.classList.remove('caret-current','editing');
+      const marker=page.querySelector('.grid-caret');
+      if(marker)marker.style.display='none';
+    }
+  }
   $('charCount').value=s.charCount;$('lineCount').value=s.lineCount;
   document.documentElement.style.setProperty('--font-size',s.fontSize+'px');
   document.documentElement.style.setProperty('--line-height',s.lineHeight);
@@ -1027,7 +1045,7 @@ function applySettings(){
   $('linesLabel').textContent=v?'列数':'行数';
   $('pageInfo').textContent=v?`${s.charCount}字 × ${s.lineCount}列`:`${s.charCount}字 × ${s.lineCount}行`;
   saveSettings();
-  renderPages(globalCaret,globalSelEnd,wasFocused && manuscriptCaretActivated);
+  renderPages(globalCaret,globalSelEnd,!writingModeSwitched && wasFocused && manuscriptCaretActivated);
 }
 
 /* 文字数と明示改行からページを決める。
@@ -1485,6 +1503,9 @@ function paintVertical(ta,previewOnly=false){
   if(!previewOnly)paintGridSelection(ta);
   const caret=page.querySelector('.grid-caret');
   if(!caret)return;
+  // Layout changes can call preview painting without an intentional tap.
+  // Never resurrect the old marker after a direction switch.
+  if(!manuscriptCaretActivated){caret.style.display='none';return;}
   const selecting=!composing && ta.selectionStart!==ta.selectionEnd;
   caret.classList.toggle('selected',selecting);
   if(selecting){caret.style.display='none';return;}
