@@ -828,7 +828,7 @@ Technology and LICENSEE agrees to preserve same.
 <div id="printArea"></div>
 
 <script type="module">
-const BUILD=73;
+const BUILD=75;
 const $=id=>document.getElementById(id);
 $('buildVersion').textContent='Kotoba Writer build '+BUILD;
 const STORAGE='kotoba-writer-draft-v1';
@@ -1137,7 +1137,7 @@ function writeEditorText(el,value){
     end.textContent='\u200b';line.append(end);
   }
   newLine();
-  for(const {segment:ch} of units(value)){
+  for(const {segment:ch,index} of units(value)){
     if(ch==='\n'){
       emptyCaret();line.append(document.createElement('br'));
       if(row+1<rowLimit)newLine();
@@ -1149,6 +1149,7 @@ function writeEditorText(el,value){
     const cell=document.createElement('span');
     cell.className='editor-char'+(hanging?' hanging-char':'');
     if(hanging)cell.dataset.hanging='1';
+    cell.dataset.start=String(index);cell.dataset.end=String(index+ch.length);
     cell.textContent=ch;line.append(cell);
     if(!hanging)col++;
   }
@@ -1241,15 +1242,41 @@ function paintGridSelection(ta){
 function gridHitOffset(ta,clientX,clientY){
   const preview=ta.closest('.page')?.querySelector('.page-preview');
   if(!preview)return 0;
+  // Hit the actual painted glyph boxes, including zoom and hanging marks.
+  // The transparent textarea has DIFFERENT native line wraps.
+  const verticalMode=getSettings().writingMode==='vertical';
+  let nearest=null,bestLine=Infinity,bestInline=Infinity;
+  for(const cell of preview.querySelectorAll('.editor-char[data-start]')){
+    const r=cell.getBoundingClientRect();
+    if(!r.width||!r.height)continue;
+    const cross=verticalMode?clientX:clientY;
+    const lo=verticalMode?r.left:r.top,hi=verticalMode?r.right:r.bottom;
+    const lineDistance=Math.max(lo-cross,0,cross-hi);
+    const inline=verticalMode?clientY:clientX;
+    const begin=verticalMode?r.top:r.left,end=verticalMode?r.bottom:r.right;
+    const before=Math.abs(inline-begin),after=Math.abs(inline-end);
+    const distance=Math.min(before,after);
+    if(lineDistance<bestLine || (lineDistance===bestLine && distance<bestInline)){
+      bestLine=lineDistance;bestInline=distance;
+      nearest=Number(before<=after?cell.dataset.start:cell.dataset.end);
+    }
+  }
+  // Empty lines have no glyph boxes: use the shared grid map there.
+  const previewRect=preview.getBoundingClientRect();
+  const settingsForHit=getSettings();
+  const scaleX=preview.offsetWidth?previewRect.width/preview.offsetWidth:1;
+  const scaleY=preview.offsetHeight?previewRect.height/preview.offsetHeight:1;
+  const lineAdvance=Number(settingsForHit.fontSize)*Number(settingsForHit.lineHeight)*(verticalMode?scaleX:scaleY);
+  if(nearest!==null && bestLine<lineAdvance/2)return nearest;
   const rect=preview.getBoundingClientRect(),settings=getSettings();
   const fs=Number(settings.fontSize),advance=fs*Number(settings.lineHeight);
   const vertical=settings.writingMode==='vertical';
   const row=vertical
-    ? Math.max(0,Math.min(settings.lineCount-1,Math.floor((rect.right-clientX)/advance)))
-    : Math.max(0,Math.min(settings.lineCount-1,Math.floor((clientY-rect.top)/advance)));
+    ? Math.max(0,Math.min(settings.lineCount-1,Math.floor((rect.right-clientX)/(advance*scaleX))))
+    : Math.max(0,Math.min(settings.lineCount-1,Math.floor((clientY-rect.top)/(advance*scaleY))));
   const col=vertical
-    ? Math.max(0,Math.min(settings.charCount,Math.round((clientY-rect.top)/fs)))
-    : Math.max(0,Math.min(settings.charCount,Math.round((clientX-rect.left)/fs)));
+    ? Math.max(0,Math.min(settings.charCount,Math.round((clientY-rect.top)/(fs*scaleY))))
+    : Math.max(0,Math.min(settings.charCount,Math.round((clientX-rect.left)/(fs*scaleX))));
   return gridOffsetAt(ta,row,col);
 }
 function setGridSelection(ta,anchor,focus){
@@ -1282,7 +1309,7 @@ function bindGridPointer(ta){
       setGridSelection(ta,anchor,anchor);
       state.started=true;ta._suppressTapClick=true;
       try{ta.setPointerCapture(e.pointerId)}catch{}
-    }else if(e.pointerType==='touch'){
+    }else if(e.pointerType==='touch'||e.pointerType==='pen'){
       // Do not interfere with an ordinary touch swipe (page scrolling).
       // A stationary long press begins a precise selected range.
       state.timer=setTimeout(()=>{
@@ -1313,11 +1340,12 @@ function bindGridPointer(ta){
       const focus=gridHitOffset(ta,e.clientX,e.clientY);
       setGridSelection(ta,state.anchor,focus);
       ta._suppressTapClick=true;
-    }else if(!state.started&&e.pointerType==='touch' &&
+    }else if(!state.started&&(e.pointerType==='touch'||e.pointerType==='pen') &&
              Math.hypot(e.clientX-state.x,e.clientY-state.y)<10 && !isComposing){
       // A touch tap must use the visible grid, not the browser's vertical
       // soft-wrap. This is also applied on click (native WebKit may run later).
-      const offset=state.anchor;
+      const offset=gridHitOffset(ta,e.clientX,e.clientY);
+      if(e.cancelable)e.preventDefault();
       ta._gridTap={offset,when:performance.now(),value:ta.value};
       ta.focus({preventScroll:true});
       ta.setSelectionRange(offset,offset);
@@ -1519,13 +1547,14 @@ function paintVertical(ta,previewOnly=false){
 function verticalTap(ta,e){
   // Native Safari hit testing can disagree with the actual painted cell. The
   // grid hit from pointerdown is authoritative for ordinary single taps.
-  if(ta._suppressTapClick){ta._suppressTapClick=false;ta._gridTap=null;return;}
+  if(ta._suppressTapClick){if(e.cancelable)e.preventDefault();ta._suppressTapClick=false;ta._gridTap=null;return;}
   if(isComposing||e.detail===0)return;
   const tap=ta._gridTap;
   const valid=tap&&performance.now()-tap.when<1500&&tap.value===ta.value;
   ta._gridTap=null;
   // Do NOT collapse a user-made selection from a long press or drag.
   if(!valid && ta.selectionStart!==ta.selectionEnd)return;
+  if(e.cancelable)e.preventDefault();
   const offset=valid?tap.offset:gridHitOffset(ta,e.clientX,e.clientY);
   ta.setSelectionRange(offset,offset);
   ta._gridTapGuard={offset,value:ta.value,until:performance.now()+900};
@@ -1679,6 +1708,35 @@ function handlePageBoundaryInsert(ta,e){
   save();scheduleBoundaryCommit(ta,at+e.data.length);
   return true;
 }
+// A tap correction is temporary. Consume it BEFORE a keyboard command so a
+// delayed select/keyup/animation frame cannot restore the previous tap later.
+function consumeGridTap(ta){
+  const guard=ta._gridTapGuard;
+  ta._gridTapGuard=null;
+  ta._gridTap=null;
+  if(guard && guard.value===ta.value && performance.now()<guard.until &&
+     document.activeElement===ta && !ta._selecting){
+    ta.setSelectionRange(guard.offset,guard.offset);
+  }
+}
+function refreshEditorSelection(ta){
+  if(rendering || isComposing || !ta.isConnected || document.activeElement!==ta)return;
+  const guard=ta._gridTapGuard;
+  if(guard && guard.value===ta.value && performance.now()<guard.until &&
+     !ta._selecting && !ta._applyingGridTap &&
+     (ta.selectionStart!==guard.offset || ta.selectionEnd!==guard.offset)){
+    ta._applyingGridTap=true;
+    ta.setSelectionRange(guard.offset,guard.offset);
+    ta._applyingGridTap=false;
+  }
+  syncCaret(ta);paintVertical(ta);showManuscriptCaret();
+}
+// Collapsed native caret moves need not dispatch textarea 'select'. Listen to
+// selectionchange as well, so the visible marker reflects the edit target.
+document.addEventListener('selectionchange',()=>{
+  const ta=document.activeElement;
+  if(ta?.classList?.contains('page-editor'))refreshEditorSelection(ta);
+});
 function bindEditor(ta){
   if(ta.dataset.bound)return;ta.dataset.bound='1';
   ta.addEventListener('pointerdown',()=>{manuscriptCaretActivated=true;});
@@ -1688,26 +1746,12 @@ function bindEditor(ta){
   });
   for(const type of ['pointerup','pointercancel'])ta.addEventListener(type,()=>{ta._selecting=false;});
   ta.addEventListener('focus',()=>{if(!ta.isConnected||rendering)return;ta.closest('.page').classList.add('editing');if(!isComposing&&!rendering)syncCaret(ta);if(!rendering)paintVertical(ta);if(!rendering && getSettings().writingMode==='vertical')ta._lastVerticalRow=gridStopAt(ta,ta.selectionStart).row});
-  for(const type of ['select','keyup'])ta.addEventListener(type,()=>{
-    if(rendering||isComposing)return;
-    const guard=ta._gridTapGuard;
-    if(guard&&ta.value===guard.value&&performance.now()<guard.until &&
-      document.activeElement===ta && (ta.selectionStart!==guard.offset||ta.selectionEnd!==guard.offset)){
-      if(!ta._applyingGridTap){
-        ta._applyingGridTap=true;
-        ta.setSelectionRange(guard.offset,guard.offset);
-        ta._applyingGridTap=false;
-      }
-    }
-    syncCaret(ta);paintVertical(ta);showManuscriptCaret();
-  });
+  for(const type of ['select','keyup','selectionchange'])
+    ta.addEventListener(type,()=>refreshEditorSelection(ta));
   ta.addEventListener('click',e=>verticalTap(ta,e));
   ta.addEventListener('compositionstart',()=>{
     manuscriptCaretActivated=true;
-    const guard=ta._gridTapGuard;
-    if(guard&&guard.value===ta.value&&performance.now()<guard.until)
-      ta.setSelectionRange(guard.offset,guard.offset);
-    ta._gridTapGuard=null;
+    consumeGridTap(ta);
     isComposing=true;showManuscriptCaret();forgetArrowGoal();ta.closest('.page')?.classList.add('composing');
     remember();paintVertical(ta);scheduleReveal();
     clearTimeout(layoutIdleTimer);layoutIdleTimer=0;
@@ -1730,10 +1774,7 @@ function bindEditor(ta){
   ta.addEventListener('paste',()=>{forgetArrowGoal();ta._pastePending=true;});
   ta.addEventListener('beforeinput',e=>{
     if(isComposing||e.isComposing)return;
-    const guard=ta._gridTapGuard;
-    if(guard&&guard.value===ta.value&&performance.now()<guard.until &&
-      !ta._selecting)ta.setSelectionRange(guard.offset,guard.offset);
-    ta._gridTapGuard=null;
+    consumeGridTap(ta);
     if(ta._boundaryEditPending){
       if(e.inputType==='deleteContentBackward')handlePageBoundaryDelete(ta,'backward');
       else if(e.inputType==='deleteContentForward')handlePageBoundaryDelete(ta,'forward');
@@ -1776,6 +1817,8 @@ function bindEditor(ta){
     renderPages(globalCaret,globalSelEnd,false,false);
   });
   ta.addEventListener('keydown',e=>{
+    if(!isComposing&&!e.isComposing && !['Shift','Control','Alt','Meta','CapsLock'].includes(e.key))
+      consumeGridTap(ta);
     if(!isComposing&&!e.isComposing&&!e.metaKey&&!e.ctrlKey&&!e.altKey){
       const direction=e.key==='Backspace'?'backward':e.key==='Delete'?'forward':null;
       if(direction && handlePageBoundaryDelete(ta,direction,true)){
