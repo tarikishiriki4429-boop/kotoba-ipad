@@ -1,6 +1,6 @@
-// Kotoba Writer: build75 synchronize keyboard and visible caret, dictionary, voice writing and local recovery; license view reliability.
+// Kotoba Writer: build76 compact meaning hints and keyboard dictionary registration; build75 synchronize keyboard and visible caret, dictionary, voice writing and local recovery; license view reliability.
 // Online thesaurus lookups require explicit user consent; cached results stay in browser storage.
-const CACHE='kotoba-writer-shell-v76';
+const CACHE='kotoba-writer-shell-v77';
 const PRIVACY_FLAG='kotoba-writer-privacy-lock-v1';
 const SHELL=['./','./index.html','./manifest.webmanifest','./licenses.html'];
 

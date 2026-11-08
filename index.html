@@ -532,6 +532,37 @@ html.kw-dark .kw66-genre,html.kw-dark .kw66-license{background:#2b342e;color:#dd
 html.kw-dark .kw66-genre select{background:#333;color:#fff;border-color:#777}
 
 
+/* build76: Compact, intentionally unobtrusive meaning helper.
+   The system Japanese IME candidate list is not exposed to web apps;
+   these are Kotoba Writer's independent curated candidates. */
+#wordCandidates{position:fixed;left:auto;right:10px;bottom:calc(40px + env(safe-area-inset-bottom));
+  width:min(216px,calc(100vw - 20px));max-height:126px;overflow:auto;z-index:80;
+  border:1px solid #b6b2ac;border-radius:10px;background:rgba(255,255,255,.97);
+  box-shadow:0 3px 14px #0002;padding:5px 6px;color:#252321;
+  font-size:11px;line-height:1.35;writing-mode:horizontal-tb!important;
+  -webkit-overflow-scrolling:touch}
+#wordCandidates[hidden]{display:none!important}
+#wordCandidates.kw76-vertical{left:10px;right:auto}
+#wordCandidates .kw76-head{display:flex;justify-content:space-between;gap:5px;align-items:center;
+  font-size:10px;color:#6b6762;white-space:nowrap;margin-bottom:3px}
+#wordCandidates .kw76-head button{margin:0!important;padding:0 3px;font-size:13px;
+  width:19px;height:19px;line-height:17px;border:0;border-radius:5px;background:transparent;color:inherit}
+#wordCandidates .kw76-item{display:flex;align-items:baseline;gap:4px;padding:3px 1px;
+  border-top:1px solid #eeece8;min-height:22px}
+#wordCandidates .kw76-term{font-size:12px;white-space:nowrap;font-weight:650;max-width:72px;overflow:hidden;text-overflow:ellipsis;flex-shrink:0}
+#wordCandidates .kw76-meaning{font-size:11px;color:#69645e;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1}
+#wordCandidates .kw76-add{font-size:10px;margin:0!important;padding:1px 4px;
+  border-radius:5px;flex-shrink:0;white-space:nowrap}
+#wordCandidates .kw76-select{font:inherit;color:inherit;background:transparent;
+  text-align:left;border:0;border-radius:5px;padding:0;margin:0!important;display:contents}
+#wordCandidates.kw76-only-dictionary .kw76-meaning{display:none}
+#wordCandidates .kw76-note{font-size:10px;color:#736e68;padding:3px 1px}
+html.kw-dark #wordCandidates{background:rgba(40,35,31,.97);border-color:#68605a;color:#ede8df}
+html.kw-dark #wordCandidates .kw76-item{border-color:#4c453f}
+html.kw-dark #wordCandidates .kw76-meaning,html.kw-dark #wordCandidates .kw76-head{color:#c7bdb4}
+@media(max-width:560px){#wordCandidates{width:min(198px,calc(100vw - 20px))}}
+@media print{#wordCandidates{display:none!important}}
 /* build67: small unified dictionary navigation. */
 #thesaurusBtn[hidden]{display:none!important}
 .kw67-tabs{display:flex;gap:7px;margin:8px 0 12px;align-items:center;flex-wrap:wrap}
@@ -609,7 +640,7 @@ html.kw-dark .kw67-tabs button,html.kw-dark .kw67-provider{background:#273329;co
   <span id="pageCount">1ページ</span>
   <span id="textIntegrity" title="入力した本文に含まれる明示改行と半角スペースの数（テスト版の診断表示）">改行0 / 半角空白0</span>
   <span id="documentName"></span>
-  <span class="build" id="buildVersion">Kotoba Writer build 37</span>
+  <span class="build" id="buildVersion">Kotoba Writer build 76</span>
 </div>
 
 <div id="dictionaryPanel" class="panel" role="dialog" aria-label="創作辞書">
@@ -621,10 +652,13 @@ html.kw-dark .kw67-tabs button,html.kw-dark .kw67-provider{background:#273329;co
 <h4 id="dictionaryRegisterTitle">辞書に登録する単語</h4>
 <label class="kw58-field">表記（正式名称）<input id="wordSpelling" maxlength="100" placeholder="例：アスタロト・マギア"></label>
 <label class="kw58-field">読み仮名<input id="wordReading" maxlength="100" placeholder="例：あすたろとまぎあ"></label>
+<label class="kw58-field">意味・説明（任意）<input id="wordMeaning" maxlength="140" placeholder="例：作中の特殊なエネルギー"></label>
 <label class="kw58-field">別名・音声認識で間違えやすい表記<textarea id="wordAliases" rows="3" placeholder="例：アスタロトマギア"></textarea></label>
 <p class="kw59-hint">ここは任意の入力欄です。誤認識される言葉があれば<strong>1行に1つ</strong>記入します。空欄のままでも登録できます。</p>
 <div class="kw59-register-controls"><button id="saveWord" class="primary" type="button">辞書に登録する</button><button id="cancelWordEdit" type="button">編集を解除</button></div>
 <label class="kw59-predict-label"><input id="predictionEnabled" type="checkbox" checked> 入力中の辞書候補を表示</label>
+<label class="kw59-predict-label"><input id="meaningAssistEnabled" type="checkbox" checked> 小さな意味ヒントを表示（変換中・確定後）</label>
+<p class="kw59-hint">iPad標準の変換候補そのものは取得できません。ヒントは内蔵語彙と創作辞書から独立表示します。<b>⌘＋Shift＋K</b>（または Ctrl＋Shift＋K）で確定語を辞書登録。読みが分かる場合は即保存します。</p>
 <p id="dictionaryStatus" role="status" aria-live="polite"></p>
 </section>
 <section class="kw59-group" aria-labelledby="dictionaryListTitle">
@@ -703,7 +737,7 @@ html.kw-dark .kw67-tabs button,html.kw-dark .kw67-provider{background:#273329;co
 <p>作品を個別に保管したいときや「新規」で次の作品を書く前は「TXT保存」を使い、戻るときは「TXTを開く」で選んでください。Webサイトデータを削除すると、自動保存データと保存履歴も失われます。</p>
 </div>
 <div class="row"><button id="snapshotNow">今の状態を履歴に残す</button></div><p id="backupStatus" role="status"></p><div id="backupList"></div></div>
-<div id="wordCandidates" hidden aria-label="辞書の予測候補"></div>
+<div id="wordCandidates" hidden role="status" aria-live="polite" aria-label="変換・確定後の単語の意味"></div>
 
 <div id="fileNamePanel" class="panel" role="dialog" aria-label="名前変更">
   <div class="kw62-panel-header"><h3>保存するファイル名</h3><button id="closeFileName" class="kw62-close" type="button" aria-label="名前変更を閉じる">× 閉じる</button></div>
@@ -828,7 +862,7 @@ Technology and LICENSEE agrees to preserve same.
 <div id="printArea"></div>
 
 <script type="module">
-const BUILD=75;
+const BUILD=76;
 const $=id=>document.getElementById(id);
 $('buildVersion').textContent='Kotoba Writer build '+BUILD;
 const STORAGE='kotoba-writer-draft-v1';
@@ -1750,24 +1784,26 @@ function bindEditor(ta){
     ta.addEventListener(type,()=>refreshEditorSelection(ta));
   ta.addEventListener('click',e=>verticalTap(ta,e));
   ta.addEventListener('compositionstart',()=>{
+    kw76StartComposition(ta);
     manuscriptCaretActivated=true;
     consumeGridTap(ta);
     isComposing=true;showManuscriptCaret();forgetArrowGoal();ta.closest('.page')?.classList.add('composing');
     remember();paintVertical(ta);scheduleReveal();
     clearTimeout(layoutIdleTimer);layoutIdleTimer=0;
   });
-  ta.addEventListener('compositionupdate',()=>{
+  ta.addEventListener('compositionupdate',e=>{
+    kw76UpdateComposition(ta,e);
     manuscriptCaretActivated=true;showManuscriptCaret();
     paintVertical(ta,true);noteVerticalColumn(ta,true);scheduleReveal();
   });
-  ta.addEventListener('compositionend',()=>{
+  ta.addEventListener('compositionend',e=>{
     // No provisional paragraphs or temporary spaces have ever been read from
     // contenteditable. The committed textarea string is the only source.
     isComposing=false;
     clearCompositionGhosts(ta);
     ta.closest('.page')?.classList.remove('composing');
     syncFromPage(ta,true,false);paintVertical(ta);noteVerticalColumn(ta);
-    scheduleReveal();
+    scheduleReveal();kw76EndComposition(ta,e);
   });
   // iPad context-menu pastes may report either a paste event or insertFromPaste.
   // Mark them so the page split happens immediately rather than after the idle timer.
@@ -1817,6 +1853,7 @@ function bindEditor(ta){
     renderPages(globalCaret,globalSelEnd,false,false);
   });
   ta.addEventListener('keydown',e=>{
+    if(kw76RegisterShortcut(e))return;
     if(!isComposing&&!e.isComposing && !['Shift','Control','Alt','Meta','CapsLock'].includes(e.key))
       consumeGridTap(ta);
     if(!isComposing&&!e.isComposing&&!e.metaKey&&!e.ctrlKey&&!e.altKey){
@@ -2819,9 +2856,9 @@ function validateDictionary(d){
   const ids=new Set();
   for(const w of d.works){
     if(typeof w.id!=='string'||ids.has(w.id)||typeof w.name!=='string'||!w.name||!Array.isArray(w.words)||w.words.length>5000)throw Error('作品の形式が違います');ids.add(w.id);
-    for(const x of w.words)if(typeof x.spelling!=='string'||!x.spelling||x.spelling.length>100||typeof x.reading!=='string'||x.reading.length>100||!Array.isArray(x.aliases)||x.aliases.length>30||x.aliases.some(a=>typeof a!=='string'||!a||a.length>100))throw Error('単語の形式が違います');
+    for(const x of w.words)if(typeof x.spelling!=='string'||!x.spelling||x.spelling.length>100||typeof x.reading!=='string'||x.reading.length>100||!Array.isArray(x.aliases)||x.aliases.length>30||x.aliases.some(a=>typeof a!=='string'||!a||a.length>100)||(x.meaning!==undefined&&(typeof x.meaning!=='string'||x.meaning.length>140)))throw Error('単語の形式が違います');
   }
-  return {works:d.works.map(w=>({id:w.id,name:w.name.slice(0,100),words:w.words.map(x=>({spelling:x.spelling,reading:x.reading,aliases:x.aliases}))})),active:ids.has(d.active)?d.active:d.works[0].id,predict:d.predict!==false};
+  return {works:d.works.map(w=>({id:w.id,name:w.name.slice(0,100),words:w.words.map(x=>({spelling:x.spelling,reading:x.reading,aliases:x.aliases,meaning:x.meaning||''}))})),active:ids.has(d.active)?d.active:d.works[0].id,predict:d.predict!==false};
 }
 try{const raw=localStorage.getItem(DICT_KEY);if(raw)dictionary=validateDictionary(JSON.parse(raw));}catch{$('dictionaryStatus').textContent='辞書を読み込めませんでした。保存データを上書きする前に書き出し元を確認してください。';}
 const activeWords=()=>dictionary.works.find(w=>w.id===dictionary.active).words;
@@ -2829,7 +2866,7 @@ function saveDictionary(next){
   try{localStorage.setItem(DICT_KEY,JSON.stringify(next));dictionary=next;$('dictionaryStatus').textContent='辞書を端末内に保存済み';return true;}
   catch{$('dictionaryStatus').textContent='辞書保存失敗。辞書を書き出してください。';return false;}
 }
-function resetWordForm(){editingWord=null;$('wordSpelling').value='';$('wordReading').value='';$('wordAliases').value='';$('saveWord').textContent='辞書に登録する';}
+function resetWordForm(){editingWord=null;$('wordSpelling').value='';$('wordReading').value='';$('wordMeaning').value='';$('wordAliases').value='';$('saveWord').textContent='辞書に登録する';}
 function drawDictionary(){
   const select=$('dictionaryWork');select.replaceChildren();
   for(const w of dictionary.works){const o=document.createElement('option');o.value=w.id;o.textContent=w.name;select.append(o);}select.value=dictionary.active;
@@ -2844,12 +2881,12 @@ function drawDictionary(){
     const row=document.createElement('div');row.className='kw59-dict-entry';row.setAttribute('role','listitem');
     const detail=document.createElement('div');detail.className='kw59-dict-detail';
     const main=document.createElement('strong');main.textContent=w.spelling;
-    const sub=document.createElement('small');sub.textContent='読み：'+w.reading+(w.aliases.length?' ／ 別名・誤認識：'+w.aliases.join('、'):'');
+    const sub=document.createElement('small');sub.textContent='読み：'+w.reading+(w.meaning?' ／ 意味：'+w.meaning:'')+(w.aliases.length?' ／ 別名・誤認識：'+w.aliases.join('、'):'');
     detail.append(main,sub);
     const actions=document.createElement('div');actions.className='kw59-dict-actions';
     const insert=document.createElement('button');insert.textContent='本文へ挿入';insert.onclick=()=>insertAtCaret(w.spelling);
     const edit=document.createElement('button');edit.textContent='編集';edit.onclick=()=>{
-      editingWord=i;$('wordSpelling').value=w.spelling;$('wordReading').value=w.reading;
+      editingWord=i;$('wordSpelling').value=w.spelling;$('wordReading').value=w.reading;$('wordMeaning').value=w.meaning||'';
       $('wordAliases').value=w.aliases.join('\n');$('saveWord').textContent='変更を保存する';
       $('dictionaryPanel').scrollTo({top:0,behavior:'smooth'});$('wordSpelling').focus({preventScroll:true});
     };
@@ -2873,7 +2910,7 @@ $('dictionaryWork').onchange=()=>{const next=structuredClone(dictionary);next.ac
 $('addWork').onclick=()=>{const name=prompt('作品名');if(!name?.trim())return;const next=structuredClone(dictionary);const id=crypto.randomUUID();next.works.push({id,name:name.trim().slice(0,100),words:[]});next.active=id;if(saveDictionary(next)){resetWordForm();drawDictionary();}};
 $('predictionEnabled').onchange=()=>{const next=structuredClone(dictionary);next.predict=$('predictionEnabled').checked;if(!saveDictionary(next))$('predictionEnabled').checked=dictionary.predict;};
 $('saveWord').onclick=()=>{
-  const word={spelling:$('wordSpelling').value.trim(),reading:$('wordReading').value.trim(),aliases:[...new Set($('wordAliases').value.split('\n').map(x=>x.trim()).filter(Boolean))]};
+  const word={spelling:$('wordSpelling').value.trim(),reading:$('wordReading').value.trim(),meaning:$('wordMeaning').value.trim(),aliases:[...new Set($('wordAliases').value.split('\n').map(x=>x.trim()).filter(Boolean))]};
   if(!word.spelling){$('dictionaryStatus').textContent='表記を入力してください';return;}
   const next=structuredClone(dictionary),words=next.works.find(w=>w.id===next.active).words;
   if(words.some((x,i)=>x.spelling===word.spelling&&i!==editingWord)){$('dictionaryStatus').textContent='同じ表記は登録済みです。編集してください。';return;}
@@ -2931,26 +2968,194 @@ function insertAtCaret(text){
   }
   $('wordCandidates').hidden=true;return true;
 }
-function showWordCandidates(e){
-  const ta=e.target;if(!ta.classList?.contains('page-editor'))return;
-  const box=$('wordCandidates');box.hidden=true;
-  if(!dictionary.predict||isComposing||ta.selectionStart!==ta.selectionEnd)return;
-  const c=chunks[+ta.dataset.index];if(!c)return;const end=c.start+ta.selectionStart;
-  const prefix=docText.slice(Math.max(0,end-100),end),matches=[];
-  for(const w of activeWords()){
-    let len=0;for(const token of [w.reading,...w.aliases].filter(Boolean)){
-      for(let n=Math.min(prefix.length,token.length);n>=1;n--){const tail=prefix.slice(-n);if(kanaKey(token).startsWith(kanaKey(tail))){len=Math.max(len,n);break;}}
-    }if(len)matches.push({w,len});
-  }
-  if(!matches.length)return;box.replaceChildren();const snap=docText;
-  matches.sort((a,b)=>b.len-a.len).slice(0,5).forEach(({w,len})=>{
-    const b=document.createElement('button');b.textContent=w.spelling;b.onpointerdown=e=>e.preventDefault();
-    b.onclick=()=>{if(docText!==snap||isComposing)return;setDoc(docText.slice(0,end-len)+w.spelling+docText.slice(end),end-len+w.spelling.length,end-len+w.spelling.length,true,true);box.hidden=true;};box.append(b);
-  });const close=document.createElement('button');close.textContent='閉じる';close.onclick=()=>box.hidden=true;box.append(close);box.hidden=false;
+/* build76: light-weight locally authored meaning assistance. No IME candidate introspection. */
+const KW76_WORDS = [["こうせい","構成","全体を組み立てること"],["こうせい","校正","誤字や脱字を確認し直すこと"],["こうせい","公正","偏りがなく公平なこと"],["こうせい","更生","行いを改め立ち直ること"],["こうせい","恒星","自ら光を放つ天体"],["こうせい","攻勢","積極的に攻める姿勢"],["こうせい","厚生","生活や健康を豊かにすること"],["かんしょう","鑑賞","作品を味わい楽しむこと"],["かんしょう","観賞","景色や植物などを見て楽しむこと"],["かんしょう","感傷","物事に触れて切なくなること"],["かんしょう","干渉","他の物事に立ち入って関わること"],["かんしょう","緩衝","衝撃や対立を和らげること"],["しょうそう","焦燥","気持ちが焦り落ち着かないこと"],["しょうそう","肖像","人物の姿を表した絵や写真"],["しこう","思考","考えること"],["しこう","志向","目標や方向を目指すこと"],["しこう","嗜好","好みや趣味の傾向"],["しこう","試行","試しに行ってみること"],["しこう","施行","法令などを実際に効力あるものにすること"],["いし","意思","行動を決める心の働き"],["いし","意志","物事をやり遂げようとする気持ち"],["いし","遺志","亡くなった人が残した志"],["いし","医師","医療を行う資格を持つ人"],["たいしょう","対象","働きかけや注意が向かうもの"],["たいしょう","対照","比べて違いを際立たせること"],["たいしょう","対称","左右などが対応する形"],["たいしょう","大賞","賞のうち最上位のもの"],["きしょう","気象","大気の状態と現象"],["きしょう","希少","数が少なく珍しいこと"],["きしょう","起床","眠りから覚め起きること"],["きしょう","気性","その人に生まれついた気質"],["こうか","効果","働きかけによって生じた結果"],["こうか","高価","値段が高いこと"],["こうか","硬化","硬くなること"],["こうか","降下","高い位置から下がること"],["こうか","校歌","学校を象徴する歌"],["せいか","成果","取り組みで得られた結果"],["せいか","生花","生きた草花を使った花"],["せいか","聖歌","宗教的な歌"],["せいか","製菓","菓子を作ること"],["かいそう","回想","過去の出来事を思い返すこと"],["かいそう","階層","段階的に重なる構造"],["かいそう","改装","建物などの装いを変えること"],["かいそう","海藻","海で育つ藻類"],["かんせい","完成","作り終えて仕上げること"],["かんせい","感性","感じ取り表現する心の働き"],["かんせい","慣性","物体が運動状態を保つ性質"],["かんせい","歓声","喜びや興奮による大きな声"],["しょうめい","証明","根拠を示して正しさを明らかにすること"],["しょうめい","照明","光で照らすこと"],["しょうめい","声明","考えや立場を公に発表すること"],["こうどう","行動","目的に向かって動くこと"],["こうどう","公道","一般に通行できる道路"],["こうどう","講堂","集会や講演を行う建物"],["しんこう","進行","物事が先へ進むこと"],["しんこう","信仰","神仏などを信じ敬うこと"],["しんこう","振興","産業や文化などを盛んにすること"],["しんこう","侵攻","他の地域へ攻め入ること"],["しんせい","申請","許可などを正式に申し出ること"],["しんせい","新生","新しく生まれ変わること"],["しんせい","神聖","神に関わるように尊いこと"],["げんそう","幻想","現実にはないものを心に思い描くこと"],["げんそう","減速","速度を落とすこと"],["しょうげき","衝撃","強い打撃や驚き"],["せいじゃく","静寂","静まり返っていること"],["しょうどう","衝動","抑えにくい突発的な欲求"],["こうぼう","攻防","攻めと守りのやり取り"],["ひょうげん","表現","考えや感情を形にして伝えること"],["こうさつ","考察","根拠をもとに深く考えること"],["せってい","設定","物事の条件や仕組みを定めること"],["しんり","心理","心の働きや状態"],["ぶんみゃく","文脈","文章の前後のつながり"],["おぼろ","朧","輪郭がはっきりしないさま"],["はかな","儚い","消えやすく頼りないさま"],["せつな","刹那","きわめて短い時間"],["せきりょう","寂寥","ひっそりとした物寂しさ"],["むじゅうりょく","無重力","重さを感じないような状態"],["せいれん","清廉","心や行いが清く私欲がないこと"],["きょうめい","共鳴","響き合うこと・強く共感すること"],["ほうかい","崩壊","まとまりが崩れ壊れること"],["しんぴ","神秘","理屈では説明しきれない不思議さ"],["えいごう","永劫","限りなく長い時間"],["こうかい","後悔","過去の行いを悔やむこと"],["こうかい","公開","誰でも見られるようにすること"],["こうかい","航海","船で海を進むこと"],["せいぎ","正義","道理にかなっていること"],["ゆううつ","憂鬱","気分がふさぐこと"],["あいまい","曖昧","意味や態度がはっきりしないこと"],["きおく","記憶","経験を覚え保持すること"],["やくどう","躍動","生き生きと力強く動くこと"]].map(([reading,spelling,meaning])=>({reading,spelling,meaning,custom:false}));
+const KW76_PREF_KEY='kotoba-writer-meaning-assist-v1';
+let kw76MeaningEnabled=true,kw76LastCommitted=null,kw76HideTimer=0;
+try{kw76MeaningEnabled=localStorage.getItem(KW76_PREF_KEY)!=='0'}catch{}
+$('meaningAssistEnabled').checked=kw76MeaningEnabled;
+$('meaningAssistEnabled').addEventListener('change',()=>{
+  kw76MeaningEnabled=$('meaningAssistEnabled').checked;
+  try{localStorage.setItem(KW76_PREF_KEY,kw76MeaningEnabled?'1':'0')}catch{}
+  if(!kw76MeaningEnabled)$('wordCandidates').hidden=true;
+});
+function kw76Words(){
+  return activeWords().map(w=>({spelling:w.spelling,reading:w.reading,
+    meaning:w.meaning||'創作辞書に登録済み',aliases:w.aliases||[],custom:true})).concat(KW76_WORDS);
 }
-document.addEventListener('input',e=>setTimeout(()=>showWordCandidates(e),0));
-document.addEventListener('compositionend',e=>setTimeout(()=>showWordCandidates(e),0));
-document.addEventListener('selectionchange',()=>{$('wordCandidates').hidden=true;});
+function kw76Exact(word){
+  return kw76Words().find(w=>w.spelling===word)||null;
+}
+function kw76MeaningFor(word){return kw76Exact(word)?.meaning||'';}
+function kw76NormalizedReading(text){return kanaKey((text||'').normalize('NFKC')).trim();}
+function kw76ReadingCandidates(reading){
+  const q=kw76NormalizedReading(reading);
+  if(!q||q.length<2)return [];
+  const seen=new Set();
+  const hits=[];
+  for(const w of kw76Words()){
+    const keys=[w.reading,...(w.aliases||[])].map(kw76NormalizedReading).filter(Boolean);
+    if(!keys.some(k=>k.startsWith(q)))continue;
+    if(seen.has(w.spelling))continue;
+    seen.add(w.spelling);hits.push(w);
+  }
+  return hits.sort((a,b)=>Number(b.custom)-Number(a.custom)).slice(0,3);
+}
+function kw76HideMeanings(){
+  clearTimeout(kw76HideTimer);$('wordCandidates').hidden=true;
+}
+function kw76RenderPanel(title,words,after=false,registrationWord='',context=null){
+  const box=$('wordCandidates');clearTimeout(kw76HideTimer);
+  if((!kw76MeaningEnabled && (!context || after))||!words.length){box.hidden=true;return;}
+  box.classList.toggle('kw76-vertical',getSettings().writingMode==='vertical');
+  box.classList.toggle('kw76-only-dictionary',!kw76MeaningEnabled);
+  box.replaceChildren();
+  const head=document.createElement('div');head.className='kw76-head';
+  const titleEl=document.createElement('span');titleEl.textContent=title;
+  const close=document.createElement('button');close.type='button';close.textContent='×';close.title='意味ヒントを閉じる';
+  close.setAttribute('aria-label','意味ヒントを閉じる');close.onpointerdown=e=>e.preventDefault();close.onclick=kw76HideMeanings;
+  head.append(titleEl,close);box.append(head);
+  for(const w of words.slice(0,3)){
+    const row=document.createElement('div');row.className='kw76-item';
+    const term=document.createElement('span');term.className='kw76-term';term.textContent=w.spelling;
+    const meaning=document.createElement('span');meaning.className='kw76-meaning';
+    meaning.textContent=w.meaning||'意味の登録なし';meaning.title=meaning.textContent;
+    row.append(term,meaning);
+    if(context && w.custom && !after){
+      const insert=document.createElement('button');insert.type='button';insert.className='kw76-add';
+      insert.textContent='挿入';insert.title='この創作語を本文に挿入';
+      insert.onpointerdown=e=>e.preventDefault();
+      insert.onclick=()=>{
+        if(isComposing||docText!==context.snapshot)return;
+        const start=context.end-context.length;
+        if(start<0 || kw76NormalizedReading(docText.slice(start,context.end))!==context.reading)return;
+        const caret=start+w.spelling.length;
+        kw76HideMeanings();setDoc(docText.slice(0,start)+w.spelling+docText.slice(context.end),caret,caret,true,true);
+      };
+      row.append(insert);
+    }
+    if(after && w.spelling===registrationWord){
+      const b=document.createElement('button');b.type='button';b.className='kw76-add';b.textContent='＋辞書';
+      b.title='この言葉を創作辞書へ登録';b.onpointerdown=e=>e.preventDefault();
+      b.onclick=()=>kw76RegisterWord(w.spelling,w.reading);row.append(b);
+    }
+    box.append(row);
+  }
+  box.hidden=false;
+  if(after)kw76HideTimer=setTimeout(kw76HideMeanings,6500);
+}
+function kw76ShowReading(raw,context=null){
+  if(!dictionary.predict)return kw76HideMeanings();
+  let candidates=kw76ReadingCandidates(raw);
+  if(!kw76MeaningEnabled)candidates=context?candidates.filter(w=>w.custom):[];
+  kw76RenderPanel(kw76MeaningEnabled?'変換候補の意味（参考）':'創作辞書の候補',candidates,false,'',context);
+}
+function kw76StartComposition(ta){
+  kw76HideMeanings();
+  ta._kw76Composition={before:docText,reading:'',at:Date.now()};
+}
+function kw76UpdateComposition(ta,e){
+  const session=ta._kw76Composition;if(!session)return;
+  const data=String(e.data||'');
+  if(/^[ぁ-ゖァ-ヶー]+$/u.test(data) && data.length<=50){
+    session.reading=kw76NormalizedReading(data);
+  }
+  if(session.reading)kw76ShowReading(session.reading);
+}
+function kw76ChangedTerm(before,after){
+  let start=0;
+  while(start<before.length&&start<after.length&&before[start]===after[start])start++;
+  let b=before.length,a=after.length;
+  while(b>start&&a>start&&before[b-1]===after[a-1]){b--;a--;}
+  return after.slice(start,a);
+}
+function kw76EndComposition(ta,e){
+  const session=ta._kw76Composition;ta._kw76Composition=null;
+  if(!session)return;
+  const eventText=String(e.data||'');
+  setTimeout(()=>{
+    // Save first; never mutate the active textarea, its selection, or IME preedit.
+    const changed=kw76ChangedTerm(session.before,docText);
+    const word=(eventText && (changed.includes(eventText)||!changed)?eventText:changed).trim();
+    if(!word||word.length>100)return kw76HideMeanings();
+    const known=kw76Exact(word);
+    const reading=session.reading || known?.reading || '';
+    const pos=docText.lastIndexOf(word,Math.max(0,globalCaret-word.length));
+    kw76LastCommitted={word,reading,position:pos,time:Date.now()};
+    if(known)kw76RenderPanel('確定した語の意味',[known],true,word);
+    else kw76HideMeanings();
+  },0);
+}
+function kw76ShowInputSuggestions(e){
+  const ta=e.target;
+  if(!ta?.classList?.contains('page-editor'))return;
+  if(isComposing||e.isComposing||e.inputType==='insertFromComposition'||e.inputType==='insertCompositionText')return;
+  // Some versions of Safari dispatch an ordinary input *after* compositionend.
+  // Do not let that trailing event immediately erase the confirmed-word hint.
+  if(kw76LastCommitted && Date.now()-kw76LastCommitted.time<350 &&
+     docText.slice(kw76LastCommitted.position,kw76LastCommitted.position+kw76LastCommitted.word.length)===kw76LastCommitted.word)return;
+  const c=chunks[+ta.dataset.index];if(!c||ta.selectionStart!==ta.selectionEnd)return kw76HideMeanings();
+  const prefix=ta.value.slice(Math.max(0,ta.selectionStart-20),ta.selectionStart);
+  const match=prefix.match(/[ぁ-ゖァ-ヶー]{2,20}$/u);
+  if(match)kw76ShowReading(match[0],{end:globalCaret,length:match[0].length,snapshot:docText,reading:kw76NormalizedReading(match[0])});
+  else if(e.inputType!=='insertCompositionText')kw76HideMeanings();
+}
+function kw76SelectionWord(){
+  const start=Math.min(globalCaret,globalSelEnd),end=Math.max(globalCaret,globalSelEnd);
+  if(end>start && end-start<=100)return docText.slice(start,end);
+  const last=kw76LastCommitted;
+  if(last && Date.now()-last.time<30000 && last.position>=0 &&
+     docText.slice(last.position,last.position+last.word.length)===last.word &&
+     Math.abs(globalCaret-(last.position+last.word.length))<=2)return last.word;
+  // Fallback: last known dictionary term before caret; avoids guessing Japanese boundaries.
+  const prefix=docText.slice(Math.max(0,globalCaret-100),globalCaret);
+  const matched=kw76Words().filter(w=>prefix.endsWith(w.spelling))
+    .sort((a,b)=>b.spelling.length-a.spelling.length)[0];
+  return matched?.spelling||'';
+}
+function kw76RegisterWord(word,reading=''){
+  if(isComposing||fullTextComposing)return;
+  word=String(word||'').trim();if(!word)return;
+  const old=activeWords().find(w=>w.spelling===word);
+  if(old){
+    kw76HideMeanings();$('dictionaryStatus').textContent='「'+word+'」は登録済みです';
+    return;
+  }
+  const known=kw76Exact(word);
+  const last=kw76LastCommitted;
+  reading=reading||((last?.word===word)?last.reading:'')||known?.reading||'';
+  const meaning=(known?.meaning==='創作辞書に登録済み'?'':known?.meaning)||'';
+  if(reading){
+    const next=structuredClone(dictionary);
+    next.works.find(w=>w.id===next.active).words.push({spelling:word,reading,meaning,aliases:[]});
+    try{validateDictionary(next)}catch{return;}
+    if(saveDictionary(next)){
+      drawDictionary();kw76RenderPanel('創作辞書に登録済み',[{spelling:word,meaning:'読み：'+reading}],true,'');
+      return;
+    }
+  }
+  // Readings are not always exposed by Safari; open a prefilled form instead.
+  resetWordForm();$('wordSpelling').value=word;$('wordReading').value=reading;
+  $('wordMeaning').value=meaning;
+  kw76HideMeanings();drawDictionary();$('dictionaryPanel').classList.add('show');
+  $('dictionaryStatus').textContent='読みを確認して「辞書に登録する」を押してください。';
+  $('wordReading').focus({preventScroll:true});
+}
+function kw76RegisterShortcut(e){
+  if(!(e.metaKey||e.ctrlKey)||!e.shiftKey||e.altKey||e.key.toLowerCase()!=='k'||
+     isComposing||e.isComposing||fullTextComposing)return false;
+  const word=kw76SelectionWord();
+  if(!word)return false;
+  e.preventDefault();e.stopPropagation();
+  kw76RegisterWord(word);return true;
+}
+document.addEventListener('input',e=>{
+  if(e.target?.classList?.contains('page-editor'))setTimeout(()=>kw76ShowInputSuggestions(e),0);
+});
+document.addEventListener('selectionchange',()=>{
+  if(!isComposing && !$('wordCandidates').hidden &&
+    !kw76LastCommitted?.word)kw76HideMeanings();
+});
 let voiceRecognition=null,voiceWanted=false,voiceGeneration=0,voiceRestartTimer=null,voiceEmptyEnds=0;
 try{$('voiceDraft').value=localStorage.getItem(VOICE_KEY)||'';}catch{}
 function refreshVoiceIndicators(){
